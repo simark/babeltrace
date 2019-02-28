@@ -41,8 +41,7 @@ typedef enum bt_query_executor_status {
 	BT_QUERY_EXECUTOR_STATUS_INVALID_PARAMS = -24,
 } bt_query_executor_status;
 
-extern
-bt_bool bt_query_executor_is_canceled(
+extern bt_bool bt_query_executor_is_canceled(
 		const bt_query_executor *query_executor);
 
 extern void bt_query_executor_get_ref(

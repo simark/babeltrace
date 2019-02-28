@@ -46,6 +46,7 @@ else
 
 fi
 
+# TODO: make this use test_python_bt2_env, make sure it works well with coverage.
 PYTHONPATH="${PYTHON_BUILD_DIR}:${TESTS_UTILS_PYTHON_DIR}" \
 	"${EXEC}" "${TESTRUNNER_PY}" "${THIS_DIR}"
 res=$?

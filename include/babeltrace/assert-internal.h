@@ -28,6 +28,15 @@
 #include <babeltrace/babeltrace-internal.h>
 
 #ifdef BT_DEBUG_MODE
+
+/*
+ * If NDEBUG is defined, it renders BT_ASSERT useless.  Make sure it is not
+ * defined when building Babeltrace in debug mode.
+ */
+#ifdef NDEBUG
+#error "BT_DEBUG_MODE and NDEBUG are both defined."
+#endif
+
 /*
  * Internal assertion (to detect logic errors on which the library user
  * has no influence). Use BT_ASSERT_PRE() to check a precondition which

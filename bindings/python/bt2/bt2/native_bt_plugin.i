@@ -27,37 +27,83 @@ struct bt_plugin;
 struct bt_plugin_set;
 
 /* Status */
-enum bt_plugin_status {
-	BT_PLUGIN_STATUS_OK = 0,
-	BT_PLUGIN_STATUS_ERROR = -1,
-	BT_PLUGIN_STATUS_NOMEM = -4,
-};
+//enum bt_plugin_status {
+//	BT_PLUGIN_STATUS_OK = 0,
+//	BT_PLUGIN_STATUS_ERROR = -1,
+//	BT_PLUGIN_STATUS_NOMEM = -4,
+//};
 
 /* Plugin functions */
-struct bt_plugin *bt_plugin_find(const char *plugin_name);
-struct bt_component_class *bt_plugin_find_component_class(
-		const char *plugin_name, const char *component_class_name,
-		enum bt_component_class_type component_class_type);
-struct bt_plugin_set *bt_plugin_create_all_from_file(const char *path);
-struct bt_plugin_set *bt_plugin_create_all_from_dir(const char *path,
-		int recurse);
-struct bt_plugin_set *bt_plugin_create_all_from_static(void);
-const char *bt_plugin_get_name(struct bt_plugin *plugin);
-const char *bt_plugin_get_author(struct bt_plugin *plugin);
-const char *bt_plugin_get_license(struct bt_plugin *plugin);
-const char *bt_plugin_get_description(struct bt_plugin *plugin);
-const char *bt_plugin_get_path(struct bt_plugin *plugin);
-enum bt_plugin_status bt_plugin_get_version(struct bt_plugin *plugin,
-		unsigned int *OUTPUTINIT, unsigned int *OUTPUTINIT,
-		unsigned int *OUTPUTINIT, const char **BTOUTSTR);
-int64_t bt_plugin_get_component_class_count(struct bt_plugin *plugin);
-struct bt_component_class *bt_plugin_get_component_class_by_index(
-		struct bt_plugin *plugin, uint64_t index);
-struct bt_component_class *bt_plugin_get_component_class_by_name_and_type(
-		struct bt_plugin *plugin, const char *name,
-		enum bt_component_class_type type);
+
+extern const bt_plugin *bt_plugin_find(const char *plugin_name);
+
+extern const bt_plugin_set *bt_plugin_find_all_from_file(
+		const char *path);
+
+extern const bt_plugin_set *bt_plugin_find_all_from_dir(
+		const char *path, bt_bool recurse);
+
+extern const bt_plugin_set *bt_plugin_find_all_from_static(void);
+
+extern const char *bt_plugin_get_name(const bt_plugin *plugin);
+
+extern const char *bt_plugin_get_author(const bt_plugin *plugin);
+
+extern const char *bt_plugin_get_license(const bt_plugin *plugin);
+
+extern const char *bt_plugin_get_description(const bt_plugin *plugin);
+
+extern const char *bt_plugin_get_path(const bt_plugin *plugin);
+
+extern bt_property_availability bt_plugin_get_version(
+		const bt_plugin *plugin, unsigned int *OUTPUTINIT,
+		unsigned int *OUTPUTINIT, unsigned int *OUTPUTINIT, const char **BTOUTSTR);
+
+extern uint64_t bt_plugin_get_source_component_class_count(
+		const bt_plugin *plugin);
+
+extern uint64_t bt_plugin_get_filter_component_class_count(
+		const bt_plugin *plugin);
+
+extern uint64_t bt_plugin_get_sink_component_class_count(
+		const bt_plugin *plugin);
+
+extern const bt_component_class_source *
+bt_plugin_borrow_source_component_class_by_index_const(
+		const bt_plugin *plugin, uint64_t index);
+
+extern const bt_component_class_filter *
+bt_plugin_borrow_filter_component_class_by_index_const(
+		const bt_plugin *plugin, uint64_t index);
+
+extern const bt_component_class_sink *
+bt_plugin_borrow_sink_component_class_by_index_const(
+		const bt_plugin *plugin, uint64_t index);
+
+extern const bt_component_class_source *
+bt_plugin_borrow_source_component_class_by_name_const(
+		const bt_plugin *plugin, const char *name);
+
+extern const bt_component_class_filter *
+bt_plugin_borrow_filter_component_class_by_name_const(
+		const bt_plugin *plugin, const char *name);
+
+extern const bt_component_class_sink *
+bt_plugin_borrow_sink_component_class_by_name_const(
+		const bt_plugin *plugin, const char *name);
+
+extern void bt_plugin_get_ref(const bt_plugin *plugin);
+
+extern void bt_plugin_put_ref(const bt_plugin *plugin);
 
 /* Plugin set functions */
-int64_t bt_plugin_set_get_plugin_count(struct bt_plugin_set *plugin_set);
-struct bt_plugin *bt_plugin_set_get_plugin(struct bt_plugin_set *plugin_set,
-		uint64_t index);
+
+extern uint64_t bt_plugin_set_get_plugin_count(
+		const bt_plugin_set *plugin_set);
+
+extern const bt_plugin *bt_plugin_set_borrow_plugin_by_index_const(
+		const bt_plugin_set *plugin_set, uint64_t index);
+
+extern void bt_plugin_set_get_ref(const bt_plugin_set *plugin_set);
+
+extern void bt_plugin_set_put_ref(const bt_plugin_set *plugin_set);

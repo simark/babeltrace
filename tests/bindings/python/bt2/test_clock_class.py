@@ -3,9 +3,11 @@ import uuid
 import copy
 import bt2
 from collections import OrderedDict
+from test_utils.test_utils import run_in_component_init
 
-#Raise "create a graph to generate event notification so we can change and test the clock value using the 
-#Bt_event_set_clock_value"
+
+# Raise "create a graph to generate event notification so we can change and test the clock value using the
+# Bt_event_set_clock_value"
 
 class ClockClassOffsetTestCase(unittest.TestCase):
     def test_create_default(self):
@@ -52,7 +54,10 @@ class ClockClassOffsetTestCase(unittest.TestCase):
 
 class ClockClassTestCase(unittest.TestCase):
     def setUp(self):
-        self._cc = bt2.ClockClass('salut', 1000000)
+        def f(comp_self):
+            return comp_self._create_clock_class('salut', 1000000)
+
+        self._cc = run_in_component_init(f)
 
     def tearDown(self):
         del self._cc
@@ -62,21 +67,25 @@ class ClockClassTestCase(unittest.TestCase):
 
     def test_create_full(self):
         my_uuid = uuid.uuid1()
-        cc = bt2.ClockClass(name='name', description='some description',
-                            frequency=1001, precision=176,
-                            offset=bt2.ClockClassOffset(45, 3),
-                            is_absolute=True, uuid=my_uuid)
+
+        def f(comp_self):
+            return comp_self._create_clock_class(name='name', description='some description',
+                                                 frequency=1001, precision=176,
+                                                 offset=bt2.ClockClassOffset(45, 3),
+                                                 origin_is_unix_epoch=True, uuid=my_uuid)
+
+        cc = run_in_component_init(f)
+
         self.assertEqual(cc.name, 'name')
         self.assertEqual(cc.description, 'some description')
         self.assertEqual(cc.frequency, 1001)
         self.assertEqual(cc.precision, 176)
         self.assertEqual(cc.offset, bt2.ClockClassOffset(45, 3))
-        self.assertEqual(cc.is_absolute, True)
+        self.assertEqual(cc.origin_is_unix_epoch, True)
         self.assertEqual(cc.uuid, copy.deepcopy(my_uuid))
 
     def test_create_no_uuid(self):
-        cc = bt2.ClockClass()
-        self.assertIsNone(cc.uuid)
+        self.assertIsNone(self._cc.uuid)
 
     def test_assign_name(self):
         self._cc.name = 'the_clock'
@@ -119,16 +128,16 @@ class ClockClassTestCase(unittest.TestCase):
             self._cc.offset = object()
 
     def test_assign_absolute(self):
-        self._cc.is_absolute = True
-        self.assertTrue(self._cc.is_absolute)
+        self._cc.origin_is_unix_epoch = True
+        self.assertTrue(self._cc.origin_is_unix_epoch)
 
     def test_assign_not_absolute(self):
-        self._cc.is_absolute = False
-        self.assertFalse(self._cc.is_absolute)
+        self._cc.origin_is_unix_epoch = False
+        self.assertFalse(self._cc.origin_is_unix_epoch)
 
     def test_assign_invalid_absolute(self):
         with self.assertRaises(TypeError):
-            self._cc.is_absolute = 23
+            self._cc.origin_is_unix_epoch = 23
 
     def test_assign_uuid(self):
         the_uuid = uuid.uuid1()
@@ -142,65 +151,73 @@ class ClockClassTestCase(unittest.TestCase):
 
 class ClockValueTestCase(unittest.TestCase):
     def setUp(self):
-        _cc = bt2.ClockClass('my_cc', 1000, offset=bt2.ClockClassOffset(45, 354))
-        _trace = bt2.Trace()
-        _sc = _trace.create_stream_class()
+        def f(comp_self):
+            cc = comp_self._create_clock_class('my_cc', 1000,
+                                               offset=bt2.ClockClassOffset(45, 354))
+            tc = comp_self._create_trace_class()
+
+            return (cc, tc)
+
+        _cc, _tc = run_in_component_init(f)
+        _trace = _tc()
+        _sc = _tc.create_stream_class()
         _sc.default_clock_class = _cc
         _ec = _sc.create_event_class()
         _ec.name = 'salut'
-        _stream = _sc()
+        _stream = _trace.create_stream(_sc)
         _packet = _stream.create_packet()
         self._packet = _packet
         self._stream = _stream
         self._ec = _ec
         self._cc = _cc
 
-        class MyIter(bt2._UserNotificationIterator):
+        class MyIter(bt2._UserMessageIterator):
             def __init__(self):
                 self._at = 0
 
             def __next__(self):
                 if self._at == 0:
-                    notif = self._create_stream_beginning_notification(_stream)
+                    notif = self._create_stream_beginning_message(_stream)
                 elif self._at == 1:
-                    notif = self._create_packet_beginning_notification(_packet)
+                    notif = self._create_packet_beginning_message(_packet, 100)
                 elif self._at == 2:
-                    notif = self._create_event_notification(_ec, _packet)
-                    notif.event.default_clock_value = 123
+                    notif = self._create_event_message(_ec, _packet, 123)
                 elif self._at == 3:
-                    notif = self._create_packet_end_notification(_packet)
+                    notif = self._create_packet_end_message(_packet)
                 elif self._at == 4:
-                    notif = self._create_stream_end_notification(_stream)
+                    notif = self._create_stream_end_message(_stream)
                 else:
                     raise bt2.Stop
 
                 self._at += 1
                 return notif
 
-
-        class MySrc(bt2._UserSourceComponent, notification_iterator_class=MyIter):
+        class MySrc(bt2._UserSourceComponent, message_iterator_class=MyIter):
             def __init__(self, params):
                 self._add_output_port('out')
 
         self._graph = bt2.Graph()
-        self._src_comp = self._graph.add_component(MySrc, 'my_source')
-        self._notif_iter = self._src_comp.output_ports['out'].create_notification_iterator()
+        self._src_comp = self._graph.add_source_component(MySrc, 'my_source')
+        self._msg_iter = self._graph.create_output_port_message_iterator(
+            self._src_comp.output_ports['out'])
 
-        for i, notif in enumerate(self._notif_iter):
+        for i, msg in enumerate(self._msg_iter):
             if i == 2:
-                self._cv = notif.event.default_clock_value
+                self._msg = msg
                 break
 
     def tearDown(self):
         del self._cc
-        del self._cv
+        del self._msg
 
     def test_create_default(self):
-        self.assertEqual(self._cv.clock_class.addr, self._cc.addr)
-        self.assertEqual(self._cv.cycles, 123)
+        self.assertEqual(
+            self._msg.default_clock_snapshot.clock_class.addr, self._cc.addr)
+        self.assertEqual(self._msg.default_clock_snapshot.cycles, 123)
 
     def test_clock_class(self):
-        self.assertEqual(self._cv.clock_class.addr, self._cc.addr)
+        self.assertEqual(
+            self._msg.default_clock_snapshot.clock_class.addr, self._cc.addr)
 
     def test_create_invalid_cycles_type(self):
         with self.assertRaises(TypeError):
@@ -209,10 +226,11 @@ class ClockValueTestCase(unittest.TestCase):
     def test_ns_from_origin(self):
         s_from_origin = 45 + ((354 + 123) / 1000)
         ns_from_origin = int(s_from_origin * 1e9)
-        self.assertEqual(self._cv.ns_from_origin, ns_from_origin)
+        self.assertEqual(
+            self._msg.default_clock_snapshot.ns_from_origin, ns_from_origin)
 
     def test_eq_int(self):
-        self.assertEqual(self._cv, 123)
+        self.assertEqual(self._msg.default_clock_snapshot, 123)
 
     def test_eq_invalid(self):
-        self.assertFalse(self._cv == 23)
+        self.assertFalse(self._msg.default_clock_snapshot == 23)

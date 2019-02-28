@@ -9,23 +9,23 @@ class UserComponentClassTestCase(unittest.TestCase):
             cls()
 
     def test_no_init_source(self):
-        class MyIter(bt2._UserNotificationIterator):
+        class MyIter(bt2._UserMessageIterator):
             def __next__(self):
                 raise bt2.Stop
 
         class MySource(bt2._UserSourceComponent,
-                       notification_iterator_class=MyIter):
+                       message_iterator_class=MyIter):
             pass
 
         self._test_no_init(MySource)
 
     def test_no_init_filter(self):
-        class MyIter(bt2._UserNotificationIterator):
+        class MyIter(bt2._UserMessageIterator):
             def __next__(self):
                 raise bt2.Stop
 
         class MyFilter(bt2._UserFilterComponent,
-                       notification_iterator_class=MyIter):
+                       message_iterator_class=MyIter):
             pass
 
         self._test_no_init(MyFilter)
@@ -38,7 +38,7 @@ class UserComponentClassTestCase(unittest.TestCase):
         self._test_no_init(MySink)
 
     def test_incomplete_source_no_notif_iter_cls(self):
-        class MyIter(bt2._UserNotificationIterator):
+        class MyIter(bt2._UserMessageIterator):
             pass
 
         with self.assertRaises(bt2.IncompleteUserClass):
@@ -46,16 +46,16 @@ class UserComponentClassTestCase(unittest.TestCase):
                 pass
 
     def test_incomplete_source_wrong_notif_iter_cls_type(self):
-        class MyIter(bt2._UserNotificationIterator):
+        class MyIter(bt2._UserMessageIterator):
             pass
 
         with self.assertRaises(bt2.IncompleteUserClass):
             class MySource(bt2._UserSourceComponent,
-                           notification_iterator_class=int):
+                           message_iterator_class=int):
                 pass
 
     def test_incomplete_filter_no_notif_iter_cls(self):
-        class MyIter(bt2._UserNotificationIterator):
+        class MyIter(bt2._UserMessageIterator):
             pass
 
         with self.assertRaises(bt2.IncompleteUserClass):
@@ -63,7 +63,7 @@ class UserComponentClassTestCase(unittest.TestCase):
                 pass
 
     def test_incomplete_sink_no_consume_method(self):
-        class MyIter(bt2._UserNotificationIterator):
+        class MyIter(bt2._UserMessageIterator):
             pass
 
         with self.assertRaises(bt2.IncompleteUserClass):
@@ -71,19 +71,19 @@ class UserComponentClassTestCase(unittest.TestCase):
                 pass
 
     def test_minimal_source(self):
-        class MyIter(bt2._UserNotificationIterator):
+        class MyIter(bt2._UserMessageIterator):
             pass
 
         class MySource(bt2._UserSourceComponent,
-                       notification_iterator_class=MyIter):
+                       message_iterator_class=MyIter):
             pass
 
     def test_minimal_filter(self):
-        class MyIter(bt2._UserNotificationIterator):
+        class MyIter(bt2._UserMessageIterator):
             pass
 
         class MyFilter(bt2._UserFilterComponent,
-                       notification_iterator_class=MyIter):
+                       message_iterator_class=MyIter):
             pass
 
     def test_minimal_sink(self):
@@ -280,7 +280,7 @@ class GenericComponentClassTestCase(unittest.TestCase):
 
         self._py_comp_cls = MySink
         graph = bt2.Graph()
-        comp = graph.add_component(MySink, 'salut')
+        comp = graph.add_sink_component(MySink, 'salut')
         self._comp_cls = comp.component_class
         self.assertTrue(issubclass(type(self._comp_cls),
                                    bt2.component._GenericComponentClass))

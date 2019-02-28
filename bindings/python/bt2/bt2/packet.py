@@ -20,20 +20,22 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import copy
-from bt2 import native_bt, utils, domain
-from . import domain
+from bt2 import native_bt
 import bt2.fields
 import bt2
 
+
 class _Packet(bt2.object._SharedObject):
+    _GET_REF_NATIVE_FUNC = native_bt.packet_get_ref
+    _PUT_REF_NATIVE_FUNC = native_bt.packet_put_ref
+
     @property
     def stream(self):
         stream_ptr = native_bt.packet_borrow_stream(self._ptr)
-        native_bt.get(stream_ptr)
-        assert(stream_ptr)
-        return bt2.stream._Stream._create_from_ptr(stream_ptr)
+        assert stream_ptr is not None
+        return bt2.stream._Stream._create_from_ptr_and_get_ref(stream_ptr)
 
+    '''
     @property
     def default_beginning_clock_value(self):
         prop_avail_status, value_ptr = native_bt.packet_borrow_default_beginning_clock_value(self._ptr)
@@ -46,6 +48,7 @@ class _Packet(bt2.object._SharedObject):
     def default_beginning_clock_value(self, cycles):
         utils._check_uint64(cycles)
         native_bt.packet_set_default_beginning_clock_value(self._ptr, cycles)
+
 
     @property
     def default_end_clock_value(self):
@@ -67,7 +70,7 @@ class _Packet(bt2.object._SharedObject):
             return
 
         return discarded_event_counter
-    
+
     @discarded_event_counter_snapshot.setter
     def discarded_event_counter_snapshot(self, value):
         ret =  native_bt.packet_set_discarded_event_counter_snapshot(self._ptr, value)
@@ -80,11 +83,12 @@ class _Packet(bt2.object._SharedObject):
             return
 
         return packet_counter
-    
+
     @packet_counter_snapshot.setter
     def packet_counter_snapshot(self, value):
         ret =  native_bt.packet_set_packet_counter_snapshot(self._ptr, value)
         utils._handle_ret(ret, "cannot set discarded event counter snapshot")
+    '''
 
     @property
     def header_field(self):
@@ -93,7 +97,9 @@ class _Packet(bt2.object._SharedObject):
         if field_ptr is None:
             return
 
-        return bt2.fields._create_field_from_ptr(field_ptr, self._ptr)
+        return bt2.fields._create_field_from_ptr(field_ptr, self._ptr,
+                                                 self._GET_REF_NATIVE_FUNC,
+                                                 self._PUT_REF_NATIVE_FUNC)
 
     @property
     def context_field(self):
@@ -102,4 +108,6 @@ class _Packet(bt2.object._SharedObject):
         if field_ptr is None:
             return
 
-        return bt2.fields._create_field_from_ptr(field_ptr, self._ptr)
+        return bt2.fields._create_field_from_ptr(field_ptr, self._ptr,
+                                                 self._GET_REF_NATIVE_FUNC,
+                                                 self._PUT_REF_NATIVE_FUNC)

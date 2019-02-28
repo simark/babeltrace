@@ -22,21 +22,42 @@
  * THE SOFTWARE.
  */
 
-/* Types */
-struct bt_clock_class;
-struct bt_clock_value;
+///* Types */
 
-enum bt_clock_value_status {
-	BT_CLOCK_VALUE_STATUS_KNOWN,
-	BT_CLOCK_VALUE_STATUS_UNKNOWN,
-};
+typedef enum bt_clock_snapshot_state {
+	BT_CLOCK_SNAPSHOT_STATE_KNOWN,
+	BT_CLOCK_SNAPSHOT_STATE_UNKNOWN,
+} bt_clock_snapshot_state;
 
-/* Clock value functions */
-struct bt_clock_class *bt_clock_value_borrow_clock_class(
-		struct bt_clock_value *clock_value);
+typedef enum bt_clock_snapshot_status {
+	BT_CLOCK_SNAPSHOT_STATUS_OK = 0,
+	BT_CLOCK_SNAPSHOT_STATUS_OVERFLOW = -75,
+} bt_clock_snapshot_status;
 
-uint64_t bt_clock_value_get_value(
-		struct bt_clock_value *clock_value);
+extern const bt_clock_class *bt_clock_snapshot_borrow_clock_class_const(
+		const bt_clock_snapshot *clock_snapshot);
 
-int bt_clock_value_get_ns_from_origin(
-		struct bt_clock_value *clock_value, int64_t *OUTPUTINIT);
+extern uint64_t bt_clock_snapshot_get_value(
+		const bt_clock_snapshot *clock_snapshot);
+
+extern bt_clock_snapshot_status bt_clock_snapshot_get_ns_from_origin(
+		const bt_clock_snapshot *clock_snapshot,
+		int64_t *OUTPUTINIT);
+
+//struct bt_clock_class;
+//struct bt_clock_value;
+//
+//enum bt_clock_value_status {
+//	BT_CLOCK_VALUE_STATUS_KNOWN,
+//	BT_CLOCK_VALUE_STATUS_UNKNOWN,
+//};
+//
+///* Clock value functions */
+//struct bt_clock_class *bt_clock_value_borrow_clock_class(
+//		struct bt_clock_value *clock_value);
+//
+//uint64_t bt_clock_value_get_value(
+//		struct bt_clock_value *clock_value);
+//
+//int bt_clock_value_get_ns_from_origin(
+//		struct bt_clock_value *clock_value, int64_t *OUTPUTINIT);

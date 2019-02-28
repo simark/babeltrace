@@ -1504,3 +1504,7 @@ class MapValueTestCase(unittest.TestCase):
     def test_getitem_wrong_key(self):
         with self.assertRaises(KeyError):
             self._def['kilojoule']
+
+
+if __name__ == "__main__":
+    unittest.main()

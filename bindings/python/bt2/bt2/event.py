@@ -22,21 +22,22 @@
 
 __all__ = ['_Event']
 
-import collections
 from bt2 import native_bt, utils
-import bt2.clock_value
+import bt2.clock_snapshot
 import bt2.packet
 import bt2
 
-def _create_event_from_ptr(ptr, owner_ptr):
+
+def _create_from_ptr(event_ptr, owner_msg_ptr, owning_ptr_get_func, owning_ptr_put_func):
     # recreate the event class wrapper of this event's class (the
     # identity could be different, but the underlying address should be
     # the same)
-    event_class_ptr = native_bt.event_borrow_class(ptr)
-    native_bt.get(event_class_ptr)
+    event_class_ptr = native_bt.event_borrow_class(event_ptr)
     utils._handle_ptr(event_class_ptr, "cannot get event object's class")
-    event_class = bt2.event_class._EventClass._create_from_ptr(event_class_ptr)
-    event = _Event._create_from_ptr(ptr, owner_ptr)
+    event_class = bt2.event_class._EventClass._create_from_ptr_and_get_ref(event_class_ptr)
+    event = _Event._create_from_ptr(event_ptr, owner_msg_ptr,
+                                    owning_ptr_get_func,
+                                    owning_ptr_put_func)
     event._event_class = event_class
     return event
 
@@ -57,22 +58,11 @@ class _Event(bt2.object._UniqueObject):
     @property
     def stream(self):
         stream_ptr = native_bt.event_borrow_stream(self._ptr)
-
+        # TODO: Can this be None?
         if stream_ptr is None:
             return
 
-        native_bt.get(stream_ptr)
-
-        return bt2._Stream._create_from_ptr(stream_ptr)
-
-    @property
-    def header_field(self):
-        field_ptr = native_bt.event_borrow_header_field(self._ptr)
-
-        if field_ptr is None:
-            return
-
-        return bt2.fields._create_field_from_ptr(field_ptr, self._owning_ptr)
+        return bt2._Stream._create_from_ptr_and_get_ref(stream_ptr)
 
     @property
     def common_context_field(self):
@@ -81,7 +71,9 @@ class _Event(bt2.object._UniqueObject):
         if field_ptr is None:
             return
 
-        return bt2.fields._create_field_from_ptr(field_ptr, self._owning_ptr)
+        return bt2.fields._create_field_from_ptr(field_ptr, self._owning_ptr,
+                                                 self._owning_ptr_get_func,
+                                                 self._owning_ptr_put_func)
 
     @property
     def specific_context_field(self):
@@ -90,7 +82,9 @@ class _Event(bt2.object._UniqueObject):
         if field_ptr is None:
             return
 
-        return bt2.fields._create_field_from_ptr(field_ptr, self._owning_ptr)
+        return bt2.fields._create_field_from_ptr(field_ptr, self._owning_ptr,
+                                                 self._owning_ptr_get_func,
+                                                 self._owning_ptr_put_func)
 
     @property
     def payload_field(self):
@@ -99,7 +93,10 @@ class _Event(bt2.object._UniqueObject):
         if field_ptr is None:
             return
 
-        return bt2.fields._create_field_from_ptr(field_ptr, self._owning_ptr)
+        return bt2.fields._create_field_from_ptr(field_ptr, self._owning_ptr,
+                                                 self._owning_ptr_get_func,
+                                                 self._owning_ptr_put_func)
+
     @property
     def packet(self):
         packet_ptr = native_bt.event_borrow_packet(self._ptr)
@@ -107,9 +104,7 @@ class _Event(bt2.object._UniqueObject):
         if packet_ptr is None:
             return packet_ptr
 
-        native_bt.get(packet_ptr)
-
-        return bt2.packet._Packet._create_from_ptr(packet_ptr)
+        return bt2.packet._Packet._create_from_ptr_and_get_ref(packet_ptr)
 
     def __getitem__(self, key):
         utils._check_str(key)
@@ -128,11 +123,6 @@ class _Event(bt2.object._UniqueObject):
         if sec_field is not None and key in sec_field:
             return sec_field[key]
 
-        header_field = self.header_field
-
-        if header_field is not None and key in header_field:
-            return header_field[key]
-
         packet = self.packet
 
         if packet is None:
@@ -143,26 +133,4 @@ class _Event(bt2.object._UniqueObject):
         if pkt_context_field is not None and key in pkt_context_field:
             return pkt_context_field[key]
 
-        pkt_header_field = packet.header_field
-
-        if pkt_header_field is not None and key in pkt_header_field:
-            return pkt_header_field[key]
-
         raise KeyError(key)
-
-    @property
-    def default_clock_value(self):
-        status, value_ptr = native_bt.event_borrow_default_clock_value(self._ptr)
-
-        if status is native_bt.CLOCK_VALUE_STATUS_UNKNOWN:
-            return
-
-        if value_ptr is None:
-            return
-
-        return bt2.clock_value._ClockValue._create_from_ptr(value_ptr, self._owning_ptr)
-
-    @default_clock_value.setter
-    def default_clock_value(self, value):
-        ret = native_bt.event_set_default_clock_value(self._ptr, value);
-        utils._handle_ret(ret, "cannot set event default clock value")

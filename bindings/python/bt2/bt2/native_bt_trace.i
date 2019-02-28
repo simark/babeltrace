@@ -22,7 +22,8 @@
  * THE SOFTWARE.
  */
 
-/* Type */
+/* Types */
+
 struct bt_trace;
 struct bt_stream;
 struct bt_stream_class;
@@ -30,101 +31,52 @@ struct bt_field_type;
 struct bt_value;
 struct bt_packet_header_field;
 
-typedef void (* bt_trace_is_static_listener)(
-	struct bt_trace *trace, void *data);
+typedef enum bt_trace_status {
+	BT_TRACE_STATUS_OK = 0,
+	BT_TRACE_STATUS_NOMEM = -12,
+} bt_trace_status;
 
-typedef void (* bt_trace_listener_removed)(
-	struct bt_trace *trace, void *data);
+typedef void (* bt_trace_destruction_listener_func)(
+		const bt_trace *trace, void *data);
 
-/* Functions */
-struct bt_trace *bt_trace_create(void);
-bt_bool bt_trace_assigns_automatic_stream_class_id(
-		struct bt_trace *trace);
-int bt_trace_set_assigns_automatic_stream_class_id(
-		struct bt_trace *trace, bt_bool value);
-const char *bt_trace_get_name(struct bt_trace *trace);
-int bt_trace_set_name(struct bt_trace *trace, const char *name);
-bt_uuid bt_trace_get_uuid(struct bt_trace *trace);
-int bt_trace_set_uuid(struct bt_trace *trace, bt_uuid uuid);
-uint64_t bt_trace_get_environment_entry_count(struct bt_trace *trace);
-void bt_trace_borrow_environment_entry_by_index(
-		struct bt_trace *trace, uint64_t index,
-		const char **BTOUTSTR, struct bt_value **BTOUTVALUE);
-struct bt_value *bt_trace_borrow_environment_entry_value_by_name(
-		struct bt_trace *trace, const char *name);
-int bt_trace_set_environment_entry_integer(
-		struct bt_trace *trace, const char *name,
-		int64_t value);
-int bt_trace_set_environment_entry_string(
-		struct bt_trace *trace, const char *name,
-		const char *value);
-struct bt_field_type *bt_trace_borrow_packet_header_field_type(
-		struct bt_trace *trace);
-int bt_trace_set_packet_header_field_type(struct bt_trace *trace,
-		struct bt_field_type *packet_header_type);
-uint64_t bt_trace_get_stream_class_count(struct bt_trace *trace);
-struct bt_stream_class *bt_trace_borrow_stream_class_by_index(
-		struct bt_trace *trace, uint64_t index);
-uint64_t bt_trace_get_stream_count(struct bt_trace *trace);
-struct bt_stream *bt_trace_borrow_stream_by_index(
-		struct bt_trace *trace, uint64_t index);
-bt_bool bt_trace_is_static(struct bt_trace *trace);
-int bt_trace_make_static(struct bt_trace *trace);
-int bt_trace_add_is_static_listener(
-		struct bt_trace *trace,
-		bt_trace_is_static_listener listener,
-		bt_trace_listener_removed listener_removed, void *data,
-		uint64_t *listener_id);
-int bt_trace_remove_is_static_listener(
-		struct bt_trace *trace, uint64_t listener_id);
+/* Functions from trace.h. */
 
-/* Helper functions for Python */
-%{
-void trace_is_static_listener(struct bt_trace *trace, void *py_callable)
-{
-	PyObject *py_trace_ptr = NULL;
-	PyObject *py_res = NULL;
+extern bt_trace_class *bt_trace_borrow_class(bt_trace *trace);
 
-	py_trace_ptr = SWIG_NewPointerObj(SWIG_as_voidptr(trace),
-		SWIGTYPE_p_bt_trace, 0);
-	if (!py_trace_ptr) {
-		BT_LOGF_STR("Failed to create a SWIG pointer object.");
-		abort();
-	}
+extern bt_trace *bt_trace_create(bt_trace_class *trace_class);
 
-	py_res = PyObject_CallFunction(py_callable, "(O)", py_trace_ptr);
-	BT_ASSERT(py_res == Py_None);
-	Py_DECREF(py_trace_ptr);
-	Py_DECREF(py_res);
-}
+extern bt_trace_status bt_trace_set_name(bt_trace *trace,
+		const char *name);
 
-void trace_listener_removed(struct bt_trace *trace, void *py_callable)
-{
-	BT_ASSERT(py_callable);
-	Py_DECREF(py_callable);
-}
+extern bt_stream *bt_trace_borrow_stream_by_index(bt_trace *trace,
+		uint64_t index);
 
-static uint64_t bt_py3_trace_add_is_static_listener(unsigned long long trace_addr,
-		PyObject *py_callable)
-{
-	struct bt_trace *trace = (void *) trace_addr;
-	int ret = 0;
-	uint64_t id = 0;
+extern bt_stream *bt_trace_borrow_stream_by_id(bt_trace *trace,
+		uint64_t id);
 
-	BT_ASSERT(trace);
-	BT_ASSERT(py_callable);
-	ret = bt_trace_add_is_static_listener(trace,
-		trace_is_static_listener, trace_listener_removed, py_callable, &id);
-	if (ret >= 0) {
-		Py_INCREF(py_callable);
-	} else if (ret < 0) {
-		BT_LOGF_STR("Failed to add trace is static listener.");
-		abort();
-	}
+/* Functions from trace-const.h. */
 
-	return ret;
-}
-%}
+extern const bt_trace_class *bt_trace_borrow_class_const(
+		const bt_trace *trace);
 
-int bt_py3_trace_add_is_static_listener(unsigned long long trace_addr,
-		PyObject *py_callable);
+extern const char *bt_trace_get_name(const bt_trace *trace);
+
+extern uint64_t bt_trace_get_stream_count(const bt_trace *trace);
+
+extern const bt_stream *bt_trace_borrow_stream_by_index_const(
+		const bt_trace *trace, uint64_t index);
+
+extern const bt_stream *bt_trace_borrow_stream_by_id_const(
+		const bt_trace *trace, uint64_t id);
+
+extern bt_trace_status bt_trace_add_destruction_listener(
+		const bt_trace *trace,
+		bt_trace_destruction_listener_func listener,
+		void *data, uint64_t *listener_id);
+
+extern bt_trace_status bt_trace_remove_destruction_listener(
+		const bt_trace *trace, uint64_t listener_id);
+
+extern void bt_trace_get_ref(const bt_trace *trace);
+
+extern void bt_trace_put_ref(const bt_trace *trace);

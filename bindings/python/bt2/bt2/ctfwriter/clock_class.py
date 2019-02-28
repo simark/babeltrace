@@ -20,11 +20,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from bt2 import native_bt, object, utils
+from bt2 import native_bt, utils
 import uuid as uuidp
-import numbers
 import bt2
-import bt2.clock_value as clock_value
 
 
 class ClockClassOffset:
@@ -178,4 +176,4 @@ class ClockClass(bt2.object._SharedObject):
         utils._handle_ret(ret, "cannot set clock class object's UUID")
 
     def __call__(self, cycles):
-        return clock_value._ClockValue(self._ptr, cycles)
+        return clock_value._ClockSnapshot(self._ptr, cycles)

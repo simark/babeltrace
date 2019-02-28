@@ -1,6 +1,4 @@
-from bt2 import values
 import unittest
-import copy
 import bt2
 import bt2.plugin
 import os
@@ -78,7 +76,9 @@ class PluginTestCase(unittest.TestCase):
         self.assertIsNone(self._plugin.version)
 
     def test_source_comp_classes_len(self):
-        self.assertEqual(len(self._plugin.source_component_classes), 2)
+        # Reset this when the lttng-live source is enabled again.
+        #self.assertEqual(len(self._plugin.source_component_classes), 2)
+        self.assertEqual(len(self._plugin.source_component_classes), 1)
 
     def test_source_comp_classes_getitem(self):
         self.assertEqual(self._plugin.source_component_classes['fs'].name, 'fs')
@@ -93,14 +93,21 @@ class PluginTestCase(unittest.TestCase):
         for cc_name, cc in self._plugin.source_component_classes.items():
             plugins[cc_name] = cc
 
+        # Reset this when the lttng-live source is enabled again.
         self.assertTrue('fs' in plugins)
-        self.assertTrue('lttng-live' in plugins)
+        #self.assertTrue('lttng-live' in plugins)
+        self.assertFalse('lttng-live' in plugins)
         self.assertEqual(plugins['fs'].name, 'fs')
-        self.assertEqual(plugins['lttng-live'].name, 'lttng-live')
+        #self.assertEqual(plugins['lttng-live'].name, 'lttng-live')
 
     def test_filter_comp_classes_len(self):
         plugin = bt2.find_plugin('utils')
         self.assertEqual(len(plugin.filter_component_classes), 2)
 
     def test_sink_comp_classes_len(self):
-        self.assertEqual(len(self._plugin.sink_component_classes), 1)
+        # Switch back to 1 when Phil finishes implementing the ctf sink.
+        #self.assertEqual(len(self._plugin.sink_component_classes), 1)
+        self.assertEqual(len(self._plugin.sink_component_classes), 0)
+
+if __name__ == "__main__":
+    unittest.main()

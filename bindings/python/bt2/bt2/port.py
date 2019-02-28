@@ -20,19 +20,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-import collections.abc
-import copy
-from bt2 import native_bt, utils
+from bt2 import native_bt
 import bt2.component
 import bt2.connection
-import bt2.notification_iterator
-import bt2.notification
+import bt2.message_iterator
+import bt2.message
 import bt2
 
 
-def _create_from_ptr(ptr):
-    port_type = native_bt.port_get_type(ptr)
-
+def _create_from_ptr_and_get_ref(ptr, port_type):
     if port_type == native_bt.PORT_TYPE_INPUT:
         cls = _InputPort
     elif port_type == native_bt.PORT_TYPE_OUTPUT:
@@ -40,126 +36,119 @@ def _create_from_ptr(ptr):
     else:
         raise bt2.Error('unknown port type: {}'.format(port_type))
 
-    return cls._create_from_ptr(ptr)
+    return cls._create_from_ptr_and_get_ref(ptr)
 
 
-def _create_private_from_ptr(ptr):
-    pub_ptr = native_bt.port_borrow_from_private(ptr)
-    utils._handle_ptr(pub_ptr, 'cannot get port object from private port object')
-    port_type = native_bt.port_get_type(pub_ptr)
-    assert(port_type == native_bt.PORT_TYPE_INPUT or port_type == native_bt.PORT_TYPE_OUTPUT)
-
+def _create_self_from_ptr_and_get_ref(ptr, port_type):
     if port_type == native_bt.PORT_TYPE_INPUT:
-        cls = _PrivateInputPort
+        cls = _SelfInputPort
     elif port_type == native_bt.PORT_TYPE_OUTPUT:
-        cls = _PrivateOutputPort
+        cls = _SelfOutputPort
+    else:
+        raise bt2.Error('unknown port type: {}'.format(port_type))
 
-    obj = cls._create_from_ptr(ptr)
-    obj._pub_ptr = pub_ptr
-    return obj
+    return cls._create_from_ptr_and_get_ref(ptr)
 
 
 class _Port(bt2.object._SharedObject):
-    @staticmethod
-    def _name(ptr):
-        name = native_bt.port_get_name(ptr)
-        assert(name is not None)
-        return name
+    @classmethod
+    def _GET_REF_NATIVE_FUNC(cls, ptr):
+        ptr = cls._AS_PORT_NATIVE(ptr)
+        return native_bt.port_get_ref(ptr)
 
-    @staticmethod
-    def _disconnect(ptr):
-        status = native_bt.port_disconnect(ptr)
-
-        if status < 0:
-            raise bt2.Error('cannot disconnect port')
+    @classmethod
+    def _PUT_REF_NATIVE_FUNC(cls, ptr):
+        ptr = cls._AS_PORT_NATIVE(ptr)
+        return native_bt.port_put_ref(ptr)
 
     @property
     def name(self):
-        return self._name(self._ptr)
+        ptr = self._AS_PORT_NATIVE(self._ptr)
+        name = native_bt.port_get_name(ptr)
+        assert name is not None
+        return name
 
+    # TODO: we can probably remove this as well as the corresponding C function and_downcast_bt_component.
     @property
     def component(self):
-        comp_ptr = native_bt.port_get_component(self._ptr)
+        ptr = self._AS_PORT_NATIVE(self._ptr)
+        comp_ptr = native_bt.port_borrow_component_const(ptr)
 
         if comp_ptr is None:
             return
 
-        return bt2.component._create_generic_component_from_ptr(comp_ptr)
+        return bt2.component._create_generic_component_from_ptr_and_get_ref(comp_ptr)
 
     @property
     def connection(self):
-        conn_ptr = native_bt.port_get_connection(self._ptr)
+        ptr = self._AS_PORT_NATIVE(self._ptr)
+        conn_ptr = native_bt.port_borrow_connection_const(ptr)
 
         if conn_ptr is None:
             return
 
-        return bt2.connection._Connection._create_from_ptr(conn_ptr)
+        return bt2.connection._Connection._create_from_ptr_and_get_ref(conn_ptr)
 
     @property
     def is_connected(self):
         return self.connection is not None
 
-    def disconnect(self):
-        self._disconnect(self._ptr)
-
 
 class _InputPort(_Port):
-    pass
+    _AS_PORT_NATIVE = native_bt.port_input_as_port_const
 
 
 class _OutputPort(_Port):
-    def create_notification_iterator(self, colander_component_name=None):
-        if colander_component_name is not None:
-            utils._check_str(colander_component_name)
-
-        notif_iter_ptr = native_bt.py3_create_output_port_notif_iter(int(self._ptr),
-                                                                     colander_component_name)
-
-        if notif_iter_ptr is None:
-            raise bt2.CreationError('cannot create output port notification iterator')
-
-        return bt2.notification_iterator._OutputPortNotificationIterator(notif_iter_ptr)
+    _AS_PORT_NATIVE = native_bt.port_output_as_port_const
 
 
-class _PrivatePort(bt2.object._PrivateObject, _Port):
-    @property
-    def name(self):
-        return self._name(self._pub_ptr)
+class _SelfPort(_Port):
+    @classmethod
+    def _AS_PORT_NATIVE(cls, ptr):
+        ptr = cls._AS_SELF_PORT_NATIVE(ptr)
+        return native_bt.self_component_port_as_port(ptr)
 
     @property
     def component(self):
-        comp_ptr = native_bt.private_port_get_private_component(self._ptr)
+        ptr = self._AS_PORT_NATIVE(self._ptr)
+        comp_ptr = native_bt.port_borrow_component_const(ptr)
 
         if comp_ptr is None:
             return
 
-        pub_comp_ptr = native_bt.component_borrow_from_private(comp_ptr)
-        assert(pub_comp_ptr)
-        comp = bt2.component._create_generic_component_from_ptr(pub_comp_ptr)
-        return comp
+        return bt2.component._create_generic_component_from_ptr_and_get_ref(comp_ptr)
 
     @property
     def connection(self):
-        conn_ptr = native_bt.private_port_get_private_connection(self._ptr)
+        ptr = self._AS_PORT_NATIVE(self._ptr)
+        conn_ptr = native_bt.port_borrow_connection_const(ptr)
 
         if conn_ptr is None:
             return
 
-        return bt2.connection._create_private_from_ptr(conn_ptr)
+        return bt2.connection._Connection._create_from_ptr_and_get_ref(conn_ptr)
 
+    # TODO: should this go in _SelfInputPort?
+    def create_message_iterator(self):
+        msg_iter_ptr = native_bt.self_component_port_input_message_iterator_create(self._ptr)
+        if msg_iter_ptr is None:
+            raise bt2.Error('cannot create message iterator object')
+
+        return bt2.message_iterator._SelfMessageIterator(msg_iter_ptr)
+
+    # TODO: I guess remove this.
+    '''
     def remove_from_component(self):
         status = native_bt.private_port_remove_from_component(self._ptr)
 
         if status < 0:
             raise bt2.Error("cannot remove port from component")
-
-    def disconnect(self):
-        self._disconnect(self._pub_ptr)
+    '''
 
 
-class _PrivateInputPort(_PrivatePort, _InputPort):
-    pass
+class _SelfInputPort(_SelfPort, _InputPort):
+    _AS_SELF_PORT_NATIVE = native_bt.self_component_port_input_as_self_component_port
 
 
-class _PrivateOutputPort(_PrivatePort, _OutputPort):
-    pass
+class _SelfOutputPort(_SelfPort, _OutputPort):
+    _AS_SELF_PORT_NATIVE = native_bt.self_component_port_output_as_self_component_port

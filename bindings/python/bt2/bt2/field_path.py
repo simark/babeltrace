@@ -23,18 +23,22 @@
 __all__ = ['FieldPath', 'Scope']
 
 import collections
-from bt2 import native_bt, utils, object
+from bt2 import native_bt, object
+
 
 class Scope:
-    PACKET_HEADER           = native_bt.SCOPE_PACKET_HEADER
+    # PACKET_HEADER           = native_bt.SCOPE_PACKET_HEADER
     PACKET_CONTEXT          = native_bt.SCOPE_PACKET_CONTEXT
-    EVENT_HEADER            = native_bt.SCOPE_EVENT_HEADER
+    # EVENT_HEADER            = native_bt.SCOPE_EVENT_HEADER
     EVENT_COMMON_CONTEXT    = native_bt.SCOPE_EVENT_COMMON_CONTEXT
     EVENT_SPECIFIC_CONTEXT  = native_bt.SCOPE_EVENT_SPECIFIC_CONTEXT
     EVENT_PAYLOAD           = native_bt.SCOPE_EVENT_PAYLOAD
 
 
 class FieldPath(object._SharedObject, collections.abc.Iterable):
+    _GET_REF_NATIVE_FUNC = native_bt.field_path_get_ref
+    _PUT_REF_NATIVE_FUNC = native_bt.field_path_put_ref
+
     @property
     def root_scope(self):
         scope = native_bt.field_path_get_root_scope(self._ptr)
@@ -49,9 +53,9 @@ class FieldPath(object._SharedObject, collections.abc.Iterable):
 
 
 _SCOPE_TO_OBJ = {
-        native_bt.SCOPE_PACKET_HEADER: Scope.PACKET_HEADER,
+        # native_bt.SCOPE_PACKET_HEADER: Scope.PACKET_HEADER,
         native_bt.SCOPE_PACKET_CONTEXT: Scope.PACKET_CONTEXT,
-        native_bt.SCOPE_EVENT_HEADER: Scope.EVENT_HEADER,
+        # native_bt.SCOPE_EVENT_HEADER: Scope.EVENT_HEADER,
         native_bt.SCOPE_EVENT_COMMON_CONTEXT: Scope.EVENT_COMMON_CONTEXT,
         native_bt.SCOPE_EVENT_SPECIFIC_CONTEXT: Scope.EVENT_SPECIFIC_CONTEXT,
         native_bt.SCOPE_EVENT_PAYLOAD: Scope.EVENT_PAYLOAD

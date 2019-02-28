@@ -25,116 +25,240 @@
 /* Types */
 struct bt_component;
 
-/* Status */
-enum bt_component_status {
-	BT_COMPONENT_STATUS_OK = 0,
-	BT_COMPONENT_STATUS_END = 1,
-	BT_COMPONENT_STATUS_AGAIN = 11,
-	BT_COMPONENT_STATUS_REFUSE_PORT_CONNECTION = 111,
-	BT_COMPONENT_STATUS_ERROR = -1,
-	BT_COMPONENT_STATUS_UNSUPPORTED = -2,
-	BT_COMPONENT_STATUS_INVALID = -22,
-	BT_COMPONENT_STATUS_NOMEM = -12,
-	BT_COMPONENT_STATUS_NOT_FOUND = -19,
-	BT_COMPONENT_STATUS_GRAPH_IS_CANCELED = 125,
-};
+typedef enum bt_self_component_status {
+	BT_SELF_COMPONENT_STATUS_OK = 0,
+	BT_SELF_COMPONENT_STATUS_END = 1,
+	BT_SELF_COMPONENT_STATUS_AGAIN = 11,
+	BT_SELF_COMPONENT_STATUS_REFUSE_PORT_CONNECTION = 111,
+	BT_SELF_COMPONENT_STATUS_ERROR = -1,
+	BT_SELF_COMPONENT_STATUS_NOMEM = -12,
+} bt_self_component_status;
 
 /* General functions */
-const char *bt_component_get_name(struct bt_component *component);
-struct bt_component_class *bt_component_get_class(
-		struct bt_component *component);
-enum bt_component_class_type bt_component_get_class_type(
-		struct bt_component *component);
-struct bt_graph *bt_component_get_graph(struct bt_component *component);
-struct bt_component *bt_component_borrow_from_private(
-		struct bt_private_component *private_component);
-void *bt_private_component_get_user_data(
-		struct bt_private_component *private_component);
+extern const char *bt_component_get_name(const bt_component *component);
 
-enum bt_component_status bt_private_component_set_user_data(
-		struct bt_private_component *private_component, void *user_data);
+extern const bt_component_class *bt_component_borrow_class_const(
+		const bt_component *component);
+
+extern bt_component_class_type bt_component_get_class_type(
+		const bt_component *component);
+
+const bt_component *bt_self_component_as_component(
+		bt_self_component *self_component);
+
+extern void *bt_self_component_get_data(
+		const bt_self_component *private_component);
+
+extern void bt_self_component_set_data(
+		bt_self_component *private_component, void *data);
 
 /* Source component functions */
-int64_t bt_component_source_get_output_port_count(
-		struct bt_component *component);
-struct bt_port *bt_component_source_get_output_port_by_name(
-		struct bt_component *component, const char *name);
-struct bt_port *bt_component_source_get_output_port_by_index(
-		struct bt_component *component, uint64_t index);
+
+extern const bt_component_class_source *
+bt_component_source_borrow_component_class_const(
+		const bt_component_source *component);
+
+extern uint64_t bt_component_source_get_output_port_count(
+		const bt_component_source *component);
+
+extern const bt_port_output *
+bt_component_source_borrow_output_port_by_name_const(
+		const bt_component_source *component, const char *name);
+
+extern const bt_port_output *
+bt_component_source_borrow_output_port_by_index_const(
+		const bt_component_source *component, uint64_t index);
+
+extern void bt_component_source_get_ref(
+		const bt_component_source *component_source);
+
+extern void bt_component_source_put_ref(
+		const bt_component_source *component_source);
 
 /* Private source component functions */
-struct bt_private_port *
-bt_private_component_source_get_output_private_port_by_name(
-		struct bt_private_component *private_component,
+
+bt_self_component *bt_self_component_source_as_self_component(
+		bt_self_component_source *self_comp_source);
+
+const bt_component_source *
+bt_self_component_source_as_component_source(
+		bt_self_component_source *self_comp_source);
+
+extern bt_self_component_port_output *
+bt_self_component_source_borrow_output_port_by_name(
+		bt_self_component_source *self_component,
 		const char *name);
-struct bt_private_port *
-bt_private_component_source_get_output_private_port_by_index(
-		struct bt_private_component *private_component,
+
+extern bt_self_component_port_output *
+bt_self_component_source_borrow_output_port_by_index(
+		bt_self_component_source *self_component,
 		uint64_t index);
-enum bt_component_status
-bt_private_component_source_add_output_private_port(
-		struct bt_private_component *private_component,
+
+extern bt_self_component_status
+bt_self_component_source_add_output_port(
+		bt_self_component_source *self_component,
 		const char *name, void *user_data,
-		struct bt_private_port **BTOUTPRIVPORT);
+		bt_self_component_port_output **BTOUTSELFPORTOUTPUT);
 
 /* Filter component functions */
-int64_t bt_component_filter_get_input_port_count(
-		struct bt_component *component);
-struct bt_port *bt_component_filter_get_input_port_by_name(
-		struct bt_component *component, const char *name);
-struct bt_port *bt_component_filter_get_input_port_by_index(
-		struct bt_component *component, uint64_t index);
-int64_t bt_component_filter_get_output_port_count(
-		struct bt_component *component);
-struct bt_port *bt_component_filter_get_output_port_by_name(
-		struct bt_component *component, const char *name);
-struct bt_port *bt_component_filter_get_output_port_by_index(
-		struct bt_component *component, uint64_t index);
+
+extern const bt_component_class_filter *
+bt_component_filter_borrow_component_class_const(
+		const bt_component_filter *component);
+
+extern uint64_t bt_component_filter_get_input_port_count(
+		const bt_component_filter *component);
+
+extern const bt_port_input *
+bt_component_filter_borrow_input_port_by_name_const(
+		const bt_component_filter *component, const char *name);
+
+extern const bt_port_input *
+bt_component_filter_borrow_input_port_by_index_const(
+		const bt_component_filter *component, uint64_t index);
+
+extern uint64_t bt_component_filter_get_output_port_count(
+		const bt_component_filter *component);
+
+extern const bt_port_output *
+bt_component_filter_borrow_output_port_by_name_const(
+		const bt_component_filter *component, const char *name);
+
+extern const bt_port_output *
+bt_component_filter_borrow_output_port_by_index_const(
+		const bt_component_filter *component, uint64_t index);
+
+extern void bt_component_filter_get_ref(
+		const bt_component_filter *component_filter);
+
+extern void bt_component_filter_put_ref(
+		const bt_component_filter *component_filter);
 
 /* Private filter component functions */
-struct bt_private_port *
-bt_private_component_filter_get_output_private_port_by_name(
-		struct bt_private_component *private_component,
+
+bt_self_component *bt_self_component_filter_as_self_component(
+		bt_self_component_filter *self_comp_filter);
+
+const bt_component_filter *
+bt_self_component_filter_as_component_filter(
+		bt_self_component_filter *self_comp_filter);
+
+extern bt_self_component_port_output *
+bt_self_component_filter_borrow_output_port_by_name(
+		bt_self_component_filter *self_component,
 		const char *name);
-struct bt_private_port *
-bt_private_component_filter_get_output_private_port_by_index(
-		struct bt_private_component *private_component, uint64_t index);
-enum bt_component_status
-bt_private_component_filter_add_output_private_port(
-		struct bt_private_component *private_component,
-		const char *name, void *user_data,
-		struct bt_private_port **BTOUTPRIVPORT);
-struct bt_private_port *
-bt_private_component_filter_get_input_private_port_by_name(
-		struct bt_private_component *private_component,
+
+extern bt_self_component_port_output *
+bt_self_component_filter_borrow_output_port_by_index(
+		bt_self_component_filter *self_component,
+		uint64_t index);
+
+extern bt_self_component_status
+bt_self_component_filter_add_output_port(
+		bt_self_component_filter *self_component,
+		const char *name, void *data,
+		bt_self_component_port_output **BTOUTSELFPORTOUTPUT);
+
+extern bt_self_component_port_input *
+bt_self_component_filter_borrow_input_port_by_name(
+		bt_self_component_filter *self_component,
 		const char *name);
-struct bt_private_port *
-bt_private_component_filter_get_input_private_port_by_index(
-		struct bt_private_component *private_component, uint64_t index);
-enum bt_component_status
-bt_private_component_filter_add_input_private_port(
-		struct bt_private_component *private_component,
-		const char *name, void *user_data,
-		struct bt_private_port **BTOUTPRIVPORT);
+
+extern bt_self_component_port_input *
+bt_self_component_filter_borrow_input_port_by_index(
+		bt_self_component_filter *self_component,
+		uint64_t index);
+
+extern bt_self_component_status
+bt_self_component_filter_add_input_port(
+		bt_self_component_filter *self_component,
+		const char *name, void *data,
+		bt_self_component_port_input **BTOUTSELFPORTINPUT);
 
 /* Sink component functions */
-int64_t bt_component_sink_get_input_port_count(
-		struct bt_component *component);
-struct bt_port *bt_component_sink_get_input_port_by_name(
-		struct bt_component *component, const char *name);
-struct bt_port *bt_component_sink_get_input_port_by_index(
-		struct bt_component *component, uint64_t index);
+
+extern const bt_component_class_sink *
+bt_component_sink_borrow_component_class_const(
+		const bt_component_sink *component);
+
+extern uint64_t bt_component_sink_get_input_port_count(
+		const bt_component_sink *component);
+
+extern const bt_port_input *
+bt_component_sink_borrow_input_port_by_name_const(
+		const bt_component_sink *component, const char *name);
+
+extern const bt_port_input *
+bt_component_sink_borrow_input_port_by_index_const(
+		const bt_component_sink *component, uint64_t index);
+
+extern void bt_component_sink_get_ref(
+		const bt_component_sink *component_sink);
+
+extern void bt_component_sink_put_ref(
+		const bt_component_sink *component_sink);
 
 /* Private sink component functions */
-struct bt_private_port *
-bt_private_component_sink_get_input_private_port_by_name(
-		struct bt_private_component *private_component,
+
+bt_self_component *bt_self_component_sink_as_self_component(
+		bt_self_component_sink *self_comp_sink);
+
+const bt_component_sink *
+bt_self_component_sink_as_component_sink(
+		bt_self_component_sink *self_comp_sink);
+
+extern bt_self_component_port_input *
+bt_self_component_sink_borrow_input_port_by_name(
+		bt_self_component_sink *self_component,
 		const char *name);
-struct bt_private_port *
-bt_private_component_sink_get_input_private_port_by_index(
-		struct bt_private_component *private_component, uint64_t index);
-enum bt_component_status
-bt_private_component_sink_add_input_private_port(
-		struct bt_private_component *private_component,
+
+extern bt_self_component_port_input *
+bt_self_component_sink_borrow_input_port_by_index(
+		bt_self_component_sink *self_component, uint64_t index);
+
+extern bt_self_component_status
+bt_self_component_sink_add_input_port(
+		bt_self_component_sink *self_component,
 		const char *name, void *user_data,
-		struct bt_private_port **BTOUTPRIVPORT);
+		bt_self_component_port_input **BTOUTSELFPORTINPUT);
+
+
+
+const bt_component *bt_component_source_as_component_const(
+		const bt_component_source *component);
+
+const bt_component *bt_component_filter_as_component_const(
+		const bt_component_filter *component);
+
+const bt_component *bt_component_sink_as_component_const(
+		const bt_component_sink *component);
+
+extern void bt_component_get_ref(const bt_component *component);
+
+extern void bt_component_put_ref(const bt_component *component);
+
+bt_component_source *component_as_component_source(bt_component *component);
+bt_component_filter *component_as_component_filter(bt_component *component);
+bt_component_sink *component_as_component_sink(bt_component *component);
+
+%{
+
+bt_component_source *component_as_component_source(bt_component *component)
+{
+	BT_ASSERT(bt_component_get_class_type(component) == BT_COMPONENT_CLASS_TYPE_SOURCE);
+	return (bt_component_source *) component;
+}
+
+bt_component_filter *component_as_component_filter(bt_component *component)
+{
+	BT_ASSERT(bt_component_get_class_type(component) == BT_COMPONENT_CLASS_TYPE_FILTER);
+	return (bt_component_filter *) component;
+}
+
+bt_component_sink *component_as_component_sink(bt_component *component)
+{
+	BT_ASSERT(bt_component_get_class_type(component) == BT_COMPONENT_CLASS_TYPE_SINK);
+	return (bt_component_sink *) component;
+}
+
+%}

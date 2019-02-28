@@ -50,42 +50,14 @@ class ClockClassOffset:
 
         return (self.seconds, self.cycles) == (other.seconds, other.cycles)
 
+
 class ClockClass(bt2.object._SharedObject):
-    def __init__(self, name=None, frequency=None, description=None, precision=None,
-                 offset=None, is_absolute=None, uuid=None):
-        ptr = native_bt.clock_class_create()
-
-        if ptr is None:
-            raise bt2.CreationError('cannot create clock class object')
-
-        super().__init__(ptr)
-
-        if name is not None:
-            self.name = name
-
-        if frequency is not None:
-            self.frequency = frequency
-
-        if description is not None:
-            self.description = description
-
-        if precision is not None:
-            self.precision = precision
-
-        if offset is not None:
-            self.offset = offset
-
-        if is_absolute is not None:
-            self.is_absolute = is_absolute
-
-        if uuid is not None:
-            self.uuid = uuid
+    _GET_REF_NATIVE_FUNC = native_bt.clock_class_get_ref
+    _PUT_REF_NATIVE_FUNC = native_bt.clock_class_put_ref
 
     @property
     def name(self):
-        name = native_bt.clock_class_get_name(self._ptr)
-        assert(name is not None)
-        return name
+        return native_bt.clock_class_get_name(self._ptr)
 
     @name.setter
     def name(self, name):
@@ -105,14 +77,12 @@ class ClockClass(bt2.object._SharedObject):
 
     @property
     def frequency(self):
-        frequency = native_bt.clock_class_get_frequency(self._ptr)
-        return frequency
+        return native_bt.clock_class_get_frequency(self._ptr)
 
     @frequency.setter
     def frequency(self, frequency):
         utils._check_uint64(frequency)
-        ret = native_bt.clock_class_set_frequency(self._ptr, frequency)
-        utils._handle_ret(ret, "cannot set clock class object's frequency")
+        native_bt.clock_class_set_frequency(self._ptr, frequency)
 
     @property
     def precision(self):
@@ -123,8 +93,7 @@ class ClockClass(bt2.object._SharedObject):
     def precision(self, precision):
         utils._check_uint64(precision)
         assert(precision >= 0)
-        ret = native_bt.clock_class_set_precision(self._ptr, precision)
-        utils._handle_ret(ret, "cannot set clock class object's precision")
+        native_bt.clock_class_set_precision(self._ptr, precision)
 
     @property
     def offset(self):
@@ -134,18 +103,16 @@ class ClockClass(bt2.object._SharedObject):
     @offset.setter
     def offset(self, offset):
         utils._check_type(offset, ClockClassOffset)
-        ret = native_bt.clock_class_set_offset(self._ptr, offset.seconds, offset.cycles)
-        utils._handle_ret(ret, "cannot set clock class object's offset")
+        native_bt.clock_class_set_offset(self._ptr, offset.seconds, offset.cycles)
 
     @property
-    def is_absolute(self):
-        return native_bt.clock_class_is_absolute(self._ptr)
+    def origin_is_unix_epoch(self):
+        return native_bt.clock_class_origin_is_unix_epoch(self._ptr)
 
-    @is_absolute.setter
-    def is_absolute(self, is_absolute):
-        utils._check_bool(is_absolute)
-        ret = native_bt.clock_class_set_is_absolute(self._ptr, int(is_absolute))
-        utils._handle_ret(ret, "cannot set clock class object's absoluteness")
+    @origin_is_unix_epoch.setter
+    def origin_is_unix_epoch(self, origin_is_unix_epoch):
+        utils._check_bool(origin_is_unix_epoch)
+        native_bt.clock_class_set_origin_is_unix_epoch(self._ptr, int(origin_is_unix_epoch))
 
     @property
     def uuid(self):
@@ -159,5 +126,4 @@ class ClockClass(bt2.object._SharedObject):
     @uuid.setter
     def uuid(self, uuid):
         utils._check_type(uuid, uuidp.UUID)
-        ret = native_bt.clock_class_set_uuid(self._ptr, uuid.bytes)
-        utils._handle_ret(ret, "cannot set clock class object's UUID")
+        native_bt.clock_class_set_uuid(self._ptr, uuid.bytes)

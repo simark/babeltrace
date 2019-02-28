@@ -22,20 +22,19 @@
 
 __all__ = ['_Stream']
 
-from . import domain
 from bt2 import native_bt, utils
 import bt2.packet
 
-def _create_stream_from_ptr(ptr):
-    return _Stream._create_from_ptr(ptr)
 
 class _Stream(bt2.object._SharedObject):
+    _GET_REF_NATIVE_FUNC = native_bt.stream_get_ref
+    _PUT_REF_NATIVE_FUNC = native_bt.stream_put_ref
+
     @property
     def stream_class(self):
         stream_class_ptr = native_bt.stream_borrow_class(self._ptr)
-        native_bt.get(stream_class_ptr)
-        assert(stream_class_ptr)
-        return bt2.stream_class._StreamClass._create_from_ptr(stream_class_ptr)
+        assert stream_class_ptr is not None
+        return bt2.stream_class._StreamClass._create_from_ptr_and_get_ref(stream_class_ptr)
 
     @property
     def name(self):

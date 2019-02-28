@@ -23,11 +23,10 @@
 from collections import namedtuple
 import itertools
 import datetime
-import collections.abc
 import numbers
 from bt2 import utils
 import bt2
-import bt2.notification_iterator
+import bt2.message_iterator
 
 
 # a pair of component and ComponentSpec
@@ -81,7 +80,7 @@ class _CompClsType:
     FILTER = 1
 
 
-class TraceCollectionNotificationIterator(bt2.notification_iterator._NotificationIterator):
+class TraceCollectionMessageIterator(bt2.message_iterator._MessageIterator):
     def __init__(self, source_component_specs, filter_component_specs=None,
                  stream_intersection_mode=False, begin=None, end=None):
         utils._check_bool(stream_intersection_mode)
@@ -169,7 +168,7 @@ class TraceCollectionNotificationIterator(bt2.notification_iterator._Notificatio
             raise bt2.Error('cannot find "muxer" filter component class in "utils" plugin')
 
         comp_cls = plugin.filter_component_classes['muxer']
-        return self._graph.add_component(comp_cls, 'muxer')
+        return self._graph.add_filter_component(comp_cls, 'muxer')
 
     def _create_trimmer(self, begin, end, name):
         plugin = bt2.find_plugin('utils')
@@ -189,7 +188,7 @@ class TraceCollectionNotificationIterator(bt2.notification_iterator._Notificatio
             params['end'] = end
 
         comp_cls = plugin.filter_component_classes['trimmer']
-        return self._graph.add_component(comp_cls, name, params)
+        return self._graph.add_filter_component(comp_cls, name, params)
 
     def _get_unique_comp_name(self, comp_spec):
         name = '{}-{}'.format(comp_spec.plugin_name,
@@ -211,8 +210,10 @@ class TraceCollectionNotificationIterator(bt2.notification_iterator._Notificatio
 
         if comp_cls_type == _CompClsType.SOURCE:
             comp_classes = plugin.source_component_classes
+            add_comp_fn = self._graph.add_source_component
         else:
             comp_classes = plugin.filter_component_classes
+            add_comp_fn = self._graph.add_filter_component
 
         if comp_spec.component_class_name not in comp_classes:
             cc_type = 'source' if comp_cls_type == _CompClsType.SOURCE else 'filter'
@@ -222,7 +223,7 @@ class TraceCollectionNotificationIterator(bt2.notification_iterator._Notificatio
 
         comp_cls = comp_classes[comp_spec.component_class_name]
         name = self._get_unique_comp_name(comp_spec)
-        comp = self._graph.add_component(comp_cls, name, comp_spec.params)
+        comp = add_comp_fn(comp_cls, name, comp_spec.params)
         return comp
 
     def _get_free_muxer_input_port(self):
@@ -263,8 +264,7 @@ class TraceCollectionNotificationIterator(bt2.notification_iterator._Notificatio
 
     def _build_graph(self):
         self._graph = bt2.Graph()
-        self._graph.add_listener(bt2.GraphListenerType.PORT_ADDED,
-                                 self._graph_port_added)
+        self._graph.add_port_added_listener(self._graph_port_added)
         self._muxer_comp = self._create_muxer()
 
         if self._begin_ns is not None or self._end_ns is not None:
@@ -315,5 +315,5 @@ class TraceCollectionNotificationIterator(bt2.notification_iterator._Notificatio
 
                 self._connect_src_comp_port(out_port)
 
-        # create this trace collection iterator's notification iterator
-        self._notif_iter = notif_iter_port.create_notification_iterator()
+        # create this trace collection iterator's message iterator
+        self._notif_iter = self._graph.create_output_port_message_iterator(notif_iter_port)

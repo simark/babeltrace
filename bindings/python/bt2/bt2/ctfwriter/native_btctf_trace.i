@@ -38,32 +38,28 @@ const unsigned char *bt_ctf_trace_get_uuid(
 int bt_ctf_trace_set_uuid(struct bt_ctf_trace *trace,
 		const unsigned char *uuid);
 
-int64_t bt_ctf_trace_get_environment_field_count(
-		struct bt_ctf_trace *trace);
+extern uint64_t bt_trace_class_get_environment_entry_count(
+		const bt_trace_class *trace_class);
 
-const char *
-bt_ctf_trace_get_environment_field_name_by_index(
-		struct bt_ctf_trace *trace, uint64_t index);
+//const char *
+//bt_ctf_trace_get_environment_field_name_by_index(
+//		struct bt_ctf_trace *trace, uint64_t index);
 
-struct bt_value *
-bt_ctf_trace_get_environment_field_value_by_index(struct bt_ctf_trace *trace,
-		uint64_t index);
+extern void bt_trace_class_borrow_environment_entry_by_index_const(
+		const bt_trace_class *trace_class, uint64_t index,
+		const char **name, const bt_value **value);
 
-struct bt_value *
-bt_ctf_trace_get_environment_field_value_by_name(
-		struct bt_ctf_trace *trace, const char *name);
+extern const bt_value *
+bt_trace_class_borrow_environment_entry_value_by_name_const(
+		const bt_trace_class *trace_class, const char *name);
 
-int bt_ctf_trace_set_environment_field(
-		struct bt_ctf_trace *trace, const char *name,
-		struct bt_value *value);
+extern bt_trace_class_status bt_trace_class_set_environment_entry_integer(
+		bt_trace_class *trace_class,
+		const char *name, int64_t value);
 
-int bt_ctf_trace_set_environment_field_integer(
-		struct bt_ctf_trace *trace, const char *name,
-		int64_t value);
-
-int bt_ctf_trace_set_environment_field_string(
-		struct bt_ctf_trace *trace, const char *name,
-		const char *value);
+extern bt_trace_class_status bt_trace_class_set_environment_entry_string(
+		bt_trace_class *trace_class,
+		const char *name, const char *value);
 
 struct bt_ctf_field_type *bt_ctf_trace_get_packet_header_field_type(
 		struct bt_ctf_trace *trace);

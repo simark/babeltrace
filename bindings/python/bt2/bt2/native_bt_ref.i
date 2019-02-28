@@ -23,5 +23,5 @@
  */
 
 /* Functions */
-void *bt_get(void *obj);
-void bt_put(void *obj);
+//void *bt_get(void *obj);
+//void bt_put(void *obj);

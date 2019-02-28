@@ -7,18 +7,17 @@ INSTALLED_FILES=$(builddir)/installed_files.txt
 
 STATIC_BINDINGS_IR_DEPS =			\
 	bt2/clock_class.py				\
-	bt2/clock_value.py				\
-	bt2/domain.py					\
+	bt2/clock_snapshot.py				\
 	bt2/event.py					\
 	bt2/event_class.py				\
-	bt2/field_types.py				\
+	bt2/field_class.py				\
 	bt2/fields.py					\
 	bt2/object.py					\
 	bt2/packet.py					\
 	bt2/stream.py					\
 	bt2/stream_class.py				\
 	bt2/trace.py					\
-	bt2/trace_collection_notification_iterator.py	\
+	bt2/trace_collection_message_iterator.py	\
 	bt2/utils.py					\
 	bt2/values.py
 
@@ -27,8 +26,8 @@ STATIC_BINDINGS_GRAPH_DEPS =
 	bt2/connection.py				\
 	bt2/graph.py					\
 	bt2/logging.py					\
-	bt2/notification.py				\
-	bt2/notification_iterator.py	\
+	bt2/message.py				\
+	bt2/message_iterator.py	\
 	bt2/plugin.py					\
 	bt2/port.py						\
 	bt2/py_plugin.py				\
@@ -39,7 +38,6 @@ STATIC_BINDINGS_CTFWRITER_DEPS =		\
 	bt2/ctfwriter/__init__.py			\
 	bt2/ctfwriter/clock.py				\
 	bt2/ctfwriter/clock_class.py		\
-	bt2/ctfwriter/domain.py				\
 	bt2/ctfwriter/event.py				\
 	bt2/ctfwriter/event_class.py		\
 	bt2/ctfwriter/field_types.py		\
@@ -61,29 +59,29 @@ STATIC_BINDINGS_CTFWRITER_DEPS =		\
 
 
 STATIC_BINDINGS_DEPS =					\
-	bt2/logging.c						\
-	bt2/logging.h						\
-	bt2/native_bt_clockclass.i			\
-	bt2/native_bt_componentclass.i		\
+	bt2/logging.c					\
+	bt2/logging.h					\
+	bt2/native_bt_clock_class.i			\
+	bt2/native_bt_component_class.i			\
 	bt2/native_bt_component.i			\
 	bt2/native_bt_connection.i			\
-	bt2/native_bt_eventclass.i			\
+	bt2/native_bt_event_class.i			\
 	bt2/native_bt_event.i				\
-	bt2/native_bt_fields.i				\
-	bt2/native_bt_fieldtypes.i			\
+	bt2/native_bt_field.i				\
+	bt2/native_bt_field_class.i			\
 	bt2/native_bt_graph.i				\
-	bt2/native_bt.i						\
+	bt2/native_bt.i					\
 	bt2/native_bt_logging.i				\
-	bt2/native_bt_notification.i		\
-	bt2/native_bt_notifiter.i			\
+	bt2/native_bt_message.i				\
+	bt2/native_bt_notifier.i			\
 	bt2/native_bt_packet.i				\
 	bt2/native_bt_plugin.i				\
 	bt2/native_bt_port.i				\
 	bt2/native_bt_queryexec.i			\
-	bt2/native_bt_ref.i					\
-	bt2/native_bt_streamclass.i			\
+	bt2/native_bt_ref.i				\
+	bt2/native_bt_stream_class.i			\
 	bt2/native_bt_stream.i				\
-	bt2/native_bt_trace.i				\
+	bt2/native_bt_trace_class.i			\
 	bt2/native_bt_values.i				\
 	bt2/native_bt_version.i
 
@@ -96,7 +94,7 @@ GENERATED_BINDINGS_DEPS =	\
 	setup.py
 
 BUILD_FLAGS=CC="$(CC)" \
-		CFLAGS="$(GLIB_CFLAGS) $(AM_CFLAGS) $(CFLAGS)" \
+		CFLAGS="-fmax-errors=10 $(GLIB_CFLAGS) $(AM_CFLAGS) $(CFLAGS)" \
 		CPPFLAGS="$(AM_CPPFLAGS) $(CPPFLAGS)" \
 		LDFLAGS="$(AM_LDFLAGS) $(LDFLAGS) $(GLIB_LIBS) $(LIBS)"
 

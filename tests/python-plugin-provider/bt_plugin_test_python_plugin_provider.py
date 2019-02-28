@@ -7,13 +7,13 @@ class MyIter(bt2._UserNotificationIterator):
 
 @bt2.plugin_component_class
 class MySource(bt2._UserSourceComponent,
-               notification_iterator_class=MyIter):
+               message_iterator_class=MyIter):
     pass
 
 
 @bt2.plugin_component_class
 class MyFilter(bt2._UserFilterComponent,
-               notification_iterator_class=MyIter):
+               message_iterator_class=MyIter):
     pass
 
 

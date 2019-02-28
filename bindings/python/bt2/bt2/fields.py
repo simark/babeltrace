@@ -21,29 +21,34 @@
 # THE SOFTWARE.
 
 __all__ = ['_StaticArrayField', '_DynamicArrayField', '_UnsignedEnumerationField',
-        '_UnsignedEnumerationField', '_Field' ,'_RealField', '_IntegerField',
-        '_StringField', '_StructureField', '_VariantField']
+           '_UnsignedEnumerationField', '_Field', '_RealField', '_IntegerField',
+           '_StringField', '_StructureField', '_VariantField']
 
-from bt2 import field_types, native_bt, utils
-import abc
+
+from bt2 import native_bt, utils
 import bt2
 import collections.abc
 import functools
 import math
 import numbers
 
-def _create_field_from_ptr(ptr, owner_ptr):
+
+def _create_field_from_ptr(ptr, owning_ptr, owning_ptr_get_func,
+                           owning_ptr_put_func):
     # recreate the field wrapper of this field's type (the identity
     # could be different, but the underlying address should be the
     # same)
-    field_type_ptr = native_bt.field_borrow_type(ptr)
-    native_bt.get(field_type_ptr)
-    utils._handle_ptr(field_type_ptr, "cannot get field object's type")
-    field_type = bt2.field_types._create_field_type_from_ptr(field_type_ptr)
-    typeid = native_bt.field_type_get_type_id(field_type._ptr)
-    field = _FIELD_ID_TO_OBJ[typeid]._create_from_ptr(ptr, owner_ptr)
-    field._field_type = field_type
+    field_class_ptr = native_bt.field_borrow_class_const(ptr)
+    utils._handle_ptr(field_class_ptr, "cannot get field object's type")
+    field_class = bt2.field_class._create_field_class_from_ptr_and_get_ref(
+        field_class_ptr)
+    typeid = native_bt.field_class_get_type(field_class._ptr)
+    field = _FIELD_ID_TO_OBJ[typeid]._create_from_ptr(ptr, owning_ptr,
+                                                      owning_ptr_get_func,
+                                                      owning_ptr_put_func)
+    field._field_class = field_class
     return field
+
 
 def _get_leaf_field(obj):
     if not isinstance(obj, _VariantField):
@@ -51,20 +56,22 @@ def _get_leaf_field(obj):
 
     return _get_leaf_field(obj.selected_field)
 
+
 class _Field(bt2.object._UniqueObject):
     def __eq__(self, other):
         other = _get_leaf_field(other)
         return self._spec_eq(other)
 
     @property
-    def field_type(self):
-        return self._field_type
+    def field_class(self):
+        return self._field_class
 
     def _repr(self):
         raise NotImplementedError
 
     def __repr__(self):
         return self._repr()
+
 
 @functools.total_ordering
 class _NumericField(_Field):
@@ -82,7 +89,8 @@ class _NumericField(_Field):
         if isinstance(other, numbers.Complex):
             return complex(other)
 
-        raise TypeError("'{}' object is not a number object".format(other.__class__.__name__))
+        raise TypeError("'{}' object is not a number object".format(
+            other.__class__.__name__))
 
     def __hash__(self):
         return self._value.__hash__()
@@ -264,7 +272,6 @@ class _IntegerField(_IntegralField, _Field):
     _NAME = 'Integer'
 
 
-
 class _UnsignedIntegerField(_IntegerField, _Field):
     def _value_to_int(self, value):
         if not isinstance(value, numbers.Real):
@@ -335,13 +342,16 @@ class _EnumerationField(_IntegerField):
 
     @property
     def labels(self):
-        return self.field_type.labels_by_value(self._value)
+        return self.field_class.labels_by_value(self._value)
+
 
 class _UnsignedEnumerationField(_EnumerationField, _UnsignedIntegerField):
     _NAME = 'Enumeration'
 
+
 class _SignedEnumerationField(_EnumerationField, _SignedIntegerField):
     _NAME = 'Enumeration'
+
 
 class _StringField(_Field):
     _NAME = 'String'
@@ -400,6 +410,7 @@ class _StringField(_Field):
         utils._handle_ret(ret, "cannot append to string field object's value")
         return self
 
+
 class _ContainerField(_Field):
     def __bool__(self):
         return len(self) != 0
@@ -417,7 +428,7 @@ class _StructureField(_ContainerField, collections.abc.MutableMapping):
     _NAME = 'Structure'
 
     def _count(self):
-        return len(self.field_type)
+        return len(self.field_class)
 
     def __setitem__(self, key, value):
         # raises if key is somehow invalid
@@ -429,7 +440,7 @@ class _StructureField(_ContainerField, collections.abc.MutableMapping):
 
     def __iter__(self):
         # same name iterator
-        return iter(self.field_type)
+        return iter(self.field_class)
 
     def _spec_eq(self, other):
         try:
@@ -469,12 +480,15 @@ class _StructureField(_ContainerField, collections.abc.MutableMapping):
 
     def __getitem__(self, key):
         utils._check_str(key)
-        field_ptr = native_bt.field_structure_borrow_member_field_by_name(self._ptr, key)
+        field_ptr = native_bt.field_structure_borrow_member_field_by_name(
+            self._ptr, key)
 
         if field_ptr is None:
             raise KeyError(key)
 
-        return _create_field_from_ptr(field_ptr, self._owning_ptr)
+        return _create_field_from_ptr(field_ptr, self._owning_ptr,
+                                      self._owning_ptr_get_func,
+                                      self._owning_ptr_put_func)
 
     def at_index(self, index):
         utils._check_uint64(index)
@@ -482,19 +496,26 @@ class _StructureField(_ContainerField, collections.abc.MutableMapping):
         if index >= len(self):
             raise IndexError
 
-        field_ptr = native_bt.field_structure_borrow_member_field_by_index(self._ptr, index)
+        field_ptr = native_bt.field_structure_borrow_member_field_by_index(
+            self._ptr, index)
         assert(field_ptr)
-        return _create_field_from_ptr(field_ptr, self._owning_ptr)
+        return _create_field_from_ptr(field_ptr, self._owning_ptr,
+                                      self._owning_ptr_get_func,
+                                      self._owning_ptr_put_func)
 
 
 class _VariantField(_ContainerField, _Field):
     _NAME = 'Variant'
 
     def field(self):
-        field_ptr = native_bt.field_variant_borrow_selected_option_field(self._ptr)
-        utils._handle_ptr(field_ptr, "cannot select variant field object's field")
+        field_ptr = native_bt.field_variant_borrow_selected_option_field(
+            self._ptr)
+        utils._handle_ptr(
+            field_ptr, "cannot select variant field object's field")
 
-        return _create_field_from_ptr(field_ptr, self._owning_ptr)
+        return _create_field_from_ptr(field_ptr, self._owning_ptr,
+                                      self._owning_ptr_get_func,
+                                      self._owning_ptr_put_func)
 
     @property
     def selected_index(self):
@@ -536,16 +557,21 @@ class _ArrayField(_ContainerField, _Field):
 
     def __getitem__(self, index):
         if not isinstance(index, numbers.Integral):
-            raise TypeError("'{}' is not an integral number object: invalid index".format(index.__class__.__name__))
+            raise TypeError("'{}' is not an integral number object: invalid index".format(
+                index.__class__.__name__))
 
         index = int(index)
 
         if index < 0 or index >= len(self):
-            raise IndexError('{} field object index is out of range'.format(self._NAME))
+            raise IndexError(
+                '{} field object index is out of range'.format(self._NAME))
 
-        field_ptr = native_bt.field_array_borrow_element_field_by_index(self._ptr, index)
+        field_ptr = native_bt.field_array_borrow_element_field_by_index(
+            self._ptr, index)
         assert(field_ptr)
-        return _create_field_from_ptr(field_ptr, self._owning_ptr)
+        return _create_field_from_ptr(field_ptr, self._owning_ptr,
+                                      self._owning_ptr_get_func,
+                                      self._owning_ptr_put_func)
 
     def __setitem__(self, index, value):
         # we can only set numbers and strings
@@ -556,7 +582,8 @@ class _ArrayField(_ContainerField, _Field):
         field = self[index]
 
         if not isinstance(field, (_NumericField, _StringField)):
-            raise TypeError('can only set the value of a number or string field')
+            raise TypeError(
+                'can only set the value of a number or string field')
 
         # the field's property does the appropriate conversion or raises
         # the appropriate exception
@@ -585,11 +612,12 @@ class _ArrayField(_ContainerField, _Field):
     def _repr(self):
         return '[{}]'.format(', '.join([repr(v) for v in self]))
 
+
 class _StaticArrayField(_ArrayField, _Field):
     _NAME = 'StaticArray'
 
     def _count(self):
-        return self.field_type.length
+        return self.field_class.length
 
     def _set_value(self, values):
         if len(self) != len(values):
@@ -604,6 +632,7 @@ class _StaticArrayField(_ArrayField, _Field):
             raise
 
     value = property(fset=_set_value)
+
 
 class _DynamicArrayField(_ArrayField, _Field):
     _NAME = 'DynamicArray'
@@ -638,14 +667,14 @@ class _DynamicArrayField(_ArrayField, _Field):
 
 
 _FIELD_ID_TO_OBJ = {
-    native_bt.FIELD_TYPE_ID_UNSIGNED_INTEGER: _UnsignedIntegerField,
-    native_bt.FIELD_TYPE_ID_SIGNED_INTEGER: _SignedIntegerField,
-    native_bt.FIELD_TYPE_ID_REAL: _RealField,
-    native_bt.FIELD_TYPE_ID_UNSIGNED_ENUMERATION: _UnsignedEnumerationField,
-    native_bt.FIELD_TYPE_ID_SIGNED_ENUMERATION: _SignedEnumerationField,
-    native_bt.FIELD_TYPE_ID_STRING: _StringField,
-    native_bt.FIELD_TYPE_ID_STRUCTURE: _StructureField,
-    native_bt.FIELD_TYPE_ID_STATIC_ARRAY: _StaticArrayField,
-    native_bt.FIELD_TYPE_ID_DYNAMIC_ARRAY: _DynamicArrayField,
-    native_bt.FIELD_TYPE_ID_VARIANT: _VariantField,
+    native_bt.FIELD_CLASS_TYPE_UNSIGNED_INTEGER: _UnsignedIntegerField,
+    native_bt.FIELD_CLASS_TYPE_SIGNED_INTEGER: _SignedIntegerField,
+    native_bt.FIELD_CLASS_TYPE_REAL: _RealField,
+    native_bt.FIELD_CLASS_TYPE_UNSIGNED_ENUMERATION: _UnsignedEnumerationField,
+    native_bt.FIELD_CLASS_TYPE_SIGNED_ENUMERATION: _SignedEnumerationField,
+    native_bt.FIELD_CLASS_TYPE_STRING: _StringField,
+    native_bt.FIELD_CLASS_TYPE_STRUCTURE: _StructureField,
+    native_bt.FIELD_CLASS_TYPE_STATIC_ARRAY: _StaticArrayField,
+    native_bt.FIELD_CLASS_TYPE_DYNAMIC_ARRAY: _DynamicArrayField,
+    native_bt.FIELD_CLASS_TYPE_VARIANT: _VariantField,
 }

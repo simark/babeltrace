@@ -27,6 +27,11 @@ struct bt_event_class;
 struct bt_field_type;
 struct bt_stream_class;
 
+typedef enum bt_event_class_status {
+	BT_EVENT_CLASS_STATUS_OK = 0,
+	BT_EVENT_CLASS_STATUS_NOMEM = -12,
+} bt_event_class_status;
+
 /* Log levels */
 enum bt_event_class_log_level {
 	BT_EVENT_CLASS_LOG_LEVEL_EMERGENCY,
@@ -47,45 +52,57 @@ enum bt_event_class_log_level {
 };
 
 /* Functions */
-struct bt_event_class *bt_event_class_create(
-		struct bt_stream_class *stream_class);
 
-struct bt_event_class *bt_event_class_create_with_id(
-		struct bt_stream_class *stream_class, uint64_t id);
+extern bt_event_class *bt_event_class_create(
+		bt_stream_class *stream_class);
 
-struct bt_stream_class *bt_event_class_borrow_stream_class(
-		struct bt_event_class *event_class);
+extern bt_event_class *bt_event_class_create_with_id(
+		bt_stream_class *stream_class, uint64_t id);
 
-const char *bt_event_class_get_name(struct bt_event_class *event_class);
+extern bt_stream_class *bt_event_class_borrow_stream_class(
+		bt_event_class *event_class);
 
-int bt_event_class_set_name(struct bt_event_class *event_class,
-		const char *name);
+extern bt_event_class_status bt_event_class_set_name(
+		bt_event_class *event_class, const char *name);
 
-uint64_t bt_event_class_get_id(struct bt_event_class *event_class);
+extern void bt_event_class_set_log_level(bt_event_class *event_class,
+		bt_event_class_log_level log_level);
 
-enum bt_property_availability bt_event_class_get_log_level(
-		struct bt_event_class *event_class,
-		enum bt_event_class_log_level *OUTPUTINIT);
+extern bt_event_class_status bt_event_class_set_emf_uri(
+		bt_event_class *event_class, const char *emf_uri);
 
-int bt_event_class_set_log_level(struct bt_event_class *event_class,
-		enum bt_event_class_log_level log_level);
+extern bt_event_class_status
+bt_event_class_set_specific_context_field_class(bt_event_class *event_class,
+		bt_field_class *field_class);
 
-const char *bt_event_class_get_emf_uri(
-		struct bt_event_class *event_class);
+extern bt_event_class_status bt_event_class_set_payload_field_class(
+		bt_event_class *event_class,
+		bt_field_class *field_class);
 
-int bt_event_class_set_emf_uri(struct bt_event_class *event_class,
-		const char *emf_uri);
+// Const
 
-struct bt_field_type *bt_event_class_borrow_specific_context_field_type(
-		struct bt_event_class *event_class);
 
-int bt_event_class_set_specific_context_field_type(
-		struct bt_event_class *event_class,
-		struct bt_field_type *field_type);
+extern const bt_stream_class *bt_event_class_borrow_stream_class_const(
+		const bt_event_class *event_class);
 
-struct bt_field_type *bt_event_class_borrow_payload_field_type(
-		struct bt_event_class *event_class);
+extern const char *bt_event_class_get_name(const bt_event_class *event_class);
 
-int bt_event_class_set_payload_field_type(
-		struct bt_event_class *event_class,
-		struct bt_field_type *field_type);
+extern uint64_t bt_event_class_get_id(const bt_event_class *event_class);
+
+extern bt_property_availability bt_event_class_get_log_level(
+		const bt_event_class *event_class,
+		bt_event_class_log_level *OUTPUTINIT);
+
+extern const char *bt_event_class_get_emf_uri(
+		const bt_event_class *event_class);
+
+extern const bt_field_class *
+bt_event_class_borrow_specific_context_field_class_const(
+		const bt_event_class *event_class);
+
+extern const bt_field_class *bt_event_class_borrow_payload_field_class_const(
+		const bt_event_class *event_class);
+
+extern void bt_event_class_get_ref(const bt_event_class *event_class);
+
+extern void bt_event_class_put_ref(const bt_event_class *event_class);

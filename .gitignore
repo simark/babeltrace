@@ -92,3 +92,4 @@ doc/api/Doxyfile
 *.gcov
 *.html
 *.stamp
+.theia

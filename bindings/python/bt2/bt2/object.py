@@ -52,36 +52,42 @@ class _BaseObject:
 
 class _UniqueObject(_BaseObject):
     @classmethod
-    def _create_from_ptr(cls, ptr_borrowed, owning_ptr_borrowed):
+    def _create_from_ptr(cls, ptr_borrowed, owning_ptr_borrowed, owning_ptr_get_func, owning_ptr_put_func):
         obj = cls.__new__(cls)
         obj._ptr = ptr_borrowed
         obj._owning_ptr = owning_ptr_borrowed
-        native_bt.get(obj._owning_ptr)
+        obj._owning_ptr_get_func = owning_ptr_get_func
+        obj._owning_ptr_put_func = owning_ptr_put_func
+        owning_ptr_get_func(obj._owning_ptr)
         return obj
 
     def __del__(self):
         owning_ptr = getattr(self, '_owning_ptr', None)
-        native_bt.put(owning_ptr)
         self._owning_ptr = None
+        self._owning_ptr_put_func(owning_ptr)
 
 
 class _SharedObject(_BaseObject):
     @classmethod
     def _create_from_ptr(cls, ptr_owned):
+        """Create a Python object wrapping a Babeltrace object pointer.
+
+        This assumes that the caller owns a reference to the Babeltrace object
+        and transfers this ownership to the newly created Python object"""
         obj = cls.__new__(cls)
         obj._ptr = ptr_owned
         return obj
 
+    @classmethod
+    def _create_from_ptr_and_get_ref(cls, ptr):
+        obj = cls._create_from_ptr(ptr)
+        cls._GET_REF_NATIVE_FUNC(obj._ptr)
+        return obj
+
     def _get(self):
-        native_bt.get(self._ptr)
+        self._GET_REF_NATIVE_FUNC(self._ptr)
 
     def __del__(self):
         ptr = getattr(self, '_ptr', None)
-        native_bt.put(ptr)
+        self._PUT_REF_NATIVE_FUNC(ptr)
         self._ptr = None
-
-
-class _PrivateObject:
-    def __del__(self):
-        self._pub_ptr = None
-        super().__del__()

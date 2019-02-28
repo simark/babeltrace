@@ -1,14 +1,16 @@
-from collections import OrderedDict
-from bt2 import values
 import unittest
-import bt2
+from test_utils.test_utils import run_in_component_init
 
 
 class StreamTestCase(unittest.TestCase):
     def setUp(self):
-        trace = bt2.Trace()
-        self._sc = trace.create_stream_class(automatic_stream_id=False)
-        self._stream = self._sc(id=1608)
+        def f(comp_self):
+            return comp_self._create_trace_class()
+
+        tc = run_in_component_init(f)
+        self._sc = tc.create_stream_class(assigns_automatic_stream_id=False)
+        trace = tc()
+        self._stream = trace.create_stream(self._sc, id=1608)
 
     def tearDown(self):
         del self._sc
