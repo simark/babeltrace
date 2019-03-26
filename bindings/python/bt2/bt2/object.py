@@ -23,7 +23,6 @@
 
 __all__ = ['_SharedObject', '_UniqueObject']
 
-from bt2 import native_bt
 
 class _BaseObject:
     def __new__(cls, *args, **kwargs):
@@ -48,6 +47,12 @@ class _BaseObject:
 
     def __deepcopy__(self):
         raise NotImplementedError
+
+    def __eq__(self, other):
+        if isinstance(other, _BaseObject):
+            return self.addr == other.addr
+
+        return False
 
 
 class _UniqueObject(_BaseObject):
