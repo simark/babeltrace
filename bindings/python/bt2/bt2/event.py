@@ -43,6 +43,9 @@ def _create_from_ptr(event_ptr, owner_msg_ptr, owning_ptr_get_func, owning_ptr_p
 
 
 class _Event(bt2.object._UniqueObject):
+    def __str__(self):
+        return 'Event(name={})'.format(self.name)
+
     @property
     def event_class(self):
         return self._event_class

@@ -127,8 +127,8 @@ class TraceCollectionMessageIterator(bt2.message_iterator._MessageIterator):
 
         try:
             path = params['path']
-        except:
-            raise bt2.Error('all source components must be created with a "path" parameter in stream intersection mode')
+        except Exception as e:
+            raise bt2.Error('all source components must be created with a "path" parameter in stream intersection mode') from e
 
         params = {'path': str(path)}
 
@@ -223,6 +223,7 @@ class TraceCollectionMessageIterator(bt2.message_iterator._MessageIterator):
 
         comp_cls = comp_classes[comp_spec.component_class_name]
         name = self._get_unique_comp_name(comp_spec)
+        print('Adding a', comp_cls, 'with name', name, 'and params', comp_spec.params)
         comp = add_comp_fn(comp_cls, name, comp_spec.params)
         return comp
 

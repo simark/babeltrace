@@ -47,6 +47,7 @@ class _Stream(bt2.object._SharedObject):
 
     @property
     def id(self):
+        # TODO: stream_get_id returns an unsigned, so can't really be < 0
         id = native_bt.stream_get_id(self._ptr)
         return id if id >= 0 else None
 

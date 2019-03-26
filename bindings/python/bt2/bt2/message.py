@@ -71,6 +71,9 @@ class _EventMessage(_Message):
 
         super().__init__(ptr)
 
+    def __str__(self):
+        return 'EventMessage(event={})'.format(self.event)
+
     @property
     def event(self):
         event_ptr = native_bt.message_event_borrow_event(self._ptr)
@@ -130,11 +133,29 @@ class _PacketBeginningMessage(_Message):
 
         super().__init__(ptr)
 
+    def __str__(self):
+        if self.default_clock_snapshot is not None:
+            ts = self.default_clock_snapshot.ns_from_origin
+        else:
+            ts = '?'
+
+        return 'PacketBeginning(stream-id={}, ts={})'.format(self.packet.stream.id, ts)
+
     @property
     def packet(self):
         packet_ptr = native_bt.message_packet_beginning_borrow_packet(self._ptr)
         assert packet_ptr
         return bt2.packet._Packet._create_from_ptr_and_get_ref(packet_ptr)
+
+    @property
+    def default_clock_snapshot(self):
+        status, snapshot_ptr = native_bt.message_packet_beginning_borrow_default_clock_snapshot_const(self._ptr)
+        if status != native_bt.CLOCK_SNAPSHOT_STATE_KNOWN:
+            return None
+
+        return bt2.clock_snapshot._ClockSnapshot._create_from_ptr(snapshot_ptr, self._ptr,
+                                                                  self._GET_REF_NATIVE_FUNC,
+                                                                  self._PUT_REF_NATIVE_FUNC)
 
 
 class _PacketEndMessage(_Message):
@@ -165,11 +186,29 @@ class _PacketEndMessage(_Message):
 
         super().__init__(ptr)
 
+    def __str__(self):
+        if self.default_clock_snapshot is not None:
+            ts = self.default_clock_snapshot.ns_from_origin
+        else:
+            ts = '?'
+
+        return 'PacketEnd(stream-id={}, ts={})'.format(self.packet.stream.id, ts)
+
     @property
     def packet(self):
         packet_ptr = native_bt.message_packet_end_borrow_packet(self._ptr)
         assert packet_ptr
         return bt2.packet._Packet._create_from_ptr_and_get_ref(packet_ptr)
+
+    @property
+    def default_clock_snapshot(self):
+        status, snapshot_ptr = native_bt.message_packet_end_borrow_default_clock_snapshot_const(self._ptr)
+        if status != native_bt.CLOCK_SNAPSHOT_STATE_KNOWN:
+            return None
+
+        return bt2.clock_snapshot._ClockSnapshot._create_from_ptr(snapshot_ptr, self._ptr,
+                                                                  self._GET_REF_NATIVE_FUNC,
+                                                                  self._PUT_REF_NATIVE_FUNC)
 
 
 class _StreamBeginningMessage(_Message):
@@ -185,6 +224,9 @@ class _StreamBeginningMessage(_Message):
                 'cannot create stream beginning message object')
 
         super().__init__(ptr)
+
+    def __str__(self):
+        return 'StreamBeginning(stream-id={})'.format(self.stream.id)
 
     @property
     def stream(self):
@@ -206,6 +248,9 @@ class _StreamActivityBeginningMessage(_Message):
                 'cannot create stream activity beginning message object')
 
         super().__init__(ptr)
+
+    def __str__(self):
+        return 'StreamActivityBeginning(stream-id={})'.format(self.stream.id)
 
     @property
     def default_clock_snapshot(self):
@@ -256,6 +301,9 @@ class _StreamActivityEndMessage(_Message):
 
         super().__init__(ptr)
 
+    def __str__(self):
+        return 'StreamActivityEnd stream-id={})'.format(self.stream.id)
+
     @property
     def default_clock_snapshot(self):
         if self.stream.stream_class.default_clock_class is None:
@@ -303,6 +351,9 @@ class _StreamEndMessage(_Message):
             raise bt2.CreationError('cannot create stream end message object')
 
         super().__init__(ptr)
+
+    def __str__(self):
+        return 'StreamEnd(stream-id={})'.format(self.stream.id)
 
     @property
     def stream(self):
