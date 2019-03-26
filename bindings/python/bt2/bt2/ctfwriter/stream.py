@@ -20,18 +20,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from bt2 import native_bt, object, utils
-import abc
-import bt2
-from bt2.ctfwriter import fields, event
+from bt2 import native_bt, utils
+from bt2.ctfwriter import fields, event, object, StreamClass
 
 
-class _Stream(bt2.object._SharedObject):
+class _Stream(object._CtfWriterSharedObject):
     @property
     def stream_class(self):
         stream_class_ptr = native_bt.stream_get_class(self._ptr)
         assert(stream_class_ptr)
-        return bt2.StreamClass._create_from_ptr(stream_class_ptr)
+        return StreamClass._create_from_ptr(stream_class_ptr)
 
     @property
     def name(self):
@@ -56,8 +54,8 @@ class _Stream(bt2.object._SharedObject):
 
         if field_ptr is None:
             return
-        
-        return bt2.ctfwriter.fields._create_from_ptr(field_ptr)
+
+        return fields._create_from_ptr(field_ptr)
 
     @packet_header.setter
     def packet_header(self, packet_header):
@@ -71,8 +69,8 @@ class _Stream(bt2.object._SharedObject):
 
         if field_ptr is None:
             return
-        
-        return bt2.ctfwriter.fields._create_from_ptr(field_ptr)
+
+        return fields._create_from_ptr(field_ptr)
 
     @packet_context.setter
     def packet_context(self, packet_context):

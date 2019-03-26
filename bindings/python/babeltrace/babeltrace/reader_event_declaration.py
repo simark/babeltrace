@@ -21,7 +21,7 @@
 # THE SOFTWARE.
 
 import bt2
-import babeltrace.common as common
+from babeltrace import common
 import babeltrace.reader_field_declaration as field_declaration
 import collections
 

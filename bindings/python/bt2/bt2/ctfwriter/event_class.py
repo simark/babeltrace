@@ -24,7 +24,9 @@
 __all__ = ['EventClassLogLevel', 'EventClass']
 
 from bt2 import native_bt, utils
+from bt2.ctfwriter import object
 import bt2
+
 
 class EventClassLogLevel:
     UNKNOWN = native_bt.CTF_EVENT_CLASS_LOG_LEVEL_UNKNOWN
@@ -46,7 +48,7 @@ class EventClassLogLevel:
     DEBUG = native_bt.CTF_EVENT_CLASS_LOG_LEVEL_DEBUG
 
 
-class EventClass(bt2.object._SharedObject):
+class EventClass(object._CtfWriterSharedObject):
     def __init__(self, name, id=None, log_level=None, emf_uri=None,
                  context_field_type=None, payload_field_type=None):
         utils._check_str(name)

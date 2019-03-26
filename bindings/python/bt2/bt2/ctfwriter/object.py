@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2013-2017 Jérémie Galarneau <jeremie.galarneau@efficios.com>
+# Copyright (c) 2019 Simon Marchi <simon.marchi@efficios.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,16 +20,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-# import babeltrace.common as common
-from babeltrace.reader_event_declaration import *
-from babeltrace.reader_event import *
-from babeltrace.reader_field_declaration import *
-from babeltrace.reader_field_definition import *
-from babeltrace.reader_trace_collection import *
-from babeltrace.reader_trace_handle import *
+import bt2
 
 
-# Based on enum bt_clock_type in clock-type.h
-class _ClockType:
-    CLOCK_CYCLES = 0
-    CLOCK_REAL = 1
+class _CtfWriterSharedObject(bt2.object._SharedObject):
+    _GET_REF_NATIVE_FUNC = bt2.native_bt.ctf_object_get_ref
+    _PUT_REF_NATIVE_FUNC = bt2.native_bt.ctf_object_put_ref

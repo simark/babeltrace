@@ -25,7 +25,8 @@ __all__ = ['ByteOrder', 'Encoding', 'Base', 'IntegerFieldType', 'FloatingPointNu
         'EnumerationFieldType', 'StringFieldType', 'StructureFieldType',
         'VariantFieldType', 'ArrayFieldType', 'SequenceFieldType']
 
-from bt2 import native_bt, object, utils
+from bt2 import native_bt, utils
+from bt2.ctfwriter import object
 import collections.abc
 import bt2.fields
 import abc
@@ -37,7 +38,7 @@ def _create_from_ptr(ptr):
     return _TYPE_ID_TO_OBJ[typeid]._create_from_ptr(ptr)
 
 
-class _FieldType(bt2.object._SharedObject, metaclass=abc.ABCMeta):
+class _FieldType(object._CtfWriterSharedObject, metaclass=abc.ABCMeta):
     def __init__(self, ptr):
         super().__init__(ptr)
 
@@ -265,7 +266,7 @@ class _EnumerationFieldTypeMapping:
         return self._upper
 
 
-class _EnumerationFieldTypeMappingIterator(object._SharedObject,
+class _EnumerationFieldTypeMappingIterator(object._CtfWriterSharedObject,
                                            collections.abc.Iterator):
     def __init__(self, iter_ptr, is_signed):
         super().__init__(iter_ptr)
@@ -505,8 +506,8 @@ class _StructureFieldTypeFieldIterator(collections.abc.Iterator):
         get_ft_by_index = native_bt.ctf_field_type_structure_get_field_by_index
         ret, name, field_type_ptr = get_ft_by_index(self._struct_field_type._ptr, self._at)
 
-        assert(ret == 0)
-        native_bt.put(field_type_ptr)
+        assert ret == 0
+        native_bt.ctf_object_put_ref(field_type_ptr)
         self._at += 1
         return name
 

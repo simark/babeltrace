@@ -20,13 +20,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from bt2 import native_bt, object, utils
+from bt2 import native_bt, utils
 import bt2.ctfwriter.field_types
 import collections.abc
 import bt2.ctfwriter.values
 import bt2.ctfwriter.stream
 import copy
-import bt2
+from bt2.ctfwriter import object
 
 
 class _StreamClassIterator(collections.abc.Iterator):
@@ -160,7 +160,7 @@ class _TraceEnv(collections.abc.MutableMapping):
         return _TraceEnvIterator(self)
 
 
-class Trace(bt2.object._SharedObject, collections.abc.Mapping):
+class Trace(object._CtfWriterSharedObject, collections.abc.Mapping):
     def __init__(self, name=None, native_byte_order=None, env=None,
                  packet_header_field_type=None, clock_classes=None,
                  stream_classes=None):

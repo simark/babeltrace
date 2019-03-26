@@ -25,9 +25,8 @@
 import tempfile
 import babeltrace.writer as btw
 import babeltrace.reader as btr
-import shutil
-import uuid
 import unittest
+
 
 class CtfWriterTestCase(unittest.TestCase):
     def setUp(self):
@@ -72,7 +71,7 @@ class CtfWriterTestCase(unittest.TestCase):
         trace_handle = traces.add_trace(self._trace_path, 'ctf')
         self.assertIsNotNone(trace_handle)
 
-        
+
         self.assertEqual(self._expected_event_count, len(traces.events))
 
         self.assertEqual(traces.timestamp_begin, 0)

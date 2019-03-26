@@ -27,6 +27,7 @@ import bt2
 import babeltrace
 import babeltrace.reader_event_declaration as event_declaration
 
+
 class EventDeclarationTestCase(unittest.TestCase):
     def setUp(self):
         self._values = {

@@ -20,7 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from bt2 import native_bt, object, utils
+from bt2 import native_bt, utils
+from bt2.ctfwriter import object
 import bt2.field_class
 import collections.abc
 import bt2.stream
@@ -46,7 +47,7 @@ class _EventClassIterator(collections.abc.Iterator):
         return ev_id
 
 
-class StreamClass(object._SharedObject, collections.abc.Mapping):
+class StreamClass(object._CtfWriterSharedObject, collections.abc.Mapping):
     def __init__(self, name, id=None, packet_context_field_type=None,
                  event_header_field_type=None, event_context_field_type=None,
                  event_classes=None):

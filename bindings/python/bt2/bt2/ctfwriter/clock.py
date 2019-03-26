@@ -22,15 +22,13 @@
 
 __all__ = ['Clock']
 
-from bt2 import object, utils, native_bt
+from bt2 import utils, native_bt
 import bt2
 import uuid as uuidp
+from bt2.ctfwriter import object
 
 
-class Clock(object._SharedObject):
-    _GET_REF_NATIVE_FUNC = native_bt.ctf_object_get_ref
-    _PUT_REF_NATIVE_FUNC = native_bt.ctf_object_put_ref
-
+class Clock(object._CtfWriterSharedObject):
     def __init__(self, name, description=None, frequency=None, precision=None,
                  offset=None, is_absolute=None, uuid=None):
         utils._check_str(name)
