@@ -8,7 +8,7 @@ import bt2.ctfwriter
 
 class CtfWriterClockTestCase(unittest.TestCase):
     def setUp(self):
-        self._clock = bt2.ctfwriter.CtfWriterClock('salut')
+        self._clock = bt2.ctfwriter.Clock('salut')
 
     def tearDown(self):
         del self._clock
@@ -18,11 +18,11 @@ class CtfWriterClockTestCase(unittest.TestCase):
 
     def test_create_invalid_no_name(self):
         with self.assertRaises(TypeError):
-            bt2.ctfwriter.CtfWriterClock()
+            bt2.ctfwriter.Clock()
 
     def test_create_full(self):
         my_uuid = uuid.uuid1()
-        cc = bt2.ctfwriter.CtfWriterClock(name='name', description='some description',
+        cc = bt2.ctfwriter.Clock(name='name', description='some description',
                                 frequency=1001, precision=176,
                                 offset=bt2.ClockClassOffset(45, 3003),
                                 is_absolute=True, uuid=my_uuid)

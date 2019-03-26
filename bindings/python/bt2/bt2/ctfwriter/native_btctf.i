@@ -13,3 +13,6 @@
 		$result = SWIG_Python_AppendOutput($result, Py_None);
 	}
 }
+
+void *bt_ctf_object_get_ref(void *obj);
+void bt_ctf_object_put_ref(void *obj);

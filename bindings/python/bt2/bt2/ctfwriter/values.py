@@ -417,12 +417,12 @@ class IntegerValue(_IntegralValue):
     value = property(fset=_set_value)
 
 
-class FloatValue(_RealValue):
-    _NAME = 'Floating point number'
+class RealValue(_RealValue):
+    _NAME = 'Real number'
 
     def __init__(self, value=None):
         if value is None:
-            ptr = native_bt.value_float_create()
+            ptr = native_bt.value_real_create()
         else:
             value = self._value_to_float(value)
             ptr = native_bt.value_float_create_init(value)
@@ -430,7 +430,8 @@ class FloatValue(_RealValue):
         self._check_create_status(ptr)
         super().__init__(ptr)
 
-    def _value_to_float(self, value):
+    @staticmethod
+    def _value_to_float(value):
         if not isinstance(value, numbers.Real):
             raise TypeError("expecting a real number object")
 
@@ -438,14 +439,13 @@ class FloatValue(_RealValue):
 
     @property
     def _value(self):
-        status, value = native_bt.value_float_get(self._ptr)
-        assert(status == native_bt.VALUE_STATUS_OK)
+        status, value = native_bt.value_real_get(self._ptr)
+        assert status == native_bt.VALUE_STATUS_OK
         return value
 
     def _set_value(self, value):
         value = self._value_to_float(value)
-        status = native_bt.value_float_set(self._ptr, value)
-        self._handle_status(status)
+        native_bt.value_real_set(self._ptr, value)
 
     value = property(fset=_set_value)
 
@@ -729,7 +729,7 @@ class MapValue(_Container, collections.abc.MutableMapping, _Value):
 _TYPE_TO_OBJ = {
     native_bt.VALUE_TYPE_BOOL: BoolValue,
     native_bt.VALUE_TYPE_INTEGER: IntegerValue,
-    native_bt.VALUE_TYPE_FLOAT: FloatValue,
+    native_bt.VALUE_TYPE_REAL: RealValue,
     native_bt.VALUE_TYPE_STRING: StringValue,
     native_bt.VALUE_TYPE_ARRAY: ArrayValue,
     native_bt.VALUE_TYPE_MAP: MapValue,

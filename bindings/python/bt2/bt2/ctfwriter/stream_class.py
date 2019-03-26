@@ -21,11 +21,9 @@
 # THE SOFTWARE.
 
 from bt2 import native_bt, object, utils
-import bt2.field_types
+import bt2.field_class
 import collections.abc
-#import bt2.ctf_writer
 import bt2.stream
-import copy
 import bt2
 
 
@@ -74,7 +72,7 @@ class StreamClass(object._SharedObject, collections.abc.Mapping):
         if event_classes is not None:
             for event_class in event_classes:
                 self.add_event_class(event_class)
-        
+
         self._next_stream_id = 0
 
     def __getitem__(self, key):
@@ -217,7 +215,7 @@ class StreamClass(object._SharedObject, collections.abc.Mapping):
         if id is None:
             id = self._next_stream_id
             self._next_stream_id += 1;
-            
+
         stream_ptr = native_bt.ctf_stream_create(self._ptr, name, id)
 
         if stream_ptr is None:

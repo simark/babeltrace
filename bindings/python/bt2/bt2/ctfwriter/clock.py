@@ -28,6 +28,9 @@ import uuid as uuidp
 
 
 class Clock(object._SharedObject):
+    _GET_REF_NATIVE_FUNC = native_bt.ctf_object_get_ref
+    _PUT_REF_NATIVE_FUNC = native_bt.ctf_object_put_ref
+
     def __init__(self, name, description=None, frequency=None, precision=None,
                  offset=None, is_absolute=None, uuid=None):
         utils._check_str(name)
@@ -140,5 +143,6 @@ class Clock(object._SharedObject):
     def _time(self, time):
         utils._check_int64(time)
         ret = native_bt.ctf_clock_set_time(self._ptr, time)
+        utils._handle_ret(ret, "cannot set CTF writer clock object's time")
 
     time = property(fset=_time)
