@@ -26,8 +26,8 @@ import tempfile
 import babeltrace.writer as btw
 import babeltrace.reader as btr
 import shutil
-import uuid
 import unittest
+
 
 class CtfWriterEmptyPacketTestCase(unittest.TestCase):
     def setUp(self):

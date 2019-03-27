@@ -49,10 +49,10 @@ class _BaseObject:
         raise NotImplementedError
 
     def __eq__(self, other):
-        if isinstance(other, _BaseObject):
-            return self.addr == other.addr
+        if not hasattr(other, 'addr'):
+            return False
 
-        return False
+        return self.addr == other.addr
 
 
 class _UniqueObject(_BaseObject):

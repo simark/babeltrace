@@ -170,7 +170,7 @@ class TraceCollectionMessageIterator(bt2.message_iterator._MessageIterator):
         comp_cls = plugin.filter_component_classes['muxer']
         return self._graph.add_filter_component(comp_cls, 'muxer')
 
-    def _create_trimmer(self, begin, end, name):
+    def _create_trimmer(self, begin_ns, end_ns, name):
         plugin = bt2.find_plugin('utils')
 
         if plugin is None:
@@ -181,11 +181,19 @@ class TraceCollectionMessageIterator(bt2.message_iterator._MessageIterator):
 
         params = {}
 
-        if begin is not None:
-            params['begin'] = begin
+        # TODO: trimmer (and others, maybe) currently interpret an integer as seconds.  This can be
+        # surprising when you expect it to interpret it as ns (e.g. the output of trace-info intersection
+        # is in ns, and you'd like pass the result directly to trimmer).
+        def ns_to_string(ns):
+            s_part = ns // 1000_000_000
+            ns_part = ns % 1000_000_000
+            return '{}.{:09d}'.format(s_part, ns_part)
 
-        if end is not None:
-            params['end'] = end
+        if begin_ns is not None:
+            params['begin'] = ns_to_string(begin_ns)
+
+        if end_ns is not None:
+            params['end'] = ns_to_string(end_ns)
 
         comp_cls = plugin.filter_component_classes['trimmer']
         return self._graph.add_filter_component(comp_cls, name, params)
@@ -223,7 +231,6 @@ class TraceCollectionMessageIterator(bt2.message_iterator._MessageIterator):
 
         comp_cls = comp_classes[comp_spec.component_class_name]
         name = self._get_unique_comp_name(comp_spec)
-        print('Adding a', comp_cls, 'with name', name, 'and params', comp_spec.params)
         comp = add_comp_fn(comp_cls, name, comp_spec.params)
         return comp
 

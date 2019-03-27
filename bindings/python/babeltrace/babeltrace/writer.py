@@ -1064,7 +1064,6 @@ class Field:
             bt2.ctfwriter._SequenceField: SequenceField
         }
 
-        print(bt2_field)
         if type(bt2_field) not in type_dict:
             raise TypeError("Invalid field instance.")
 

@@ -37,13 +37,6 @@ class PacketTestCase(unittest.TestCase):
         # stream class
         sc = tc.create_stream_class()
         sc.default_clock_class = clock_class
-        # TODO: Wut?
-        '''
-        sc.packets_have_default_beginning_clock_value = True
-        sc.packets_have_default_end_clock_value = True
-        sc.packets_have_discarded_event_counter_snapshot = True
-        sc.packets_have_packet_counter_snapshot = True
-        '''
 
         # packet context
         if with_pc:
@@ -89,21 +82,7 @@ class PacketTestCase(unittest.TestCase):
         # We create 3 packets because we need 2 frozen packets. A packet is
         # frozen when the next packet is created.
         packet1 = stream.create_packet()
-        '''
-        packet1.discarded_event_counter_snapshot = 5
-        packet1.packet_counter_snapshot = 1
-        packet1.default_beginning_clock_value = 1
-        packet1.default_end_clock_value = 500
-        '''
-
         packet2 = stream.create_packet()
-        '''
-        packet2.discarded_event_counter_snapshot = 20
-        packet2.packet_counter_snapshot = 4
-        packet2.default_beginning_clock_value = 1000
-        packet2.default_end_clock_value = 2000
-        '''
-
         _ = stream.create_packet()
 
         if first:
@@ -120,24 +99,3 @@ class PacketTestCase(unittest.TestCase):
     def test_no_context_field(self):
         packet = self._create_packet(with_pc=False)
         self.assertIsNone(packet.context_field)
-
-    # TODO: Adapt this
-    '''
-    def test_default_beginning_clock_value(self):
-        self.assertEqual(self._packet.default_beginning_clock_value, 1)
-
-    def test_default_end_clock_value(self):
-        self.assertEqual(self._packet.default_end_clock_value, 500)
-
-    def test_discarded_event_counter_snapshot(self):
-        packet = self._create_packet(first=True)
-        self.assertEqual(packet.discarded_event_counter_snapshot, 5)
-        packet = self._create_packet(first=False)
-        self.assertEqual(packet.discarded_event_counter_snapshot, 20)
-
-    def test_packet_counter_snapshot(self):
-        packet = self._create_packet(first=True)
-        self.assertEqual(packet.packet_counter_snapshot, 1)
-        packet = self._create_packet(first=False)
-        self.assertEqual(packet.packet_counter_snapshot, 4)
-'''

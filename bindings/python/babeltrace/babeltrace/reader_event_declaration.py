@@ -23,7 +23,6 @@
 import bt2
 from babeltrace import common
 import babeltrace.reader_field_declaration as field_declaration
-import collections
 
 
 def _create_event_declaration(event_class):
@@ -41,6 +40,7 @@ class EventDeclaration:
     This class is not meant to be instantiated by the user. It is
     returned by :attr:`TraceHandle.events`.
     """
+
     def __init__(self):
         raise NotImplementedError("EventDeclaration cannot be instantiated")
 

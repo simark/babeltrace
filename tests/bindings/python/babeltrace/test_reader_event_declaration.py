@@ -28,8 +28,32 @@ import babeltrace
 import babeltrace.reader_event_declaration as event_declaration
 
 
+def run_in_component_init(func):
+    class MySink(bt2._UserSinkComponent):
+        def __init__(self, params):
+            nonlocal res
+            res = func(self)
+
+        def _consume(self):
+            pass
+
+    res = None
+
+    g = bt2.Graph()
+    g.add_sink_component(MySink, 'comp')
+    return res
+
+
+def get_dummy_trace_class():
+    def f(comp_self):
+        return comp_self._create_trace_class()
+
+    return run_in_component_init(f)
+
+
 class EventDeclarationTestCase(unittest.TestCase):
     def setUp(self):
+        tc = get_dummy_trace_class():
         self._values = {
             'ph_field_1' : 42,
             'ph_field_2' : 'bla bla',
@@ -40,47 +64,47 @@ class EventDeclarationTestCase(unittest.TestCase):
             'ef_field' : 8476,
         }
 
-        self._int_ft = bt2.IntegerFieldType(32)
-        self._str_ft = bt2.StringFieldType()
+        self._int_fc = tc.create_unsigned_integer_field_class(32)
+        self._str_fc = tc.create_string_field_class()
 
-        self._trace = bt2.Trace()
+        '''
         self._trace.packet_header_field_type = bt2.StructureFieldType()
         self._trace.packet_header_field_type += collections.OrderedDict([
-            ('ph_field_1', self._int_ft),
-            ('ph_field_2', self._str_ft),
+            ('ph_field_1', self._int_fc),
+            ('ph_field_2', self._str_fc),
+        ])
+        '''
+
+        self._sc = tc.create_stream_class()
+        self._sc.packet_context_field_class = tc.create_structure_field_class()
+        self._sc.packet_context_field_class += collections.OrderedDict([
+            ('spc_field', self._str_fc),
         ])
 
-        self._sc = bt2.StreamClass()
-        self._sc.packet_context_field_type = bt2.StructureFieldType()
-        self._sc.packet_context_field_type += collections.OrderedDict([
-            ('spc_field', self._str_ft),
-        ])
-
+        '''
         self._sc.event_header_field_type = bt2.StructureFieldType()
         self._sc.event_header_field_type += collections.OrderedDict([
-            ('seh_field', self._str_ft),
+            ('seh_field', self._str_fc),
+        ])
+        '''
+
+        self._sc.event_common_context_field_class = bt2.create_structure_field_class()
+        self._sc.event_common_context_field_class += collections.OrderedDict([
+            ('sec_field', self._int_fc),
         ])
 
-        self._sc.event_context_field_type = bt2.StructureFieldType()
-        self._sc.event_context_field_type += collections.OrderedDict([
-            ('sec_field', self._int_ft),
-        ])
+        self._clock_class = tc.create_clock_class('allo', 1000)
 
-        self._clock_class = bt2.ClockClass('allo', 1000)
-        self._trace.add_clock_class(self._clock_class)
-
-        self._ec = bt2.EventClass('event_class_name')
-        self._ec.id = 42
-        self._ec.context_field_type = bt2.StructureFieldType()
+        self._ec = self._sc.create_event_class(42)
+        self._ec.name = 'event_class_name'
+        self._ec.context_field_type = bt2.create_structure_field_class()
         self._ec.context_field_type += collections.OrderedDict([
-            ('ec_field', self._int_ft),
+            ('ec_field', self._int_fc),
         ])
-        self._ec.payload_field_type = bt2.StructureFieldType()
+        self._ec.payload_field_type = bt2.create_structure_field_class()
         self._ec.payload_field_type += collections.OrderedDict([
-            ('ef_field', self._int_ft),
+            ('ef_field', self._int_fc),
         ])
-
-        self._sc.add_event_class(self._ec)
 
         self._trace.add_stream_class(self._sc)
         self._cc_prio_map = bt2.ClockClassPriorityMap()
@@ -95,8 +119,8 @@ class EventDeclarationTestCase(unittest.TestCase):
         del self._trace
         del self._sc
         del self._ec
-        del self._int_ft
-        del self._str_ft
+        del self._int_fc
+        del self._str_fc
         del self._clock_class
         del self._cc_prio_map
         del self._stream
