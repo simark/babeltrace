@@ -639,7 +639,7 @@ class _UserComponent(metaclass=_UserComponentType):
             tc._uuid = uuid
 
         if assigns_automatic_stream_class_id is not None:
-            tc.assigns_automatic_stream_class_id = assigns_automatic_stream_class_id
+            tc._assigns_automatic_stream_class_id = assigns_automatic_stream_class_id
 
         return tc
 

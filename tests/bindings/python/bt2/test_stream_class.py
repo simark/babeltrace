@@ -6,8 +6,7 @@ from test_utils.test_utils import run_in_component_init
 class StreamClassTestCase(unittest.TestCase):
     def setUp(self):
         def f(comp_self):
-            tc = comp_self._create_trace_class()
-            tc.assigns_automatic_stream_class_id = False
+            tc = comp_self._create_trace_class(assigns_automatic_stream_class_id = False)
             cc = comp_self._create_clock_class()
             return tc, cc
 

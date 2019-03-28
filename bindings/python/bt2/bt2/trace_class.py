@@ -125,7 +125,7 @@ class TraceClass(bt2._SharedObject, collections.abc.Mapping):
         utils._check_type(uuid, uuidp.UUID)
         native_bt.trace_class_set_uuid(self._ptr, uuid.bytes)
 
-    _uuid = property(fget=None, fset=_uuid)
+    _uuid = property(fset=_uuid)
 
     # TODO: Choose between this, or a _create_trace method.
     def __call__(self, name=None):
@@ -211,10 +211,11 @@ class TraceClass(bt2._SharedObject, collections.abc.Mapping):
     def assigns_automatic_stream_class_id(self):
         return native_bt.trace_class_assigns_automatic_stream_class_id(self._ptr)
 
-    @assigns_automatic_stream_class_id.setter
-    def assigns_automatic_stream_class_id(self, auto_id):
+    def _assigns_automatic_stream_class_id(self, auto_id):
         utils._check_bool(auto_id)
         return native_bt.trace_class_set_assigns_automatic_stream_class_id(self._ptr, auto_id)
+
+    _assigns_automatic_stream_class_id = property(fset=_assigns_automatic_stream_class_id)
 
     # Field class creation methods.
 
