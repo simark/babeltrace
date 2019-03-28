@@ -65,28 +65,6 @@ class Trace(object._SharedObject, collections.abc.Sequence):
 
     _name = property(fset=_name)
 
-    @property
-    def packet_header_field_class(self):
-        ft_ptr = native_bt.trace_borrow_packet_header_field_class(self._ptr)
-
-        if ft_ptr is None:
-            return
-        native_bt.get(ft_ptr)
-
-        return bt2.field_class._create_field_class_from_ptr(ft_ptr)
-
-    @packet_header_field_class.setter
-    def packet_header_field_class(self, packet_header_field_class):
-        packet_header_field_class_ptr = None
-
-        if packet_header_field_class is not None:
-            utils._check_type(packet_header_field_class, field_class._FieldType)
-            packet_header_field_class_ptr = packet_header_field_class._ptr
-
-        ret = native_bt.trace_set_packet_header_field_class(self._ptr,
-                                                     packet_header_field_class_ptr)
-        utils._handle_ret(ret, "cannot set trace class object's packet header field type")
-
     def create_stream(self, stream_class, id=None):
         utils._check_type(stream_class, bt2.stream_class._StreamClass)
 
