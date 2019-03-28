@@ -58,11 +58,12 @@ class Trace(object._SharedObject, collections.abc.Sequence):
     def name(self):
         return native_bt.trace_get_name(self._ptr)
 
-    @name.setter
-    def name(self, name):
+    def _name(self, name):
         utils._check_str(name)
         ret = native_bt.trace_set_name(self._ptr, name)
         utils._handle_ret(ret, "cannot set trace class object's name")
+
+    _name = property(fset=_name)
 
     @property
     def packet_header_field_class(self):

@@ -139,7 +139,7 @@ class TraceClass(bt2._SharedObject, collections.abc.Mapping):
         trace = bt2.trace.Trace._create_from_ptr(trace_ptr)
 
         if name is not None:
-            trace.name = name
+            trace._name = name
 
         return trace
 

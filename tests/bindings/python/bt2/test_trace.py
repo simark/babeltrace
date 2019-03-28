@@ -14,11 +14,10 @@ class TraceTestCase(unittest.TestCase):
         trace = tc(name='my name')
         self.assertEqual(trace.name, 'my name')
 
-    def test_assign_invalid_name(self):
+    def test_create_invalid_name(self):
         tc = get_dummy_trace_class()
-        trace = tc()
         with self.assertRaises(TypeError):
-            trace.name = 17
+            trace = tc(name=17)
 
     def test_len(self):
         tc = get_dummy_trace_class()
