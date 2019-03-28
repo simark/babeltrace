@@ -47,6 +47,45 @@ class TraceTestCase(unittest.TestCase):
         self.assertIn(15, sids)
         self.assertIn(17, sids)
 
-    @unittest.skip('TODO')
     def test_destruction_listener(self):
-        raise NotImplementedError
+        def on_trace_class_destruction(trace_class):
+            nonlocal trace_class_destroyed
+            trace_class_destroyed = True
+
+        def on_trace_destruction(trace):
+            nonlocal trace_destroyed
+            trace_destroyed = True
+
+        trace_destroyed = False
+        trace_class_destroyed = False
+
+        trace_class = get_dummy_trace_class()
+        stream_class = trace_class.create_stream_class()
+        trace = trace_class()
+        stream = trace.create_stream(stream_class)
+
+        trace_class.add_destruction_listener(on_trace_class_destruction)
+        trace.add_destruction_listener(on_trace_destruction)
+
+        self.assertFalse(trace_class_destroyed)
+        self.assertFalse(trace_destroyed)
+
+        del trace
+
+        self.assertFalse(trace_class_destroyed)
+        self.assertFalse(trace_destroyed)
+
+        del stream
+
+        self.assertFalse(trace_class_destroyed)
+        self.assertTrue(trace_destroyed)
+
+        del trace_class
+
+        self.assertFalse(trace_class_destroyed)
+        self.assertTrue(trace_destroyed)
+
+        del stream_class
+
+        self.assertTrue(trace_class_destroyed)
+        self.assertTrue(trace_destroyed)

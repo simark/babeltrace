@@ -26,7 +26,13 @@ __all__ = ['Trace']
 import collections.abc
 from bt2 import utils, native_bt
 import bt2
+import functools
 from . import object
+
+
+def _trace_destruction_listener_from_native(user_listener, trace_ptr):
+    trace = bt2.trace.Trace._create_from_ptr_and_get_ref(trace_ptr)
+    user_listener(trace)
 
 
 class Trace(object._SharedObject, collections.abc.Sequence):
@@ -99,3 +105,18 @@ class Trace(object._SharedObject, collections.abc.Sequence):
             raise bt2.CreationError('cannot create stream object')
 
         return bt2.stream._Stream._create_from_ptr(stream_ptr)
+
+    def add_destruction_listener(self, listener):
+        '''Add a listener to be called when the trace is destroyed.'''
+        if not callable(listener):
+            raise TypeError("'listener' parameter is not callable")
+
+        fn = native_bt.py3_trace_add_destruction_listener
+        listener_from_native = functools.partial(_trace_destruction_listener_from_native,
+                                                 listener)
+
+        listener_id = fn(self._ptr, listener_from_native)
+        if listener_id is None:
+            utils._raise_bt2_error('cannot add destruction listener to trace object')
+
+        return bt2._ListenerHandle(listener_id, self)

@@ -105,51 +105,52 @@ extern void bt_trace_class_put_ref(const bt_trace_class *trace_class);
 
 /* Helper functions for Python */
 %{
-/*void trace_is_static_listener(const struct bt_trace *trace, void *py_callable)
+static void
+trace_class_destroyed_listener(const bt_trace_class *trace_class, void *py_callable)
 {
-	PyObject *py_trace_ptr = NULL;
+	PyObject *py_trace_class_ptr = NULL;
 	PyObject *py_res = NULL;
 
-	py_trace_ptr = SWIG_NewPointerObj(SWIG_as_voidptr(trace),
-		SWIGTYPE_p_bt_trace, 0);
-	if (!py_trace_ptr) {
+	py_trace_class_ptr = SWIG_NewPointerObj(SWIG_as_voidptr(trace_class),
+		SWIGTYPE_p_bt_trace_class, 0);
+	if (!py_trace_class_ptr) {
 		BT_LOGF_STR("Failed to create a SWIG pointer object.");
 		abort();
 	}
 
-	py_res = PyObject_CallFunction(py_callable, "(O)", py_trace_ptr);
-	BT_ASSERT(py_res == Py_None);
-	Py_DECREF(py_trace_ptr);
-	Py_DECREF(py_res);
-}
-
-void trace_listener_removed(const struct bt_trace *trace, void *py_callable)
-{
-	BT_ASSERT(py_callable);
-	Py_DECREF(py_callable);
-}
-
-static uint64_t bt_py3_trace_add_is_static_listener(unsigned long long trace_addr,
-		PyObject *py_callable)
-{
-	struct bt_trace *trace = (void *) trace_addr;
-	int ret = 0;
-	uint64_t id = 0;
-
-	BT_ASSERT(trace);
-	BT_ASSERT(py_callable);
-	ret = bt_trace_add_is_static_listener(trace,
-		trace_is_static_listener, trace_listener_removed, py_callable, &id);
-	if (ret >= 0) {
-		Py_INCREF(py_callable);
-	} else if (ret < 0) {
-		BT_LOGF_STR("Failed to add trace is static listener.");
-		abort();
+	py_res = PyObject_CallFunction(py_callable, "(O)", py_trace_class_ptr);
+	if (py_res != NULL) {
+		BT_ASSERT(py_res == Py_None);
+	} else {
+		bt2_py_loge_exception();
 	}
 
-	return ret;
-}*/
+	Py_DECREF(py_trace_class_ptr);
+	Py_XDECREF(py_res);
+}
+
+uint64_t bt_py3_trace_class_add_destruction_listener(bt_trace_class *trace_class,
+	PyObject *py_callable)
+{
+	uint64_t id = (uint64_t) -1;
+
+	BT_ASSERT(trace_class);
+	BT_ASSERT(py_callable);
+
+	bt_trace_class_status status = bt_trace_class_add_destruction_listener(
+		trace_class, trace_class_destroyed_listener, py_callable, &id);
+	if (status != BT_TRACE_CLASS_STATUS_OK) {
+		// TODO: Raise a Python exception?
+		BT_LOGF_STR("Failed to add trace class destruction listener.");
+		goto end;
+	}
+
+	Py_INCREF(py_callable);
+
+end:
+	return id;
+}
 %}
 
-//int bt_py3_trace_add_is_static_listener(unsigned long long trace_addr,
-//		PyObject *py_callable);
+uint64_t bt_py3_trace_class_add_destruction_listener(bt_trace_class *trace_class,
+	PyObject *py_callable);

@@ -28,6 +28,7 @@ import bt2
 from bt2 import native_bt, utils
 import uuid as uuidp
 import collections.abc
+import functools
 
 
 class _TraceClassEnvIterator(collections.abc.Iterator):
@@ -101,6 +102,11 @@ class _StreamClassIterator(collections.abc.Iterator):
         assert id >= 0
         self._at += 1
         return id
+
+
+def _trace_class_destruction_listener_from_native(user_listener, trace_class_ptr):
+    trace_class = bt2.trace_class.TraceClass._create_from_ptr_and_get_ref(trace_class_ptr)
+    user_listener(trace_class)
 
 
 class TraceClass(bt2._SharedObject, collections.abc.Mapping):
@@ -301,3 +307,18 @@ class TraceClass(bt2._SharedObject, collections.abc.Mapping):
             obj.selector_field_class = selector_fc
 
         return obj
+
+    def add_destruction_listener(self, listener):
+        '''Add a listener to be called when the trace class is destroyed.'''
+        if not callable(listener):
+            raise TypeError("'listener' parameter is not callable")
+
+        fn = native_bt.py3_trace_class_add_destruction_listener
+        listener_from_native = functools.partial(_trace_class_destruction_listener_from_native,
+                                                 listener)
+
+        listener_id = fn(self._ptr, listener_from_native)
+        if listener_id is None:
+            utils._raise_bt2_error('cannot add destruction listener to trace class object')
+
+        return bt2._ListenerHandle(listener_id, self)

@@ -94,6 +94,5 @@ class TraceClassTestCase(unittest.TestCase):
             elif sc_id == 2018:
                 self.assertEqual(stream_class.addr, sc3.addr)
 
-    @unittest.skip('TODO')
-    def test_destruction_listener(self):
-        raise NotImplementedError
+    # destruction listener is test in test_trace.py, along with trace's
+    # destruction listener.
