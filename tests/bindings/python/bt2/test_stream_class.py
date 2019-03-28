@@ -23,8 +23,7 @@ class StreamClassTestCase(unittest.TestCase):
 
         self._trace = self._tc()
 
-        self._sc = self._tc.create_stream_class(id=12)
-        self._sc.name = 'my_stream_class'
+        self._sc = self._tc.create_stream_class(id=12, name='my_stream_class')
         self._sc.packet_context_field_class = self._packet_context_ft
         self._sc.event_common_context_field_class = self._event_common_context_ft
         self._sc.assigns_automatic_event_class_id = False
@@ -62,11 +61,6 @@ class StreamClassTestCase(unittest.TestCase):
         self.assertEqual(self._sc[17]._ptr, self._ec2._ptr)
         self.assertEqual(len(self._sc), 2)
 
-    def test_assign_name(self):
-        sc = self._tc.create_stream_class(id=14)
-        sc.name = 'lel'
-        self.assertEqual(sc.name, 'lel')
-
     def test_automatic_ids(self):
         sc = self._tc.create_stream_class(
             id=14, assigns_automatic_stream_id=True, assigns_automatic_event_class_id=True)
@@ -87,10 +81,10 @@ class StreamClassTestCase(unittest.TestCase):
         self.assertIsNotNone(ec.id)
         self.assertIsNotNone(stream.id)
 
-    def test_assign_invalid_name(self):
-        sc = self._tc.create_stream_class(id=14)
+    def test_create_invalid_name(self):
+
         with self.assertRaises(TypeError):
-            sc.name = 17
+            sc = self._tc.create_stream_class(id=14, name=17)
 
     def test_assign_id(self):
         sc = self._tc.create_stream_class(id=1717)

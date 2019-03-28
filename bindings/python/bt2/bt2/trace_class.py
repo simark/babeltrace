@@ -170,6 +170,7 @@ class TraceClass(bt2._SharedObject, collections.abc.Mapping):
         return _TraceClassEnv(self)
 
     def create_stream_class(self, id=None,
+                            name=None,
                             packet_context_field_class=None,
                             event_common_context_field_class=None,
                             default_clock_class=None,
@@ -185,6 +186,9 @@ class TraceClass(bt2._SharedObject, collections.abc.Mapping):
             sc_ptr = native_bt.stream_class_create_with_id(self._ptr, id)
 
         sc = bt2.stream_class._StreamClass._create_from_ptr(sc_ptr)
+
+        if name is not None:
+            sc._name = name
 
         if packet_context_field_class is not None:
             sc.packet_context_field_class = packet_context_field_class
