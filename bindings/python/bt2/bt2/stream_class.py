@@ -97,10 +97,11 @@ class _StreamClass(bt2.object._SharedObject, collections.abc.Mapping):
     def assigns_automatic_event_class_id(self):
         return native_bt.stream_class_assigns_automatic_event_class_id(self._ptr)
 
-    @assigns_automatic_event_class_id.setter
-    def assigns_automatic_event_class_id(self, auto_id):
+    def _assigns_automatic_event_class_id(self, auto_id):
         utils._check_bool(auto_id)
         return native_bt.stream_class_set_assigns_automatic_event_class_id(self._ptr, auto_id)
+
+    _assigns_automatic_event_class_id = property(fset=_assigns_automatic_event_class_id)
 
     @property
     def assigns_automatic_stream_id(self):
