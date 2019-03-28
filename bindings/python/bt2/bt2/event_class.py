@@ -63,10 +63,11 @@ class _EventClass(bt2.object._SharedObject):
     def name(self):
         return native_bt.event_class_get_name(self._ptr)
 
-    @name.setter
-    def name(self, name):
+    def _name(self, name):
         utils._check_str(name)
         return native_bt.event_class_set_name(self._ptr, name)
+
+    _name = property(fset=_name)
 
     @property
     def id(self):

@@ -44,8 +44,7 @@ class AllMessagesTestCase(unittest.TestCase):
                 tc = self._create_trace_class()
                 cc = self._create_clock_class()
                 sc = tc.create_stream_class(default_clock_class=cc)
-                ec = sc.create_event_class()
-                ec.name = 'salut'
+                ec = sc.create_event_class(name='salut')
                 my_int_fc = tc.create_signed_integer_field_class(32)
                 payload_fc = tc.create_structure_field_class()
                 payload_fc += collections.OrderedDict([

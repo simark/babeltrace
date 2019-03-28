@@ -67,8 +67,7 @@ class PacketTestCase(unittest.TestCase):
         ))
 
         # event class
-        event_class = sc.create_event_class()
-        event_class.name = 'ec'
+        event_class = sc.create_event_class(name='ec')
         event_class.common_context_field_class = ec
         event_class.payload_field_class = ep
 

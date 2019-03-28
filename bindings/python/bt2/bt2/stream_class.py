@@ -66,14 +66,19 @@ class _StreamClass(bt2.object._SharedObject, collections.abc.Mapping):
     def __iter__(self):
         return _EventClassIterator(self)
 
-    def create_event_class(self, id=None):
+    def create_event_class(self, id=None, name=None):
         if self.assigns_automatic_event_class_id:
             ec_ptr = native_bt.event_class_create(self._ptr)
         else:
             utils._check_uint64(id)
             ec_ptr = native_bt.event_class_create_with_id(self._ptr, id)
 
-        return bt2.event_class._EventClass._create_from_ptr(ec_ptr)
+        event = bt2.event_class._EventClass._create_from_ptr(ec_ptr)
+
+        if name is not None:
+            event._name = name
+
+        return event
 
     @property
     def trace_class(self):

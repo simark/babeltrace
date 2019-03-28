@@ -162,8 +162,7 @@ class ClockValueTestCase(unittest.TestCase):
         _trace = _tc()
         _sc = _tc.create_stream_class()
         _sc.default_clock_class = _cc
-        _ec = _sc.create_event_class()
-        _ec.name = 'salut'
+        _ec = _sc.create_event_class(name='salut')
         _stream = _trace.create_stream(_sc)
         _packet = _stream.create_packet()
         self._packet = _packet

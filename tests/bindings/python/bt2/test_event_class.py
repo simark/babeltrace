@@ -18,8 +18,7 @@ class EventClassTestCase(unittest.TestCase):
             print('allo')
         #trace = tc()
         self._stream_class = self._tc.create_stream_class(assigns_automatic_event_class_id=False)
-        self._ec = self._stream_class.create_event_class(id=18)
-        self._ec.name = 'my_event'
+        self._ec = self._stream_class.create_event_class(id=18, name='my_event')
 
     def tearDown(self):
         del self._context_ft

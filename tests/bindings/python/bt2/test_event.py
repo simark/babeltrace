@@ -73,8 +73,7 @@ class EventTestCase(unittest.TestCase):
                     clock_class = self._create_clock_class('my_cc', 1000)
                     stream_class.default_clock_class = clock_class
 
-                event_class = stream_class.create_event_class()
-                event_class.name = 'garou'
+                event_class = stream_class.create_event_class(name='garou')
 
                 # specific context (event-class-defined)
                 if with_sc:

@@ -125,8 +125,7 @@ class OutputPortMessageIteratorTestCase(unittest.TestCase):
 
                 trace_class = self._create_trace_class()
                 stream_class = trace_class.create_stream_class()
-                event_class = stream_class.create_event_class()
-                event_class.name = 'salut'
+                event_class = stream_class.create_event_class(name='salut')
 
                 my_int_ft = trace_class.create_signed_integer_field_class(32)
                 payload_ft = trace_class.create_structure_field_class()
