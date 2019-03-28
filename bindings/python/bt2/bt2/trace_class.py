@@ -121,10 +121,11 @@ class TraceClass(bt2._SharedObject, collections.abc.Mapping):
 
         return uuidp.UUID(bytes=uuid_bytes)
 
-    @uuid.setter
-    def uuid(self, uuid):
+    def _uuid(self, uuid):
         utils._check_type(uuid, uuidp.UUID)
         native_bt.trace_class_set_uuid(self._ptr, uuid.bytes)
+
+    _uuid = property(fget=None, fset=_uuid)
 
     # TODO: Choose between this, or a _create_trace method.
     def __call__(self, name=None):

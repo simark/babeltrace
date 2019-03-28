@@ -636,7 +636,7 @@ class _UserComponent(metaclass=_UserComponentType):
                 tc.env[key] = value
 
         if uuid is not None:
-            tc.uuid = uuid
+            tc._uuid = uuid
 
         if assigns_automatic_stream_class_id is not None:
             tc.assigns_automatic_stream_class_id = assigns_automatic_stream_class_id
