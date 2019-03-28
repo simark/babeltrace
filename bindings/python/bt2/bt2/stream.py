@@ -40,10 +40,11 @@ class _Stream(bt2.object._SharedObject):
     def name(self):
         return native_bt.stream_get_name(self._ptr)
 
-    @name.setter
-    def name(self, name):
+    def _name(self, name):
         utils._check_str(name)
         native_bt.stream_set_name(self._ptr, name)
+
+    _name = property(fset=_name)
 
     @property
     def id(self):

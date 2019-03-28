@@ -3,28 +3,34 @@ from test_utils.test_utils import run_in_component_init
 
 
 class StreamTestCase(unittest.TestCase):
-    def setUp(self):
+    @staticmethod
+    def _get_test_stream_class_and_trace():
         def f(comp_self):
             return comp_self._create_trace_class()
 
         tc = run_in_component_init(f)
-        self._sc = tc.create_stream_class(assigns_automatic_stream_id=False)
-        trace = tc()
-        self._stream = trace.create_stream(self._sc, id=1608)
+        sc = tc.create_stream_class(assigns_automatic_stream_id=False)
+        tr = tc()
 
-    def tearDown(self):
-        del self._sc
-        del self._stream
+        return sc, tr
 
     def test_attr_stream_class(self):
-        self.assertEqual(self._stream.stream_class.addr, self._sc.addr)
+        sc, tr = self._get_test_stream_class_and_trace()
+        stream = tr.create_stream(sc, id=1608)
+        self.assertEqual(stream.stream_class, sc)
 
     def test_attr_name(self):
-        self._stream.name = 'my_stream'
-        self.assertEqual(self._stream.name, 'my_stream')
+        sc, tr = self._get_test_stream_class_and_trace()
+        a_stream_with_no_name = tr.create_stream(sc, id=1608)
+        self.assertEqual(a_stream_with_no_name.name, None)
+
+        a_stream_with_a_name = tr.create_stream(sc, id=1609, name='best stream')
+        self.assertEqual(a_stream_with_a_name.name, 'best stream')
 
     def test_attr_id(self):
-        self.assertEqual(self._stream.id, 1608)
+        sc, tr = self._get_test_stream_class_and_trace()
+        stream = tr.create_stream(sc, id=1608)
+        self.assertEqual(stream.id, 1608)
 
     def test_default_clock_always_known(self):
         pass

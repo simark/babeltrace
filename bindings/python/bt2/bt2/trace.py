@@ -65,7 +65,7 @@ class Trace(object._SharedObject, collections.abc.Sequence):
 
     _name = property(fset=_name)
 
-    def create_stream(self, stream_class, id=None):
+    def create_stream(self, stream_class, id=None, name=None):
         utils._check_type(stream_class, bt2.stream_class._StreamClass)
 
         if stream_class.assigns_automatic_stream_id:
@@ -83,7 +83,12 @@ class Trace(object._SharedObject, collections.abc.Sequence):
         if stream_ptr is None:
             raise bt2.CreationError('cannot create stream object')
 
-        return bt2.stream._Stream._create_from_ptr(stream_ptr)
+        stream = bt2.stream._Stream._create_from_ptr(stream_ptr)
+
+        if name is not None:
+            stream._name = name
+
+        return stream
 
     def add_destruction_listener(self, listener):
         '''Add a listener to be called when the trace is destroyed.'''
