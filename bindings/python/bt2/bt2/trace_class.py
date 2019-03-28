@@ -207,7 +207,7 @@ class TraceClass(bt2._SharedObject, collections.abc.Mapping):
             sc._assigns_automatic_event_class_id = assigns_automatic_event_class_id
 
         if assigns_automatic_stream_id is not None:
-            sc.assigns_automatic_stream_id = assigns_automatic_stream_id
+            sc._assigns_automatic_stream_id = assigns_automatic_stream_id
 
         return sc
 
