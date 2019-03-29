@@ -70,11 +70,12 @@ class ClockClass(bt2.object._SharedObject):
     def description(self):
         return native_bt.clock_class_get_description(self._ptr)
 
-    @description.setter
-    def description(self, description):
+    def _description(self, description):
         utils._check_str(description)
         ret = native_bt.clock_class_set_description(self._ptr, description)
         utils._handle_ret(ret, "cannot set clock class object's description")
+
+    _description = property(fset=_description)
 
     @property
     def frequency(self):

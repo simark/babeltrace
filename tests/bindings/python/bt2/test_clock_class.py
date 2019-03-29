@@ -114,13 +114,15 @@ class ClockClassTestCase(unittest.TestCase):
 
         self.assertRaisesInComponentInit(TypeError, f)
 
-    def test_assign_description(self):
-        self._cc.description = 'hi people'
-        self.assertEqual(self._cc.description, 'hi people')
+    def test_description(self):
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class())
+        self.assertEqual(cc.description, None)
 
-    def test_assign_invalid_description(self):
-        with self.assertRaises(TypeError):
-            self._cc.description = 23
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class(description='hi people'))
+        self.assertEqual(cc.description, 'hi people')
+
+    def test_create_invalid_description(self):
+        self.assertRaisesInComponentInit(TypeError, lambda comp_self: comp_self._create_clock_class(description=23))
 
     def test_assign_frequency(self):
         self._cc.frequency = 987654321

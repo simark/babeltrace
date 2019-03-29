@@ -661,7 +661,7 @@ class _UserComponent(metaclass=_UserComponentType):
             cc.frequency = frequency
 
         if description is not None:
-            cc.description = description
+            cc._description = description
 
         if precision is not None:
             cc.precision = precision
