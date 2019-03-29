@@ -26,8 +26,7 @@ class AllMessagesTestCase(unittest.TestCase):
                 elif self._at == 5:
                     msg = self._create_packet_end_message(test_obj._packet, self._at)
                 elif self._at == 6:
-                    msg = self._create_stream_activity_end_message(test_obj._stream)
-                    msg.default_clock_snapshot = self._at
+                    msg = self._create_stream_activity_end_message(test_obj._stream, default_clock_snapshot=self._at)
                 elif self._at == 7:
                     msg = self._create_stream_end_message(test_obj._stream)
                 elif self._at >= 8:

@@ -137,8 +137,8 @@ class _UserMessageIterator(_MessageIterator):
     def _create_stream_activity_beginning_message(self, stream, default_clock_snapshot=None):
         return bt2.message._StreamActivityBeginningMessage(self, stream, default_clock_snapshot)
 
-    def _create_stream_activity_end_message(self, stream):
-        return bt2.message._StreamActivityEndMessage(self, stream)
+    def _create_stream_activity_end_message(self, stream, default_clock_snapshot=None):
+        return bt2.message._StreamActivityEndMessage(self, stream, default_clock_snapshot)
 
     def _create_stream_end_message(self, stream):
         return bt2.message._StreamEndMessage(self, stream)
