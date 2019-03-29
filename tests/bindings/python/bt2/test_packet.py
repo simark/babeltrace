@@ -34,11 +34,8 @@ class PacketTestCase(unittest.TestCase):
             ('stuff', tc.create_real_field_class()),
         ))
 
-        # stream class
-        sc = tc.create_stream_class(default_clock_class=clock_class,
-                                    event_common_context_field_class=sec)
-
         # packet context
+        pc = None
         if with_pc:
             pc = tc.create_structure_field_class()
             pc += OrderedDict((
@@ -47,7 +44,11 @@ class PacketTestCase(unittest.TestCase):
                 ('events_discarded', tc.create_unsigned_integer_field_class(64)),
                 ('packet_seq_num', tc.create_unsigned_integer_field_class(64)),
             ))
-            sc.packet_context_field_class = pc
+
+        # stream class
+        sc = tc.create_stream_class(default_clock_class=clock_class,
+                                    event_common_context_field_class=sec,
+                                    packet_context_field_class=pc)
 
         # event context
         ec = tc.create_structure_field_class()

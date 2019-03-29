@@ -27,8 +27,7 @@ def _create_stream(tc, ctx_field_classes):
         packet_context_fc.append_field(name, fc)
 
     trace = tc()
-    stream_class = tc.create_stream_class()
-    stream_class.packet_context_field_class = packet_context_fc
+    stream_class = tc.create_stream_class(packet_context_field_class=packet_context_fc)
 
     stream = trace.create_stream(stream_class)
     return stream

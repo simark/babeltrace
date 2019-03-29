@@ -57,8 +57,16 @@ class EventTestCase(unittest.TestCase):
                         ('stuff', tc.create_real_field_class()),
                     ))
 
+                # packet context (stream-class-defined)
+                pc = tc.create_structure_field_class()
+                pc += OrderedDict((
+                    ('something', tc.create_unsigned_integer_field_class(8)),
+                    ('something_else', tc.create_real_field_class()),
+                ))
+
                 stream_class = tc.create_stream_class(default_clock_class=clock_class,
-                                                      event_common_context_field_class=cc)
+                                                      event_common_context_field_class=cc,
+                                                      packet_context_field_class=pc)
 
                 # packet header
                 #ph = tc.create_structure_field_class()
@@ -66,14 +74,6 @@ class EventTestCase(unittest.TestCase):
                 #    ('magic', bt2.SignedIntegerFieldType(64)),
                 #    ('stream_id', bt2.SignedIntegerFieldType(16))
                 #))
-
-                # packet context (stream-class-defined)
-                pc = tc.create_structure_field_class()
-                pc += OrderedDict((
-                    ('something', tc.create_unsigned_integer_field_class(8)),
-                    ('something_else', tc.create_real_field_class()),
-                ))
-                stream_class.packet_context_field_class = pc
 
                 event_class = stream_class.create_event_class(name='garou')
 

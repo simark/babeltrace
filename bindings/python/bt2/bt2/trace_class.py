@@ -191,7 +191,7 @@ class TraceClass(bt2._SharedObject, collections.abc.Mapping):
             sc._name = name
 
         if packet_context_field_class is not None:
-            sc.packet_context_field_class = packet_context_field_class
+            sc._packet_context_field_class = packet_context_field_class
 
         if event_common_context_field_class is not None:
             sc._event_common_context_field_class = event_common_context_field_class
