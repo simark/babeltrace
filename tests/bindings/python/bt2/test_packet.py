@@ -35,7 +35,8 @@ class PacketTestCase(unittest.TestCase):
         ))
 
         # stream class
-        sc = tc.create_stream_class(default_clock_class=clock_class)
+        sc = tc.create_stream_class(default_clock_class=clock_class,
+                                    event_common_context_field_class=sec)
 
         # packet context
         if with_pc:
@@ -47,8 +48,6 @@ class PacketTestCase(unittest.TestCase):
                 ('packet_seq_num', tc.create_unsigned_integer_field_class(64)),
             ))
             sc.packet_context_field_class = pc
-
-        sc.event_common_context_field_class = sec
 
         # event context
         ec = tc.create_structure_field_class()

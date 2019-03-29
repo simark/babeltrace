@@ -156,8 +156,7 @@ class _StreamClass(bt2.object._SharedObject, collections.abc.Mapping):
 
         return bt2.field_class._create_field_class_from_ptr_and_get_ref(ft_ptr)
 
-    @event_common_context_field_class.setter
-    def event_common_context_field_class(self, event_common_context_field_class):
+    def _event_common_context_field_class(self, event_common_context_field_class):
         event_common_context_field_class_ptr = None
 
         if event_common_context_field_class is not None:
@@ -169,6 +168,8 @@ class _StreamClass(bt2.object._SharedObject, collections.abc.Mapping):
                                                                               event_common_context_field_class_ptr)
             utils._handle_ret(
                 ret, "cannot set stream class object's event context field type")
+
+    _event_common_context_field_class = property(fset=_event_common_context_field_class)
 
     @property
     def default_clock_class(self):

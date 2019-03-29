@@ -24,9 +24,9 @@ class StreamClassTestCase(unittest.TestCase):
         self._trace = self._tc()
 
         self._sc = self._tc.create_stream_class(id=12, name='my_stream_class',
-                                                assigns_automatic_event_class_id=False)
+                                                assigns_automatic_event_class_id=False,
+                                                event_common_context_field_class=self._event_common_context_ft)
         self._sc.packet_context_field_class = self._packet_context_ft
-        self._sc.event_common_context_field_class = self._event_common_context_ft
 
         context_ft = self._tc.create_structure_field_class()
         context_ft.append_field('allo', self._tc.create_string_field_class())
@@ -122,8 +122,7 @@ class StreamClassTestCase(unittest.TestCase):
         ft = self._tc.create_structure_field_class()
         ft.append_field(
             'champ', self._tc.create_unsigned_integer_field_class(19))
-        sc = self._tc.create_stream_class(id=1717)
-        sc.event_common_context_field_class = ft
+        sc = self._tc.create_stream_class(id=1717, event_common_context_field_class=ft)
         self.assertEqual(sc.event_common_context_field_class.addr, ft.addr)
 
     def test_assign_no_event_common_context_field_class(self):

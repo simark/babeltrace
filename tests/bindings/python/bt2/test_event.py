@@ -48,7 +48,17 @@ class EventTestCase(unittest.TestCase):
                 if with_clockclass:
                     clock_class = self._create_clock_class('my_cc', 1000)
 
-                stream_class = tc.create_stream_class(default_clock_class=clock_class)
+                # event common context (stream-class-defined)
+                cc = None
+                if with_cc:
+                    cc = tc.create_structure_field_class()
+                    cc += OrderedDict((
+                        ('cpu_id', tc.create_signed_integer_field_class(8)),
+                        ('stuff', tc.create_real_field_class()),
+                    ))
+
+                stream_class = tc.create_stream_class(default_clock_class=clock_class,
+                                                      event_common_context_field_class=cc)
 
                 # packet header
                 #ph = tc.create_structure_field_class()
@@ -56,15 +66,6 @@ class EventTestCase(unittest.TestCase):
                 #    ('magic', bt2.SignedIntegerFieldType(64)),
                 #    ('stream_id', bt2.SignedIntegerFieldType(16))
                 #))
-
-                # event common context (stream-class-defined)
-                if with_cc:
-                    cc = tc.create_structure_field_class()
-                    cc += OrderedDict((
-                        ('cpu_id', tc.create_signed_integer_field_class(8)),
-                        ('stuff', tc.create_real_field_class()),
-                    ))
-                    stream_class.event_common_context_field_class = cc
 
                 # packet context (stream-class-defined)
                 pc = tc.create_structure_field_class()

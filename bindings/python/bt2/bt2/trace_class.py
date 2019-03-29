@@ -194,7 +194,7 @@ class TraceClass(bt2._SharedObject, collections.abc.Mapping):
             sc.packet_context_field_class = packet_context_field_class
 
         if event_common_context_field_class is not None:
-            sc.event_common_context_field_class = event_common_context_field_class
+            sc._event_common_context_field_class = event_common_context_field_class
 
         if default_clock_class is not None:
             sc._default_clock_class = default_clock_class
