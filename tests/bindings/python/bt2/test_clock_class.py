@@ -124,13 +124,16 @@ class ClockClassTestCase(unittest.TestCase):
     def test_create_invalid_description(self):
         self.assertRaisesInComponentInit(TypeError, lambda comp_self: comp_self._create_clock_class(description=23))
 
-    def test_assign_frequency(self):
-        self._cc.frequency = 987654321
-        self.assertEqual(self._cc.frequency, 987654321)
+    def test_frequency(self):
+        # 1 GHz is the default frequency.
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class())
+        self.assertEqual(cc.frequency, 1000000000)
+
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class(frequency=987654321))
+        self.assertEqual(cc.frequency, 987654321)
 
     def test_assign_invalid_frequency(self):
-        with self.assertRaises(TypeError):
-            self._cc.frequency = 'lel'
+        self.assertRaisesInComponentInit(TypeError, lambda comp_self: comp_self._create_clock_class(frequency='lel'))
 
     def test_assign_precision(self):
         self._cc.precision = 12

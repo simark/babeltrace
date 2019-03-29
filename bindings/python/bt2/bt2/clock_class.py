@@ -81,10 +81,11 @@ class ClockClass(bt2.object._SharedObject):
     def frequency(self):
         return native_bt.clock_class_get_frequency(self._ptr)
 
-    @frequency.setter
-    def frequency(self, frequency):
+    def _frequency(self, frequency):
         utils._check_uint64(frequency)
         native_bt.clock_class_set_frequency(self._ptr, frequency)
+
+    _frequency = property(fset=_frequency)
 
     @property
     def precision(self):
