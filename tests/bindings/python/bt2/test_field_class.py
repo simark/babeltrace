@@ -12,45 +12,50 @@ def get_dummy_trace_class():
 
 
 class _TestIntegerFieldTypeProps:
-    def test_range_prop(self):
-        self.assertEqual(self._fc.range, 35)
+    def test_range(self):
+        fc = self._create_func()
+        self.assertEqual(fc.range, 64)
 
-    def test_assign_base(self):
-        self._fc.base = bt2.IntegerDisplayBase.HEXADECIMAL
-        self.assertEqual(self._fc.base, bt2.IntegerDisplayBase.HEXADECIMAL)
+        fc = self._create_func(range=35)
+        self.assertEqual(fc.range, 35)
 
-    def test_assign_invalid_base(self):
+        fc = self._create_func(36)
+        self.assertEqual(fc.range, 36)
+
+    def test_create_invalid_range(self):
         with self.assertRaises(TypeError):
-            self._fc.base = 'hey'
+            self._create_func('yes')
+
+        with self.assertRaises(TypeError):
+            self._create_func(range='yes')
+
+        with self.assertRaises(ValueError):
+            self._create_func(range=-2)
+
+        with self.assertRaises(ValueError):
+            self._create_func(range=0)
+
+    def test_base(self):
+        fc = self._create_func()
+        self.assertEqual(fc.display_base, bt2.IntegerDisplayBase.DECIMAL)
+
+        fc = self._create_func(display_base=bt2.IntegerDisplayBase.HEXADECIMAL)
+        self.assertEqual(fc.display_base, bt2.IntegerDisplayBase.HEXADECIMAL)
+
+    def test_create_invalid_base(self):
+        with self.assertRaises(TypeError):
+            self._create_func(display_base='yes')
+
+    def test_create_full(self):
+        fc = self._create_func(24, display_base=bt2.IntegerDisplayBase.OCTAL)
+        self.assertEqual(fc.range, 24)
+        self.assertEqual(fc.display_base, bt2.IntegerDisplayBase.OCTAL)
 
 
 class IntegerFieldTypeTestCase(_TestIntegerFieldTypeProps, unittest.TestCase):
     def setUp(self):
         self._tc = get_dummy_trace_class()
-        self._fc = self._tc.create_signed_integer_field_class(35)
-
-    def tearDown(self):
-        del self._fc
-
-    def test_create_default(self):
-        self.assertEqual(self._fc.range, 35)
-
-    def test_create_invalid_range(self):
-        with self.assertRaises(TypeError):
-            self._tc.create_signed_integer_field_class('yes')
-
-    def test_create_neg_range(self):
-        with self.assertRaises(ValueError):
-            self._tc.create_signed_integer_field_class(-2)
-
-    def test_create_zero_range(self):
-        with self.assertRaises(ValueError):
-            self._tc.create_signed_integer_field_class(0)
-
-    def test_create_full(self):
-        fc = self._tc.create_unsigned_integer_field_class(24, display_base=bt2.IntegerDisplayBase.OCTAL)
-        self.assertEqual(fc.range, 24)
-        self.assertEqual(fc.base, bt2.IntegerDisplayBase.OCTAL)
+        self._create_func = self._tc.create_signed_integer_field_class
 
 
 class RealFieldTypeTestCase(unittest.TestCase):
@@ -74,6 +79,7 @@ class EnumerationFieldTypeTestCase(_TestIntegerFieldTypeProps, unittest.TestCase
         self._tc = get_dummy_trace_class()
         self._fc = self._tc.create_signed_enumeration_field_class(range=35)
         self._unsigned_fc = self._tc.create_unsigned_enumeration_field_class(range=35)
+        self._create_func = self._tc.create_signed_enumeration_field_class
 
     def tearDown(self):
         del self._fc
@@ -87,11 +93,6 @@ class EnumerationFieldTypeTestCase(_TestIntegerFieldTypeProps, unittest.TestCase
         with self.assertRaises(TypeError):
             fc = self._tc.create_real_field_class()
             self._tc.create_signed_enumeration_field_class(fc)
-
-    def test_create_full(self):
-        fc = self._tc.create_signed_enumeration_field_class(range=24, display_base=bt2.IntegerDisplayBase.OCTAL)
-        self.assertEqual(fc.range, 24)
-        self.assertEqual(fc.base, bt2.IntegerDisplayBase.OCTAL)
 
     def test_add_mapping_simple(self):
         self._fc.map_range('hello', 24)

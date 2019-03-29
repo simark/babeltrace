@@ -235,10 +235,10 @@ class TraceClass(bt2._SharedObject, collections.abc.Mapping):
         field_class = py_cls._create_from_ptr(field_class_ptr)
 
         if range is not None:
-            field_class.range = range
+            field_class._range = range
 
         if display_base is not None:
-            field_class.base = display_base
+            field_class._display_base = display_base
 
         return field_class
 

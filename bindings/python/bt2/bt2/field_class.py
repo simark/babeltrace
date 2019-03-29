@@ -60,24 +60,26 @@ class _IntegerFieldClass(_FieldClass):
         assert(size >= 1)
         return size
 
-    @range.setter
-    def range(self, size):
+    def _range(self, size):
         if size < 1 or size > 64:
             raise ValueError("IntegerFieldClass range is not in the range [1,64] ({})".format(size))
         native_bt.field_class_integer_set_field_value_range(self._ptr, size)
 
+    _range = property(fset=_range)
+
     @property
-    def base(self):
+    def display_base(self):
         base = native_bt.field_class_integer_get_preferred_display_base(
             self._ptr)
         assert(base >= 0)
         return base
 
-    @base.setter
-    def base(self, base):
+    def _display_base(self, base):
         utils._check_int(base)
         native_bt.field_class_integer_set_preferred_display_base(
             self._ptr, base)
+
+    _display_base = property(fset=_display_base)
 
 
 class _UnsignedIntegerFieldClass(_IntegerFieldClass):
