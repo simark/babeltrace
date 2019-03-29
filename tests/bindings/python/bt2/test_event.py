@@ -68,23 +68,16 @@ class EventTestCase(unittest.TestCase):
                                                       event_common_context_field_class=cc,
                                                       packet_context_field_class=pc)
 
-                # packet header
-                #ph = tc.create_structure_field_class()
-                #ph += OrderedDict((
-                #    ('magic', bt2.SignedIntegerFieldType(64)),
-                #    ('stream_id', bt2.SignedIntegerFieldType(16))
-                #))
-
-                event_class = stream_class.create_event_class(name='garou')
-
                 # specific context (event-class-defined)
+                sc = None
                 if with_sc:
                     sc = tc.create_structure_field_class()
                     sc += OrderedDict((
                         ('ant', tc.create_signed_integer_field_class(16)),
                         ('msg', tc.create_string_field_class()),
                     ))
-                    event_class.specific_context_field_class = sc
+
+                event_class = stream_class.create_event_class(name='garou', specific_context_field_class=sc)
 
                 # event payload
                 if with_ep:

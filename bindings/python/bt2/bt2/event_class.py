@@ -125,12 +125,13 @@ class _EventClass(bt2.object._SharedObject):
 
         return bt2.field_class._create_field_class_from_ptr_and_get_ref(ft_ptr)
 
-    @specific_context_field_class.setter
-    def specific_context_field_class(self, context_field_class):
+    def _specific_context_field_class(self, context_field_class):
         if context_field_class is not None:
             utils._check_type(context_field_class, bt2.field_class._FieldClass)
             ret = native_bt.event_class_set_specific_context_field_class(self._ptr, context_field_class._ptr)
             utils._handle_ret(ret, "cannot set event class object's context field type")
+
+    _specific_context_field_class = property(fset=_specific_context_field_class)
 
     @property
     def payload_field_class(self):
