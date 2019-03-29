@@ -269,7 +269,7 @@ class TraceClass(bt2._SharedObject, collections.abc.Mapping):
         field_class = bt2.field_class.RealFieldClass._create_from_ptr(field_class_ptr)
 
         if is_single_precision is not None:
-            field_class.single_precision = True
+            field_class._single_precision = is_single_precision
 
         return field_class
 

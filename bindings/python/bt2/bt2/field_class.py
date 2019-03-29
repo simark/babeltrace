@@ -105,11 +105,12 @@ class RealFieldClass(_FieldClass):
     def single_precision(self):
         return native_bt.field_class_real_is_single_precision(self._ptr)
 
-    @single_precision.setter
-    def single_precision(self, is_single_precision):
+    def _single_precision(self, is_single_precision):
         utils._check_bool(is_single_precision)
         native_bt.field_class_real_set_is_single_precision(
             self._ptr, is_single_precision)
+
+    _single_precision = property(fset=_single_precision)
 
 
 class _EnumerationFieldClassMappingRange:
