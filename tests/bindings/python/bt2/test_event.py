@@ -43,7 +43,12 @@ class EventTestCase(unittest.TestCase):
             def __init__(self, params):
                 self._add_output_port('out')
                 tc = self._create_trace_class()
-                stream_class = tc.create_stream_class()
+
+                clock_class = None
+                if with_clockclass:
+                    clock_class = self._create_clock_class('my_cc', 1000)
+
+                stream_class = tc.create_stream_class(default_clock_class=clock_class)
 
                 # packet header
                 #ph = tc.create_structure_field_class()
@@ -68,10 +73,6 @@ class EventTestCase(unittest.TestCase):
                     ('something_else', tc.create_real_field_class()),
                 ))
                 stream_class.packet_context_field_class = pc
-
-                if with_clockclass:
-                    clock_class = self._create_clock_class('my_cc', 1000)
-                    stream_class.default_clock_class = clock_class
 
                 event_class = stream_class.create_event_class(name='garou')
 

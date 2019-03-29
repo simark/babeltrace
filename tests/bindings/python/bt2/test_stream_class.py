@@ -95,8 +95,7 @@ class StreamClassTestCase(unittest.TestCase):
             self._tc.create_stream_class(id='lel')
 
     def test_default_clock_class(self):
-        sc = self._tc.create_stream_class(id=1717)
-        sc.default_clock_class = self._cc
+        sc = self._tc.create_stream_class(id=1717, default_clock_class=self._cc)
         self.assertEqual(sc.default_clock_class.addr, self._cc.addr)
 
     def test_no_default_clock_class(self):
@@ -104,8 +103,7 @@ class StreamClassTestCase(unittest.TestCase):
         self.assertIsNone(sc.default_clock_class)
 
     def test_clock_always_known(self):
-        sc = self._tc.create_stream_class(id=1717)
-        sc.default_clock_class = self._cc
+        sc = self._tc.create_stream_class(id=1717, default_clock_class=self._cc)
         self.assertTrue(sc.default_clock_always_known)
 
     def test_assign_packet_context_field_class(self):

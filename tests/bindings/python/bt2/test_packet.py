@@ -35,8 +35,7 @@ class PacketTestCase(unittest.TestCase):
         ))
 
         # stream class
-        sc = tc.create_stream_class()
-        sc.default_clock_class = clock_class
+        sc = tc.create_stream_class(default_clock_class=clock_class)
 
         # packet context
         if with_pc:

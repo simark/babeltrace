@@ -178,11 +178,12 @@ class _StreamClass(bt2.object._SharedObject, collections.abc.Mapping):
 
         return bt2.clock_class.ClockClass._create_from_ptr_and_get_ref(cc_ptr)
 
-    @default_clock_class.setter
-    def default_clock_class(self, clock_class):
+    def _default_clock_class(self, clock_class):
         utils._check_type(clock_class, bt2.clock_class.ClockClass)
         native_bt.stream_class_set_default_clock_class(
             self._ptr, clock_class._ptr)
+
+    _default_clock_class = property(fset=_default_clock_class)
 
     @property
     def default_clock_always_known(self):
