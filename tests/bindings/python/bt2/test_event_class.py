@@ -18,7 +18,7 @@ class EventClassTestCase(unittest.TestCase):
             print('allo')
         #trace = tc()
         self._stream_class = self._tc.create_stream_class(assigns_automatic_event_class_id=False)
-        self._ec = self._stream_class.create_event_class(id=18, name='my_event')
+        self._ec = self._stream_class.create_event_class(id=18, name='my_event', log_level=bt2.EventClassLogLevel.INFO)
 
     def tearDown(self):
         del self._context_ft
@@ -27,7 +27,6 @@ class EventClassTestCase(unittest.TestCase):
 
     def test_create(self):
         self._ec.emf_uri = 'yes'
-        self._ec.log_level = bt2.EventClassLogLevel.INFO
         self._ec.specific_context_field_class = self._context_ft
         self._ec.payload_field_class = self._payload_ft
 
@@ -73,10 +72,13 @@ class EventClassTestCase(unittest.TestCase):
         with self.assertRaises(TypeError):
             self._ec.emf_uri = 23
 
-    def test_assign_log_level(self):
-        self._ec.log_level = bt2.EventClassLogLevel.EMERGENCY
-        self.assertEqual(self._ec.log_level, bt2.EventClassLogLevel.EMERGENCY)
+    def test_log_level(self):
+        ec = self._stream_class.create_event_class(id=111)
+        self.assertEqual(ec.log_level, None)
 
-    def test_assign_invalid_log_level(self):
+        ec = self._stream_class.create_event_class(id=222, log_level=bt2.EventClassLogLevel.EMERGENCY)
+        self.assertEqual(ec.log_level, bt2.EventClassLogLevel.EMERGENCY)
+
+    def test_create_invalid_log_level(self):
         with self.assertRaises(ValueError):
-            self._ec.log_level = 'zoom'
+            self._stream_class.create_event_class(id=123, log_level='zoom')

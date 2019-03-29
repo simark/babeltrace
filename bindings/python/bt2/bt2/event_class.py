@@ -79,8 +79,7 @@ class _EventClass(bt2.object._SharedObject):
         is_available, log_level = native_bt.event_class_get_log_level(self._ptr)
         return _EVENT_CLASS_LOG_LEVEL_TO_OBJ[log_level] if is_available == native_bt.PROPERTY_AVAILABILITY_AVAILABLE else None
 
-    @log_level.setter
-    def log_level(self, log_level):
+    def _log_level(self, log_level):
         log_levels = (
             EventClassLogLevel.EMERGENCY,
             EventClassLogLevel.ALERT,
@@ -103,6 +102,8 @@ class _EventClass(bt2.object._SharedObject):
             raise ValueError("'{}' is not a valid log level".format(log_level))
 
         native_bt.event_class_set_log_level(self._ptr, log_level)
+
+    _log_level = property(fset=_log_level)
 
     @property
     def emf_uri(self):
