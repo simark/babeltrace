@@ -59,11 +59,12 @@ class ClockClass(bt2.object._SharedObject):
     def name(self):
         return native_bt.clock_class_get_name(self._ptr)
 
-    @name.setter
-    def name(self, name):
+    def _name(self, name):
         utils._check_str(name)
         ret = native_bt.clock_class_set_name(self._ptr, name)
         utils._handle_ret(ret, "cannot set clock class object's name")
+
+    _name = property(fset=_name)
 
     @property
     def description(self):

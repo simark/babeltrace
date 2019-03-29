@@ -655,7 +655,7 @@ class _UserComponent(metaclass=_UserComponentType):
         cc = bt2.ClockClass._create_from_ptr(cc_ptr)
 
         if name is not None:
-            cc.name = name
+            cc._name = name
 
         if frequency is not None:
             cc.frequency = frequency

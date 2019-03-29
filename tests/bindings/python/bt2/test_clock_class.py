@@ -59,6 +59,20 @@ class ClockClassTestCase(unittest.TestCase):
 
         self._cc = run_in_component_init(f)
 
+    def assertRaisesInComponentInit(self, expected_exc_type, user_code):
+        def f(comp_self):
+            ret = None
+            try:
+                user_code(comp_self)
+            except Exception as exc:
+                ret = exc
+
+            return ret
+
+        exc = run_in_component_init(f)
+        self.assertIsNotNone(exc)
+        self.assertIsInstance(exc, expected_exc_type)
+
     def tearDown(self):
         del self._cc
 
@@ -87,13 +101,18 @@ class ClockClassTestCase(unittest.TestCase):
     def test_create_no_uuid(self):
         self.assertIsNone(self._cc.uuid)
 
-    def test_assign_name(self):
-        self._cc.name = 'the_clock'
-        self.assertEqual(self._cc.name, 'the_clock')
+    def test_name(self):
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class())
+        self.assertEqual(cc.name, None)
 
-    def test_assign_invalid_name(self):
-        with self.assertRaises(TypeError):
-            self._cc.name = 23
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class(name='the_clock'))
+        self.assertEqual(cc.name, 'the_clock')
+
+    def test_create_invalid_name(self):
+        def f(comp_self):
+            comp_self._create_clock_class(name=23)
+
+        self.assertRaisesInComponentInit(TypeError, f)
 
     def test_assign_description(self):
         self._cc.description = 'hi people'
