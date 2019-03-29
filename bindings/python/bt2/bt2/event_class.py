@@ -109,11 +109,12 @@ class _EventClass(bt2.object._SharedObject):
     def emf_uri(self):
         return native_bt.event_class_get_emf_uri(self._ptr)
 
-    @emf_uri.setter
-    def emf_uri(self, emf_uri):
+    def _emf_uri(self, emf_uri):
         utils._check_str(emf_uri)
         ret = native_bt.event_class_set_emf_uri(self._ptr, emf_uri)
         utils._handle_ret(ret, "cannot set event class object's EMF URI")
+
+    _emf_uri = property(fset=_emf_uri)
 
     @property
     def specific_context_field_class(self):

@@ -26,7 +26,6 @@ class EventClassTestCase(unittest.TestCase):
         del self._ec
 
     def test_create(self):
-        self._ec.emf_uri = 'yes'
         self._ec.specific_context_field_class = self._context_ft
         self._ec.payload_field_class = self._payload_ft
 
@@ -64,13 +63,16 @@ class EventClassTestCase(unittest.TestCase):
     def test_stream_class_prop(self):
         self.assertEqual(self._ec.stream_class.addr, self._stream_class.addr)
 
-    def test_assign_emf_uri(self):
-        self._ec.emf_uri = 'salut'
-        self.assertEqual(self._ec.emf_uri, 'salut')
+    def test_emf_uri(self):
+        ec = self._stream_class.create_event_class(id=111)
+        self.assertEqual(ec.emf_uri, None)
 
-    def test_assign_invalid_emf_uri(self):
+        ec = self._stream_class.create_event_class(id=222, emf_uri='salut')
+        self.assertEqual(ec.emf_uri, 'salut')
+
+    def test_create_invalid_emf_uri(self):
         with self.assertRaises(TypeError):
-            self._ec.emf_uri = 23
+            self._stream_class.create_event_class(id=222, emf_uri=23)
 
     def test_log_level(self):
         ec = self._stream_class.create_event_class(id=111)
