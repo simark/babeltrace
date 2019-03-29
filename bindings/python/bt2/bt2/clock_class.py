@@ -92,11 +92,12 @@ class ClockClass(bt2.object._SharedObject):
         precision = native_bt.clock_class_get_precision(self._ptr)
         return precision
 
-    @precision.setter
-    def precision(self, precision):
+    def _precision(self, precision):
         utils._check_uint64(precision)
         assert(precision >= 0)
         native_bt.clock_class_set_precision(self._ptr, precision)
+
+    _precision = property(fset=_precision)
 
     @property
     def offset(self):

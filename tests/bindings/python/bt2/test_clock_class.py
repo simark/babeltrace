@@ -132,16 +132,18 @@ class ClockClassTestCase(unittest.TestCase):
         cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class(frequency=987654321))
         self.assertEqual(cc.frequency, 987654321)
 
-    def test_assign_invalid_frequency(self):
+    def test_create_invalid_frequency(self):
         self.assertRaisesInComponentInit(TypeError, lambda comp_self: comp_self._create_clock_class(frequency='lel'))
 
-    def test_assign_precision(self):
-        self._cc.precision = 12
-        self.assertEqual(self._cc.precision, 12)
+    def test_precision(self):
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class())
+        self.assertEqual(cc.precision, 0)
 
-    def test_assign_invalid_precision(self):
-        with self.assertRaises(TypeError):
-            self._cc.precision = 'lel'
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class(precision=12))
+        self.assertEqual(cc.precision, 12)
+
+    def test_create_invalid_precision(self):
+        self.assertRaisesInComponentInit(TypeError, lambda comp_self: comp_self._create_clock_class(precision='lel'))
 
     def test_assign_offset(self):
         self._cc.offset = bt2.ClockClassOffset(12, 56)

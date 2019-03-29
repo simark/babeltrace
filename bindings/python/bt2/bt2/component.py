@@ -664,7 +664,7 @@ class _UserComponent(metaclass=_UserComponentType):
             cc._description = description
 
         if precision is not None:
-            cc.precision = precision
+            cc._precision = precision
 
         if offset is not None:
             cc.offset = offset
