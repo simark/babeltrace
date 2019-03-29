@@ -145,13 +145,15 @@ class ClockClassTestCase(unittest.TestCase):
     def test_create_invalid_precision(self):
         self.assertRaisesInComponentInit(TypeError, lambda comp_self: comp_self._create_clock_class(precision='lel'))
 
-    def test_assign_offset(self):
-        self._cc.offset = bt2.ClockClassOffset(12, 56)
-        self.assertEqual(self._cc.offset, bt2.ClockClassOffset(12, 56))
+    def test_offset(self):
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class())
+        self.assertEqual(cc.offset, bt2.ClockClassOffset())
 
-    def test_assign_invalid_offset(self):
-        with self.assertRaises(TypeError):
-            self._cc.offset = object()
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class(offset=bt2.ClockClassOffset(12, 56)))
+        self.assertEqual(cc.offset, bt2.ClockClassOffset(12, 56))
+
+    def test_create_invalid_offset(self):
+        self.assertRaisesInComponentInit(TypeError, lambda comp_self: comp_self._create_clock_class(offset=object()))
 
     def test_assign_absolute(self):
         self._cc.origin_is_unix_epoch = True

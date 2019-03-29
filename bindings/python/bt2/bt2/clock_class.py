@@ -104,10 +104,11 @@ class ClockClass(bt2.object._SharedObject):
         offset_s, offset_cycles = native_bt.clock_class_get_offset(self._ptr)
         return ClockClassOffset(offset_s, offset_cycles)
 
-    @offset.setter
-    def offset(self, offset):
+    def _offset(self, offset):
         utils._check_type(offset, ClockClassOffset)
         native_bt.clock_class_set_offset(self._ptr, offset.seconds, offset.cycles)
+
+    _offset = property(fset=_offset)
 
     @property
     def origin_is_unix_epoch(self):

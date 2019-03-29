@@ -667,7 +667,7 @@ class _UserComponent(metaclass=_UserComponentType):
             cc._precision = precision
 
         if offset is not None:
-            cc.offset = offset
+            cc._offset = offset
 
         if origin_is_unix_epoch is not None:
             cc.origin_is_unix_epoch = origin_is_unix_epoch
