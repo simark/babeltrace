@@ -129,7 +129,8 @@ class ClockClass(bt2.object._SharedObject):
 
         return uuidp.UUID(bytes=uuid_bytes)
 
-    @uuid.setter
-    def uuid(self, uuid):
+    def _uuid(self, uuid):
         utils._check_type(uuid, uuidp.UUID)
         native_bt.clock_class_set_uuid(self._ptr, uuid.bytes)
+
+    _uuid = property(fset=_uuid)

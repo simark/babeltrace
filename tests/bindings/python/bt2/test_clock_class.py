@@ -166,13 +166,15 @@ class ClockClassTestCase(unittest.TestCase):
         self.assertRaisesInComponentInit(TypeError, lambda comp_self: comp_self._create_clock_class(origin_is_unix_epoch=23))
 
     def test_assign_uuid(self):
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class())
+        self.assertEqual(cc.uuid, None)
+
         the_uuid = uuid.uuid1()
-        self._cc.uuid = the_uuid
-        self.assertEqual(self._cc.uuid, the_uuid)
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class(uuid=the_uuid))
+        self.assertEqual(cc.uuid, the_uuid)
 
     def test_assign_invalid_uuid(self):
-        with self.assertRaises(TypeError):
-            self._cc.uuid = object()
+        self.assertRaisesInComponentInit(TypeError, lambda comp_self: comp_self._create_clock_class(uuid=23))
 
 
 class ClockValueTestCase(unittest.TestCase):

@@ -673,7 +673,7 @@ class _UserComponent(metaclass=_UserComponentType):
             cc._origin_is_unix_epoch = origin_is_unix_epoch
 
         if uuid is not None:
-            cc.uuid = uuid
+            cc._uuid = uuid
 
         return cc
 
