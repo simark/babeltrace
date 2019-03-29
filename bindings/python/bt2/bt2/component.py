@@ -670,7 +670,7 @@ class _UserComponent(metaclass=_UserComponentType):
             cc._offset = offset
 
         if origin_is_unix_epoch is not None:
-            cc.origin_is_unix_epoch = origin_is_unix_epoch
+            cc._origin_is_unix_epoch = origin_is_unix_epoch
 
         if uuid is not None:
             cc.uuid = uuid

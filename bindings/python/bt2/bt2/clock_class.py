@@ -114,10 +114,11 @@ class ClockClass(bt2.object._SharedObject):
     def origin_is_unix_epoch(self):
         return native_bt.clock_class_origin_is_unix_epoch(self._ptr)
 
-    @origin_is_unix_epoch.setter
-    def origin_is_unix_epoch(self, origin_is_unix_epoch):
+    def _origin_is_unix_epoch(self, origin_is_unix_epoch):
         utils._check_bool(origin_is_unix_epoch)
         native_bt.clock_class_set_origin_is_unix_epoch(self._ptr, int(origin_is_unix_epoch))
+
+    _origin_is_unix_epoch = property(fset=_origin_is_unix_epoch)
 
     @property
     def uuid(self):

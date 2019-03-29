@@ -155,17 +155,15 @@ class ClockClassTestCase(unittest.TestCase):
     def test_create_invalid_offset(self):
         self.assertRaisesInComponentInit(TypeError, lambda comp_self: comp_self._create_clock_class(offset=object()))
 
-    def test_assign_absolute(self):
-        self._cc.origin_is_unix_epoch = True
-        self.assertTrue(self._cc.origin_is_unix_epoch)
+    def test_origin_is_unix_epoch(self):
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class())
+        self.assertEqual(cc.origin_is_unix_epoch, True)
 
-    def test_assign_not_absolute(self):
-        self._cc.origin_is_unix_epoch = False
-        self.assertFalse(self._cc.origin_is_unix_epoch)
+        cc = run_in_component_init(lambda comp_self: comp_self._create_clock_class(origin_is_unix_epoch=False))
+        self.assertEqual(cc.origin_is_unix_epoch, False)
 
-    def test_assign_invalid_absolute(self):
-        with self.assertRaises(TypeError):
-            self._cc.origin_is_unix_epoch = 23
+    def test_create_invalid_origin_is_unix_epoch(self):
+        self.assertRaisesInComponentInit(TypeError, lambda comp_self: comp_self._create_clock_class(origin_is_unix_epoch=23))
 
     def test_assign_uuid(self):
         the_uuid = uuid.uuid1()
