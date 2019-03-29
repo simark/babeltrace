@@ -238,7 +238,7 @@ class _StreamBeginningMessage(_Message):
 class _StreamActivityBeginningMessage(_Message):
     _TYPE = native_bt.MESSAGE_TYPE_STREAM_ACTIVITY_BEGINNING
 
-    def __init__(self, self_msg_iter, stream):
+    def __init__(self, self_msg_iter, stream, default_clock_snapshot):
         utils._check_type(stream, bt2.stream._Stream)
         ptr = native_bt.message_stream_activity_beginning_create(
             self_msg_iter._ptr, stream._ptr)
@@ -248,6 +248,9 @@ class _StreamActivityBeginningMessage(_Message):
                 'cannot create stream activity beginning message object')
 
         super().__init__(ptr)
+
+        if default_clock_snapshot is not None:
+            self._default_clock_snapshot = default_clock_snapshot
 
     def __str__(self):
         return 'StreamActivityBeginning(stream-id={})'.format(self.stream.id)
@@ -273,12 +276,13 @@ class _StreamActivityBeginningMessage(_Message):
                                                                   self._GET_REF_NATIVE_FUNC,
                                                                   self._PUT_REF_NATIVE_FUNC)
 
-    @default_clock_snapshot.setter
-    def default_clock_snapshot(self, value):
+    def _default_clock_snapshot(self, value):
         native_bt.message_stream_activity_beginning_set_default_clock_snapshot(
             self._ptr, value)
         # TODO need to set the state too, with bt_message_stream_activity_beginning_set_default_clock_snapshot_state?
         # TODO support for setting INFINITE?
+
+    _default_clock_snapshot = property(fset=_default_clock_snapshot)
 
     @property
     def stream(self):

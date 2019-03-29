@@ -16,8 +16,7 @@ class AllMessagesTestCase(unittest.TestCase):
                 if self._at == 0:
                     msg = self._create_stream_beginning_message(test_obj._stream)
                 elif self._at == 1:
-                    msg = self._create_stream_activity_beginning_message(test_obj._stream)
-                    msg.default_clock_snapshot = self._at
+                    msg = self._create_stream_activity_beginning_message(test_obj._stream, default_clock_snapshot=self._at)
                 elif self._at == 2:
                     msg = self._create_packet_beginning_message(test_obj._packet, self._at)
                 elif self._at == 3:
