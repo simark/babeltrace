@@ -21,7 +21,9 @@ class EventClassTestCase(unittest.TestCase):
         self._ec = self._stream_class.create_event_class(id=18, name='my_event',
                                                          log_level=bt2.EventClassLogLevel.INFO,
                                                          emf_uri='yes',
-                                                         specific_context_field_class=self._context_ft)
+                                                         specific_context_field_class=self._context_ft,
+                                                         payload_field_class=self._payload_ft)
+
 
     def tearDown(self):
         del self._context_ft
@@ -29,8 +31,6 @@ class EventClassTestCase(unittest.TestCase):
         del self._ec
 
     def test_create(self):
-        self._ec.payload_field_class = self._payload_ft
-
         self.assertEqual(self._ec.name, 'my_event')
         self.assertEqual(self._ec.id, 18)
         self.assertEqual(self._ec.specific_context_field_class.addr, self._context_ft.addr)
@@ -51,16 +51,18 @@ class EventClassTestCase(unittest.TestCase):
         with self.assertRaises(TypeError):
             self._stream_class.create_event_class(id=12, specific_context_field_class = 'lel')
 
-    def test_assign_payload_field_class(self):
-        self._ec.payload_field_class = self._payload_ft
-        self.assertEqual(self._ec.payload_field_class.addr, self._payload_ft.addr)
+    def test_payload_field_class(self):
+        ec = self._stream_class.create_event_class(id=12)
+        self.assertIsNone(ec.payload_field_class)
 
-    def test_assign_no_payload_field_class(self):
-        self.assertIsNone(self._ec.payload_field_class)
+        ft = self._tc.create_structure_field_class()
+        ft.append_field('garou', self._tc.create_string_field_class())
+        ec = self._stream_class.create_event_class(id=13, payload_field_class=ft)
+        self.assertEqual(ec.payload_field_class.addr, ft.addr)
 
-    def test_assign_invalid_payload_field_class(self):
+    def test_create_invalid_payload_field_class(self):
         with self.assertRaises(TypeError):
-            self._ec.payload_field_class = 'lel'
+            ec = self._stream_class.create_event_class(id=12, payload_field_class='lel')
 
     def test_stream_class_prop(self):
         self.assertEqual(self._ec.stream_class.addr, self._stream_class.addr)

@@ -67,7 +67,7 @@ class _StreamClass(bt2.object._SharedObject, collections.abc.Mapping):
         return _EventClassIterator(self)
 
     def create_event_class(self, id=None, name=None, log_level=None, emf_uri=None,
-                           specific_context_field_class=None):
+                           specific_context_field_class=None, payload_field_class=None):
         if self.assigns_automatic_event_class_id:
             ec_ptr = native_bt.event_class_create(self._ptr)
         else:
@@ -87,6 +87,9 @@ class _StreamClass(bt2.object._SharedObject, collections.abc.Mapping):
 
         if specific_context_field_class is not None:
             event._specific_context_field_class = specific_context_field_class
+
+        if payload_field_class is not None:
+            event._payload_field_class = payload_field_class
 
         return event
 

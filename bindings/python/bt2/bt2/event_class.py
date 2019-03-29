@@ -142,14 +142,15 @@ class _EventClass(bt2.object._SharedObject):
 
         return bt2.field_class._create_field_class_from_ptr_and_get_ref(ft_ptr)
 
-    @payload_field_class.setter
-    def payload_field_class(self, payload_field_class):
+    def _payload_field_class(self, payload_field_class):
 
         if payload_field_class is not None:
             utils._check_type(payload_field_class, bt2.field_class._FieldClass)
             ret = native_bt.event_class_set_payload_field_class(self._ptr, payload_field_class._ptr)
             utils._handle_ret(ret, "cannot set event class object's payload field class")
         # TODO: Else what, raise, clear the field?
+
+    _payload_field_class = property(fset=_payload_field_class)
 
 _EVENT_CLASS_LOG_LEVEL_TO_OBJ = {
         native_bt.EVENT_CLASS_LOG_LEVEL_EMERGENCY: EventClassLogLevel.EMERGENCY,

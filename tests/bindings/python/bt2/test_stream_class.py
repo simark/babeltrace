@@ -28,20 +28,31 @@ class StreamClassTestCase(unittest.TestCase):
                                                 event_common_context_field_class=self._event_common_context_ft,
                                                 packet_context_field_class=self._packet_context_ft)
 
+        # Create event class 1
         context_ft = self._tc.create_structure_field_class()
         context_ft.append_field('allo', self._tc.create_string_field_class())
         context_ft.append_field(
             'zola', self._tc.create_unsigned_integer_field_class(18))
+
         payload_ft = self._tc.create_structure_field_class()
         payload_ft.append_field('zoom', self._tc.create_string_field_class())
 
-        self._ec1 = self._sc.create_event_class(id=23)
-        self._ec1.context_field_class = context_ft
-        self._ec1.payload_field_class = payload_ft
+        self._ec1 = self._sc.create_event_class(id=23,
+                                                specific_context_field_class=context_ft,
+                                                payload_field_class=payload_ft)
 
-        self._ec2 = self._sc.create_event_class(id=17)
-        self._ec2.context_field_class = payload_ft
-        self._ec2.payload_field_class = context_ft
+        # Create event class 2
+        context_ft = self._tc.create_structure_field_class()
+        context_ft.append_field('allo', self._tc.create_string_field_class())
+        context_ft.append_field(
+            'zola', self._tc.create_unsigned_integer_field_class(18))
+
+        payload_ft = self._tc.create_structure_field_class()
+        payload_ft.append_field('zoom', self._tc.create_string_field_class())
+
+        self._ec2 = self._sc.create_event_class(id=17,
+                                                specific_context_field_class=context_ft,
+                                                payload_field_class=payload_ft)
 
     def tearDown(self):
         del self._packet_context_ft

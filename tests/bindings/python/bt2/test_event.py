@@ -77,9 +77,8 @@ class EventTestCase(unittest.TestCase):
                         ('msg', tc.create_string_field_class()),
                     ))
 
-                event_class = stream_class.create_event_class(name='garou', specific_context_field_class=sc)
-
                 # event payload
+                ep = None
                 if with_ep:
                     ep = tc.create_structure_field_class()
                     ep += OrderedDict((
@@ -87,7 +86,10 @@ class EventTestCase(unittest.TestCase):
                         ('gnu', tc.create_signed_integer_field_class(8)),
                         ('mosquito', tc.create_signed_integer_field_class(8)),
                     ))
-                    event_class.payload_field_class = ep
+
+                event_class = stream_class.create_event_class(name='garou',
+                                                              specific_context_field_class=sc,
+                                                              payload_field_class=ep)
 
                 trace = tc()
                 stream = trace.create_stream(stream_class)

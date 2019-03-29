@@ -44,13 +44,15 @@ class AllMessagesTestCase(unittest.TestCase):
                 tc = self._create_trace_class()
                 cc = self._create_clock_class()
                 sc = tc.create_stream_class(default_clock_class=cc)
-                ec = sc.create_event_class(name='salut')
+
+                # Create payload field class
                 my_int_fc = tc.create_signed_integer_field_class(32)
                 payload_fc = tc.create_structure_field_class()
                 payload_fc += collections.OrderedDict([
                     ('my_int', my_int_fc),
                 ])
-                ec.payload_field_class = payload_fc
+
+                ec = sc.create_event_class(name='salut', payload_field_class=payload_fc)
 
                 trace = tc()
                 stream = trace.create_stream(sc)
