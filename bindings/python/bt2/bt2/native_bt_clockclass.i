@@ -22,52 +22,64 @@
  * THE SOFTWARE.
  */
 
-/* Types */
-struct bt_clock_class;
-struct bt_clock_value;
+/* From clock-class-const.h */
 
-/* Clock class functions */
-struct bt_clock_class *bt_clock_class_create(void);
+typedef enum bt_clock_class_status {
+	BT_CLOCK_CLASS_STATUS_OK = 0,
+	BT_CLOCK_CLASS_STATUS_NOMEM = -12,
+	BT_CLOCK_CLASS_STATUS_OVERFLOW = -75,
+} bt_clock_class_status;
 
-const char *bt_clock_class_get_name(struct bt_clock_class *clock_class);
+extern const char *bt_clock_class_get_name(
+		const bt_clock_class *clock_class);
 
-int bt_clock_class_set_name(struct bt_clock_class *clock_class,
-	const char *name);
+extern const char *bt_clock_class_get_description(
+		const bt_clock_class *clock_class);
 
-const char *bt_clock_class_get_description(
-	struct bt_clock_class *clock_class);
+extern uint64_t bt_clock_class_get_frequency(
+		const bt_clock_class *clock_class);
 
-int bt_clock_class_set_description(struct bt_clock_class *clock_class,
-	const char *description);
+extern uint64_t bt_clock_class_get_precision(
+		const bt_clock_class *clock_class);
 
-uint64_t bt_clock_class_get_frequency(
-	struct bt_clock_class *clock_class);
+extern void bt_clock_class_get_offset(const bt_clock_class *clock_class,
+		int64_t *seconds, uint64_t *cycles);
 
-int bt_clock_class_set_frequency(struct bt_clock_class *clock_class,
-	uint64_t freq);
+extern bt_bool bt_clock_class_origin_is_unix_epoch(
+		const bt_clock_class *clock_class);
 
-uint64_t bt_clock_class_get_precision(
-	struct bt_clock_class *clock_class);
+extern bt_uuid bt_clock_class_get_uuid(
+		const bt_clock_class *clock_class);
 
-int bt_clock_class_set_precision(struct bt_clock_class *clock_class,
-	uint64_t precision);
+extern bt_clock_class_status bt_clock_class_cycles_to_ns_from_origin(
+		const bt_clock_class *clock_class,
+		uint64_t cycles, int64_t *ns_from_origin);
 
-void bt_clock_class_get_offset(struct bt_clock_class *clock_class,
-	int64_t *OUTPUTINIT, uint64_t *OUTPUTINIT);
+extern void bt_clock_class_get_ref(const bt_clock_class *clock_class);
 
-int bt_clock_class_set_offset(struct bt_clock_class *clock_class,
-	int64_t seconds, uint64_t cycles);
+extern void bt_clock_class_put_ref(const bt_clock_class *clock_class);
 
-bt_bool bt_clock_class_is_absolute(struct bt_clock_class *clock_class);
+/* From clock-class.h */
 
-int bt_clock_class_set_is_absolute(struct bt_clock_class *clock_class,
-	bt_bool is_absolute);
+extern bt_clock_class *bt_clock_class_create(bt_self_component *self_comp);
 
-bt_uuid bt_clock_class_get_uuid(struct bt_clock_class *clock_class);
+extern bt_clock_class_status bt_clock_class_set_name(
+		bt_clock_class *clock_class, const char *name);
 
-int bt_clock_class_set_uuid(struct bt_clock_class *clock_class,
-	bt_uuid uuid);
+extern bt_clock_class_status bt_clock_class_set_description(
+		bt_clock_class *clock_class, const char *description);
 
-int bt_clock_class_cycles_to_ns_from_origin(
-	struct bt_clock_class *clock_class,
-	uint64_t cycles, int64_t *OUTPUTINIT);
+extern void bt_clock_class_set_frequency(bt_clock_class *clock_class,
+		uint64_t freq);
+
+extern void bt_clock_class_set_precision(bt_clock_class *clock_class,
+		uint64_t precision);
+
+extern void bt_clock_class_set_offset(bt_clock_class *clock_class,
+		int64_t seconds, uint64_t cycles);
+
+extern void bt_clock_class_set_origin_is_unix_epoch(bt_clock_class *clock_class,
+		bt_bool origin_is_unix_epoch);
+
+extern void bt_clock_class_set_uuid(bt_clock_class *clock_class,
+		bt_uuid uuid);

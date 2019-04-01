@@ -22,25 +22,24 @@
  * THE SOFTWARE.
  */
 
-/* Type */
-struct bt_field_path;
+/* From field-path-const.h */
 
-/* Enumeration */
-enum bt_scope {
-	BT_SCOPE_PACKET_HEADER,
+typedef enum bt_scope {
 	BT_SCOPE_PACKET_CONTEXT,
-	BT_SCOPE_EVENT_HEADER,
 	BT_SCOPE_EVENT_COMMON_CONTEXT,
 	BT_SCOPE_EVENT_SPECIFIC_CONTEXT,
 	BT_SCOPE_EVENT_PAYLOAD,
-};
+} bt_scope;
 
-/* Functions */
-enum bt_scope bt_field_path_get_root_scope(
-		struct bt_field_path *field_path);
+extern bt_scope bt_field_path_get_root_scope(
+		const bt_field_path *field_path);
 
-uint64_t bt_field_path_get_index_count(
-		struct bt_field_path *field_path);
+extern uint64_t bt_field_path_get_index_count(
+		const bt_field_path *field_path);
 
-uint64_t bt_field_path_get_index_by_index(
-		struct bt_field_path *field_path, uint64_t index);
+extern uint64_t bt_field_path_get_index_by_index(
+		const bt_field_path *field_path, uint64_t index);
+
+extern void bt_field_path_get_ref(const bt_field_path *field_path);
+
+extern void bt_field_path_put_ref(const bt_field_path *field_path);

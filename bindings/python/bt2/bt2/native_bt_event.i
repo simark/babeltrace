@@ -22,38 +22,43 @@
  * THE SOFTWARE.
  */
 
-/* Type */
-struct bt_event;
-struct bt_event_header_field;
-struct bt_clock_value;
-struct bt_event_class;
-struct bt_field;
-struct bt_packet;
+/* From event-const.h */
 
-enum bt_clock_value_status;
+typedef enum bt_event_status {
+	BT_EVENT_STATUS_OK = 0,
+	BT_EVENT_STATUS_NOMEM = -12,
+} bt_event_status;
 
-/* Functions */
-struct bt_event_class *bt_event_borrow_class(struct bt_event *event);
+extern const bt_event_class *bt_event_borrow_class_const(
+		const bt_event *event);
 
-struct bt_packet *bt_event_borrow_packet(struct bt_event *event);
+extern const bt_packet *bt_event_borrow_packet_const(
+		const bt_event *event);
 
-struct bt_stream *bt_event_borrow_stream(struct bt_event *event);
+extern const bt_stream *bt_event_borrow_stream_const(
+		const bt_event *event);
 
-struct bt_field *bt_event_borrow_header_field(struct bt_event *event);
+extern const bt_field *bt_event_borrow_common_context_field_const(
+		const bt_event *event);
 
-int bt_event_move_header(struct bt_event *event,
-		struct bt_event_header_field *header);
+extern const bt_field *bt_event_borrow_specific_context_field_const(
+		const bt_event *event);
 
-struct bt_field *bt_event_borrow_common_context_field(
-		struct bt_event *event);
+extern const bt_field *bt_event_borrow_payload_field_const(
+		const bt_event *event);
 
-struct bt_field *bt_event_borrow_specific_context_field(
-		struct bt_event *event);
+/* From event.h */
 
-struct bt_field *bt_event_borrow_payload_field(struct bt_event *event);
+extern bt_event_class *bt_event_borrow_class(bt_event *event);
 
-int bt_event_set_default_clock_value(struct bt_event *event,
-		uint64_t value_cycles);
+extern bt_packet *bt_event_borrow_packet(bt_event *event);
 
-enum bt_clock_value_status bt_event_borrow_default_clock_value(
-		struct bt_event *event, struct bt_clock_value **BTOUTCLOCKVALUE);
+extern bt_stream *bt_event_borrow_stream(bt_event *event);
+
+extern bt_field *
+bt_event_borrow_common_context_field(bt_event *event);
+
+extern bt_field *
+bt_event_borrow_specific_context_field(bt_event *event);
+
+extern bt_field *bt_event_borrow_payload_field(bt_event *event);

@@ -70,17 +70,16 @@ STATIC_BINDINGS_DEPS =					\
 	bt2/native_bt_eventclass.i			\
 	bt2/native_bt_event.i				\
 	bt2/native_bt_fields.i				\
-	bt2/native_bt_fieldtypes.i			\
+	bt2/native_bt_field_class.i			\
 	bt2/native_bt_graph.i				\
 	bt2/native_bt.i						\
 	bt2/native_bt_logging.i				\
-	bt2/native_bt_notification.i		\
+	bt2/native_bt_message.i				\
 	bt2/native_bt_notifiter.i			\
 	bt2/native_bt_packet.i				\
 	bt2/native_bt_plugin.i				\
 	bt2/native_bt_port.i				\
 	bt2/native_bt_queryexec.i			\
-	bt2/native_bt_ref.i					\
 	bt2/native_bt_streamclass.i			\
 	bt2/native_bt_stream.i				\
 	bt2/native_bt_trace.i				\
