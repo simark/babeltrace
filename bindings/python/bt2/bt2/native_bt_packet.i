@@ -22,35 +22,33 @@
  * THE SOFTWARE.
  */
 
-/* Type */
-struct bt_packet;
-struct bt_packet_header_field;
-struct bt_packet_context_field;
-struct bt_stream;
-struct bt_clock_value;
+/* From packet-const.h */
 
-/* Functions */
-struct bt_packet *bt_packet_create(struct bt_stream *stream);
-struct bt_stream *bt_packet_borrow_stream(struct bt_packet *packet);
-struct bt_field *bt_packet_borrow_header_field(struct bt_packet *packet);
-int bt_packet_move_header_field(struct bt_packet *packet,
-		struct bt_packet_header_field *header);
-struct bt_field *bt_packet_borrow_context_field(struct bt_packet *packet);
-int bt_packet_move_context_field(struct bt_packet *packet,
-		struct bt_packet_context_field *context);
-enum bt_clock_value_status bt_packet_borrow_default_beginning_clock_value(
-		struct bt_packet *packet, struct bt_clock_value **BTOUTCLOCKVALUE);
-int bt_packet_set_default_beginning_clock_value(struct bt_packet *packet,
-		uint64_t value_cycles);
-enum bt_clock_value_status bt_packet_borrow_default_end_clock_value(
-		struct bt_packet *packet, struct bt_clock_value **BTOUTCLOCKVALUE);
-int bt_packet_set_default_end_clock_value(struct bt_packet *packet,
-		uint64_t value_cycles);
-enum bt_property_availability bt_packet_get_discarded_event_counter_snapshot(
-		struct bt_packet *packet, uint64_t *OUTPUTINIT);
-int bt_packet_set_discarded_event_counter_snapshot(struct bt_packet *packet,
-		uint64_t value);
-enum bt_property_availability bt_packet_get_packet_counter_snapshot(
-		struct bt_packet *packet, uint64_t *OUTPUTINIT);
-int bt_packet_set_packet_counter_snapshot(struct bt_packet *packet,
-		uint64_t value);
+typedef enum bt_packet_status {
+	BT_PACKET_STATUS_OK = 0,
+	BT_PACKET_STATUS_NOMEM = -12,
+} bt_packet_status;
+
+extern const bt_stream *bt_packet_borrow_stream_const(
+		const bt_packet *packet);
+
+extern
+const bt_field *bt_packet_borrow_context_field_const(
+		const bt_packet *packet);
+
+extern void bt_packet_get_ref(const bt_packet *packet);
+
+extern void bt_packet_put_ref(const bt_packet *packet);
+
+/* From packet.h */
+
+extern bt_packet *bt_packet_create(const bt_stream *stream);
+
+extern bt_stream *bt_packet_borrow_stream(bt_packet *packet);
+
+extern
+bt_field *bt_packet_borrow_context_field(bt_packet *packet);
+
+extern
+bt_packet_status bt_packet_move_context_field(bt_packet *packet,
+		bt_packet_context_field *context);

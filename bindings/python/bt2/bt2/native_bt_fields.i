@@ -22,66 +22,96 @@
  * THE SOFTWARE.
  */
 
-/* Type */
-struct bt_field;
-struct bt_field_type;
-struct bt_field_type_enumeration_mapping_iterator;
+/* From field-const.h */
 
+typedef enum bt_field_status {
+	BT_FIELD_STATUS_OK = 0,
+	BT_FIELD_STATUS_NOMEM = -12,
+} bt_field_status;
 
-/* Common functions */
-struct bt_field_type *bt_field_borrow_type(struct bt_field *field);
-enum bt_field_type_id bt_field_get_type_id(struct bt_field *field);
+extern const bt_field_class *bt_field_borrow_class_const(
+		const bt_field *field);
 
-/* Integer field functions */
-int64_t bt_field_signed_integer_get_value(struct bt_field *field);
-void bt_field_signed_integer_set_value(struct bt_field *field,
+extern bt_field_class_type bt_field_get_class_type(
+		const bt_field *field);
+
+extern int64_t bt_field_signed_integer_get_value(const bt_field *field);
+
+extern uint64_t bt_field_unsigned_integer_get_value(
+		const bt_field *field);
+
+extern double bt_field_real_get_value(const bt_field *field);
+
+extern bt_field_status bt_field_unsigned_enumeration_get_mapping_labels(
+		const bt_field *field,
+		bt_field_class_enumeration_mapping_label_array *label_array,
+		uint64_t *count);
+
+extern bt_field_status bt_field_signed_enumeration_get_mapping_labels(
+		const bt_field *field,
+		bt_field_class_enumeration_mapping_label_array *label_array,
+		uint64_t *count);
+
+extern const char *bt_field_string_get_value(const bt_field *field);
+
+extern uint64_t bt_field_string_get_length(const bt_field *field);
+
+extern const bt_field *
+bt_field_structure_borrow_member_field_by_index_const(
+		const bt_field *field, uint64_t index);
+
+extern const bt_field *
+bt_field_structure_borrow_member_field_by_name_const(
+		const bt_field *field, const char *name);
+
+extern uint64_t bt_field_array_get_length(const bt_field *field);
+
+extern const bt_field *
+bt_field_array_borrow_element_field_by_index_const(
+		const bt_field *field, uint64_t index);
+
+extern uint64_t bt_field_variant_get_selected_option_field_index(
+		const bt_field *field);
+
+extern const bt_field *
+bt_field_variant_borrow_selected_option_field_const(
+		const bt_field *field);
+
+/* From field.h */
+
+extern void bt_field_signed_integer_set_value(bt_field *field,
 		int64_t value);
 
-uint64_t bt_field_unsigned_integer_get_value(struct bt_field *field);
-void bt_field_unsigned_integer_set_value(struct bt_field *field,
+extern void bt_field_unsigned_integer_set_value(bt_field *field,
 		uint64_t value);
 
-/* Real number field functions */
-double bt_field_real_get_value(struct bt_field *field);
-void bt_field_real_set_value(struct bt_field *field, double value);
+extern void bt_field_real_set_value(bt_field *field, double value);
 
-/* Enumeration field functions */
-int bt_field_unsigned_enumeration_get_mapping_labels(
-		struct bt_field *field,
-		bt_field_type_enumeration_mapping_label_array *label_array,
-		uint64_t *count);
-int bt_field_signed_enumeration_get_mapping_labels(
-		struct bt_field *field,
-		bt_field_type_enumeration_mapping_label_array *label_array,
-		uint64_t *count);
+extern bt_field_status bt_field_string_set_value(bt_field *field,
+		const char *value);
 
-/* String field functions */
-const char *bt_field_string_get_value(struct bt_field *field);
-uint64_t bt_field_string_get_length(struct bt_field *field);
-int bt_field_string_set_value(struct bt_field *field, const char *value);
-int bt_field_string_append(struct bt_field *field, const char *value);
-int bt_field_string_append_with_length(
-		struct bt_field *field, const char *value,
-		uint64_t length);
-int bt_field_string_clear(struct bt_field *field);
+extern bt_field_status bt_field_string_append(bt_field *field,
+		const char *value);
 
-/* Structure field functions */
-struct bt_field *bt_field_structure_borrow_member_field_by_index(
-		struct bt_field *field, uint64_t index);
-struct bt_field *bt_field_structure_borrow_member_field_by_name(
-		struct bt_field *field, const char *name);
+extern bt_field_status bt_field_string_append_with_length(bt_field *field,
+		const char *value, uint64_t length);
 
-/* Array field functions */
-uint64_t bt_field_array_get_length(struct bt_field *field);
-struct bt_field *bt_field_array_borrow_element_field_by_index(
-		struct bt_field *field, uint64_t index);
-int bt_field_dynamic_array_set_length(struct bt_field *field,
+extern bt_field_status bt_field_string_clear(bt_field *field);
+
+extern bt_field *bt_field_structure_borrow_member_field_by_index(
+		bt_field *field, uint64_t index);
+
+extern bt_field *bt_field_structure_borrow_member_field_by_name(
+		bt_field *field, const char *name);
+
+extern bt_field *bt_field_array_borrow_element_field_by_index(
+		bt_field *field, uint64_t index);
+
+extern bt_field_status bt_field_dynamic_array_set_length(bt_field *field,
 		uint64_t length);
 
-/* Variant field functions */
-int bt_field_variant_select_option_field(struct bt_field *field,
-		uint64_t index);
-uint64_t bt_field_variant_get_selected_option_field_index(
-		struct bt_field *field);
-struct bt_field *bt_field_variant_borrow_selected_option_field(
-		struct bt_field *field);
+extern bt_field_status bt_field_variant_select_option_field(
+		bt_field *field, uint64_t index);
+
+extern bt_field *bt_field_variant_borrow_selected_option_field(
+		bt_field *field);

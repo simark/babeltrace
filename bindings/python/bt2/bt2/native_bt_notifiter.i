@@ -22,48 +22,131 @@
  * THE SOFTWARE.
  */
 
-/* Type */
-struct bt_notification_iterator;
+/* From message-iterator-const.h */
 
-/* Status */
-enum bt_notification_iterator_status {
-	BT_NOTIFICATION_ITERATOR_STATUS_CANCELED = 125,
-	BT_NOTIFICATION_ITERATOR_STATUS_AGAIN = 11,
-	BT_NOTIFICATION_ITERATOR_STATUS_END = 1,
-	BT_NOTIFICATION_ITERATOR_STATUS_OK = 0,
-	BT_NOTIFICATION_ITERATOR_STATUS_INVALID = -22,
-	BT_NOTIFICATION_ITERATOR_STATUS_ERROR = -1,
-	BT_NOTIFICATION_ITERATOR_STATUS_NOMEM = -12,
-	BT_NOTIFICATION_ITERATOR_STATUS_UNSUPPORTED = -2,
-};
+typedef enum bt_message_iterator_status {
+	BT_MESSAGE_ITERATOR_STATUS_OK = 0,
+	BT_MESSAGE_ITERATOR_STATUS_END = 1,
+	BT_MESSAGE_ITERATOR_STATUS_AGAIN = 11,
+	BT_MESSAGE_ITERATOR_STATUS_ERROR = -1,
+	BT_MESSAGE_ITERATOR_STATUS_NOMEM = -12,
+} bt_message_iterator_status;
 
-/* Functions (private connection) */
-struct bt_component *bt_private_connection_notification_iterator_get_component(
-		struct bt_notification_iterator *iterator);
-enum bt_notification_iterator_status bt_private_connection_notification_iterator_next(
-		struct bt_notification_iterator *iterator,
-		bt_notification_array *notifs, uint64_t *count);
+/* From self-message-iterator.h */
 
-/* Functions (output port) */
-struct bt_notification_iterator *bt_output_port_notification_iterator_create(
-		struct bt_port *port, const char *colander_component_name);
-enum bt_notification_iterator_status bt_output_port_notification_iterator_next(
-		struct bt_notification_iterator *iterator,
-		bt_notification_array *notifs, uint64_t *count);
+typedef enum bt_self_message_iterator_status {
+	BT_SELF_MESSAGE_ITERATOR_STATUS_OK = BT_MESSAGE_ITERATOR_STATUS_OK,
+	BT_SELF_MESSAGE_ITERATOR_STATUS_END = BT_MESSAGE_ITERATOR_STATUS_END,
+	BT_SELF_MESSAGE_ITERATOR_STATUS_AGAIN = BT_MESSAGE_ITERATOR_STATUS_AGAIN,
+	BT_SELF_MESSAGE_ITERATOR_STATUS_ERROR = BT_MESSAGE_ITERATOR_STATUS_ERROR,
+	BT_SELF_MESSAGE_ITERATOR_STATUS_NOMEM = BT_MESSAGE_ITERATOR_STATUS_NOMEM,
+} bt_self_message_iterator_status;
+
+extern bt_self_component *
+bt_self_message_iterator_borrow_component(
+		bt_self_message_iterator *message_iterator);
+
+extern bt_self_port_output *
+bt_self_message_iterator_borrow_port(
+		bt_self_message_iterator *message_iterator);
+
+extern void bt_self_message_iterator_set_data(
+		bt_self_message_iterator *message_iterator,
+		void *user_data);
+
+extern void *bt_self_message_iterator_get_data(
+		const bt_self_message_iterator *message_iterator);
+
+/* From self-component-port-input-message-iterator.h */
+
+bt_message_iterator *
+bt_self_component_port_input_message_iterator_as_message_iterator(
+		bt_self_component_port_input_message_iterator *iterator);
+
+extern bt_self_component_port_input_message_iterator *
+bt_self_component_port_input_message_iterator_create(
+		bt_self_component_port_input *input_port);
+
+extern bt_component *
+bt_self_component_port_input_message_iterator_borrow_component(
+		bt_self_component_port_input_message_iterator *iterator);
+
+extern bt_message_iterator_status
+bt_self_component_port_input_message_iterator_next(
+		bt_self_component_port_input_message_iterator *iterator,
+		bt_message_array_const *msgs, uint64_t *count);
+
+extern bt_bool
+bt_self_component_port_input_message_iterator_can_seek_ns_from_origin(
+		bt_self_component_port_input_message_iterator *iterator,
+		int64_t ns_from_origin);
+
+extern bt_bool bt_self_component_port_input_message_iterator_can_seek_beginning(
+		bt_self_component_port_input_message_iterator *iterator);
+
+extern bt_message_iterator_status
+bt_self_component_port_input_message_iterator_seek_ns_from_origin(
+		bt_self_component_port_input_message_iterator *iterator,
+		int64_t ns_from_origin);
+
+extern bt_message_iterator_status
+bt_self_component_port_input_message_iterator_seek_beginning(
+		bt_self_component_port_input_message_iterator *iterator);
+
+extern void bt_self_component_port_input_message_iterator_get_ref(
+		const bt_self_component_port_input_message_iterator *self_component_port_input_message_iterator);
+
+extern void bt_self_component_port_input_message_iterator_put_ref(
+		const bt_self_component_port_input_message_iterator *self_component_port_input_message_iterator);
+
+/* From port-output-message-iterator.h */
+
+bt_message_iterator *
+bt_port_output_message_iterator_as_message_iterator(
+		bt_port_output_message_iterator *iterator);
+
+extern bt_port_output_message_iterator *
+bt_port_output_message_iterator_create(
+		bt_graph *graph,
+		const bt_port_output *output_port);
+
+extern bt_message_iterator_status
+bt_port_output_message_iterator_next(
+		bt_port_output_message_iterator *iterator,
+		bt_message_array_const *msgs, uint64_t *count);
+
+extern bt_bool bt_port_output_message_iterator_can_seek_ns_from_origin(
+		bt_port_output_message_iterator *iterator,
+		int64_t ns_from_origin);
+
+extern bt_bool bt_port_output_message_iterator_can_seek_beginning(
+		bt_port_output_message_iterator *iterator);
+
+extern bt_message_iterator_status
+bt_port_output_message_iterator_seek_ns_from_origin(
+		bt_port_output_message_iterator *iterator,
+		int64_t ns_from_origin);
+
+extern bt_message_iterator_status
+bt_port_output_message_iterator_seek_beginning(
+		bt_port_output_message_iterator *iterator);
+
+extern void bt_port_output_message_iterator_get_ref(
+		const bt_port_output_message_iterator *port_output_message_iterator);
+
+extern void bt_port_output_message_iterator_put_ref(
+		const bt_port_output_message_iterator *port_output_message_iterator);
 
 /* Helper functions for Python */
 %{
-static PyObject *bt_py3_get_user_component_from_user_notif_iter(
-		struct bt_private_connection_private_notification_iterator *priv_notif_iter)
+static PyObject *bt_py3_get_user_component_from_user_msg_iter(
+		bt_self_message_iterator *self_message_iterator)
 {
-	struct bt_private_component *priv_comp =
-		bt_private_connection_private_notification_iterator_get_private_component(
-			priv_notif_iter);
+	bt_self_component *self_component = bt_self_message_iterator_borrow_component(self_message_iterator);
 	PyObject *py_comp;
 
-	BT_ASSERT(priv_comp);
-	py_comp = bt_private_component_get_user_data(priv_comp);
-	bt_put(priv_comp);
+	BT_ASSERT(self_component);
+	py_comp = bt_self_component_get_data(self_component);
 	BT_ASSERT(py_comp);
 
 	/* Return new reference */
@@ -72,87 +155,85 @@ static PyObject *bt_py3_get_user_component_from_user_notif_iter(
 }
 
 static inline
-PyObject *create_pylist_from_notifs(bt_notification_array notifs,
-		uint64_t notif_count)
+PyObject *create_pylist_from_messages(bt_message_array_const messages,
+		uint64_t message_count)
 {
 	uint64_t i;
-	PyObject *py_notif_list = Py_None;
-
-	py_notif_list = PyList_New(notif_count);
-	BT_ASSERT(py_notif_list);
-	for (i = 0; i < notif_count; i++) {
-		PyList_SET_ITEM(py_notif_list, i,
-				SWIG_NewPointerObj(SWIG_as_voidptr(notifs[i]),
-					SWIGTYPE_p_bt_notification, 0));
+	PyObject *py_msg_list = PyList_New(message_count);
+	BT_ASSERT(py_msg_list);
+	for (i = 0; i < message_count; i++) {
+		PyList_SET_ITEM(py_msg_list, i,
+				SWIG_NewPointerObj(SWIG_as_voidptr(messages[i]),
+					SWIGTYPE_p_bt_message, 0));
 	}
 
-	return py_notif_list;
+	return py_msg_list;
 }
 
 static PyObject
-*bt_py3_private_connection_get_notification_range(
-		struct bt_notification_iterator *iter)
+*bt_py3_self_component_port_input_get_msg_range(
+		bt_self_component_port_input_message_iterator *iter)
 {
 	PyObject *py_return_tuple;
-	PyObject *py_notif_list = Py_None;
+	PyObject *py_msg_list = Py_None;
 	PyObject *py_status;
-	bt_notification_array notifs;
-	uint64_t notif_count = 0;
-	enum bt_notification_iterator_status status;
+	bt_message_array_const messages;
+	uint64_t message_count = 0;
+	bt_message_iterator_status status;
 
 	status =
-		bt_private_connection_notification_iterator_next(iter, &notifs,
-				&notif_count);
+		bt_self_component_port_input_message_iterator_next(iter, &messages,
+				&message_count);
 	py_status = SWIG_From_long_SS_long(status);
-	if (status != BT_NOTIFICATION_ITERATOR_STATUS_OK) {
+	if (status != BT_MESSAGE_ITERATOR_STATUS_OK) {
 		goto end;
 	}
 
-	py_notif_list = create_pylist_from_notifs(notifs, notif_count);
+	py_msg_list = create_pylist_from_messages(messages, message_count);
 
 end:
 	py_return_tuple = PyTuple_New(2);
 	BT_ASSERT(py_return_tuple);
 	PyTuple_SET_ITEM(py_return_tuple, 0, py_status);
-	PyTuple_SET_ITEM(py_return_tuple, 1, py_notif_list);
+	PyTuple_SET_ITEM(py_return_tuple, 1, py_msg_list);
 
 	return py_return_tuple;
 }
 
 static PyObject
-*bt_py3_output_port_get_notification_range(
-		struct bt_notification_iterator *iter)
+*bt_py3_port_output_get_msg_range(
+		bt_port_output_message_iterator *iter)
 {
 	PyObject *py_return_tuple;
-	PyObject *py_notif_list = Py_None;
+	PyObject *py_msg_list = Py_None;
 	PyObject *py_status;
-	bt_notification_array notifs;
-	uint64_t notif_count = 0;
-	enum bt_notification_iterator_status status;
+	bt_message_array_const messages;
+	uint64_t message_count = 0;
+	bt_message_iterator_status status;
 
 	status =
-		bt_output_port_notification_iterator_next(iter, &notifs,
-				&notif_count);
+		bt_port_output_message_iterator_next(iter, &messages,
+				&message_count);
 	py_status = SWIG_From_long_SS_long(status);
-	if (status != BT_NOTIFICATION_ITERATOR_STATUS_OK) {
+	if (status != BT_MESSAGE_ITERATOR_STATUS_OK) {
 		goto end;
 	}
 
-	py_notif_list = create_pylist_from_notifs(notifs, notif_count);
+	py_msg_list = create_pylist_from_messages(messages, message_count);
 
 end:
 	py_return_tuple = PyTuple_New(2);
 	BT_ASSERT(py_return_tuple);
 	PyTuple_SET_ITEM(py_return_tuple, 0, py_status);
-	PyTuple_SET_ITEM(py_return_tuple, 1, py_notif_list);
+	PyTuple_SET_ITEM(py_return_tuple, 1, py_msg_list);
 
 	return py_return_tuple;
 }
 %}
 
-PyObject *bt_py3_get_user_component_from_user_notif_iter(
-		struct bt_private_connection_private_notification_iterator *priv_notif_iter);
-PyObject *bt_py3_private_connection_get_notification_range(
-		struct bt_notification_iterator *iter);
-PyObject *bt_py3_output_port_get_notification_range(
-		struct bt_notification_iterator *iter);
+PyObject *bt_py3_get_user_component_from_user_msg_iter(
+		bt_self_message_iterator *self_message_iterator);
+PyObject *bt_py3_self_component_port_input_get_msg_range(
+		bt_self_component_port_input_message_iterator *iter);
+PyObject *bt_py3_port_output_get_msg_range(
+		bt_port_output_message_iterator *iter);

@@ -22,64 +22,45 @@
  * THE SOFTWARE.
  */
 
-/* Type */
-struct bt_port;
-struct bt_private_port;
+/* From port-const.h */
 
-/* Status */
-enum bt_port_status {
-	BT_PORT_STATUS_OK = 0,
-	BT_PORT_STATUS_ERROR = -1,
-	BT_PORT_STATUS_INVALID = -2,
-};
-
-/* Port type */
-enum bt_port_type {
+typedef enum bt_port_type {
 	BT_PORT_TYPE_INPUT = 0,
 	BT_PORT_TYPE_OUTPUT = 1,
-	BT_PORT_TYPE_UNKOWN = -1,
-};
+} bt_port_type;
 
-/* Functions (public) */
-const char *bt_port_get_name(struct bt_port *port);
-enum bt_port_type bt_port_get_type(struct bt_port *port);
-struct bt_connection *bt_port_get_connection(struct bt_port *port);
-struct bt_component *bt_port_get_component(struct bt_port *port);
-enum bt_port_status bt_port_disconnect(struct bt_port *port);
-int bt_port_is_connected(struct bt_port *port);
+extern const char *bt_port_get_name(const bt_port *port);
 
-/* Functions (private) */
-struct bt_port *bt_port_borrow_from_private(
-		struct bt_private_port *private_port);
-struct bt_private_connection *bt_private_port_get_private_connection(
-		struct bt_private_port *private_port);
-struct bt_private_component *bt_private_port_get_private_component(
-		struct bt_private_port *private_port);
-enum bt_port_status bt_private_port_remove_from_component(
-		struct bt_private_port *private_port);
-void *bt_private_port_get_user_data(
-		struct bt_private_port *private_port);
-struct bt_notification_iterator *bt_output_port_notification_iterator_create(
-		struct bt_port *port, const char *colander_component_name);
-enum bt_notification_iterator_status bt_output_port_notification_iterator_next(
-		struct bt_notification_iterator *iterator,
-		bt_notification_array *notifs, uint64_t *count);
-%{
-static struct bt_notification_iterator *bt_py3_create_output_port_notif_iter(
-		unsigned long long port_addr, const char *colander_name)
-{
-	struct bt_notification_iterator *notif_iter;
-	struct bt_port *output_port;
+extern bt_port_type bt_port_get_type(const bt_port *port);
 
-	output_port = (void *) port_addr;
-	BT_ASSERT(!PyErr_Occurred());
-	BT_ASSERT(output_port);
+extern const bt_connection *bt_port_borrow_connection_const(
+		const bt_port *port);
 
-	notif_iter = bt_output_port_notification_iterator_create(output_port,
-		colander_name);
-	return notif_iter;
-}
-%}
+extern const bt_component *bt_port_borrow_component_const(
+		const bt_port *port);
 
-struct bt_notification_iterator *bt_py3_create_output_port_notif_iter(
-		unsigned long long port_addr, const char *colander_name);
+extern bt_bool bt_port_is_connected(const bt_port *port);
+
+bt_bool bt_port_is_input(const bt_port *port);
+
+bt_bool bt_port_is_output(const bt_port *port);
+
+extern void bt_port_get_ref(const bt_port *port);
+
+extern void bt_port_put_ref(const bt_port *port);
+
+/* From port-output-const.h */
+
+const bt_port *bt_port_output_as_port_const(const bt_port_output *port_output);
+
+extern void bt_port_output_get_ref(const bt_port_output *port_output);
+
+extern void bt_port_output_put_ref(const bt_port_output *port_output);
+
+/* From port-input-const.h */
+
+const bt_port *bt_port_input_as_port_const(const bt_port_input *port_input);
+
+extern void bt_port_input_get_ref(const bt_port_input *port_input);
+
+extern void bt_port_input_put_ref(const bt_port_input *port_input);
