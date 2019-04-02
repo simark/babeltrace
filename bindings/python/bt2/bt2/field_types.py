@@ -31,13 +31,13 @@ import bt2
 
 def _create_field_type_from_ptr(ptr):
     typeid = native_bt.field_type_get_type_id(ptr)
-    return _FIELD_TYPE_ID_TO_OBJ[typeid]._create_from_ptr(ptr)
+    return _FIELD_CLASS_TYPE_TO_OBJ[typeid]._create_from_ptr(ptr)
 
 class IntegerDisplayBase:
-    BINARY = native_bt.FIELD_TYPE_INTEGER_PREFERRED_DISPLAY_BASE_BINARY
-    OCTAL = native_bt.FIELD_TYPE_INTEGER_PREFERRED_DISPLAY_BASE_OCTAL
-    DECIMAL = native_bt.FIELD_TYPE_INTEGER_PREFERRED_DISPLAY_BASE_DECIMAL
-    HEXADECIMAL = native_bt.FIELD_TYPE_INTEGER_PREFERRED_DISPLAY_BASE_HEXADECIMAL 
+    BINARY = native_bt.FIELD_CLASS_INTEGER_PREFERRED_DISPLAY_BASE_BINARY
+    OCTAL = native_bt.FIELD_CLASS_INTEGER_PREFERRED_DISPLAY_BASE_OCTAL
+    DECIMAL = native_bt.FIELD_CLASS_INTEGER_PREFERRED_DISPLAY_BASE_DECIMAL
+    HEXADECIMAL = native_bt.FIELD_CLASS_INTEGER_PREFERRED_DISPLAY_BASE_HEXADECIMAL 
 
 class _FieldType(object._SharedObject):  
     def __init__(self, ptr):
@@ -440,15 +440,15 @@ class DynamicArrayFieldType(ArrayFieldType):
     length_field_type = property(fset=_set_length_field_type)
 
 
-_FIELD_TYPE_ID_TO_OBJ = {
-    native_bt.FIELD_TYPE_ID_UNSIGNED_INTEGER: UnsignedIntegerFieldType,
-    native_bt.FIELD_TYPE_ID_SIGNED_INTEGER: SignedIntegerFieldType,
-    native_bt.FIELD_TYPE_ID_REAL: RealFieldType,
-    native_bt.FIELD_TYPE_ID_UNSIGNED_ENUMERATION: UnsignedEnumerationFieldType,
-    native_bt.FIELD_TYPE_ID_SIGNED_ENUMERATION: SignedEnumerationFieldType,
-    native_bt.FIELD_TYPE_ID_STRING: StringFieldType,
-    native_bt.FIELD_TYPE_ID_STRUCTURE: StructureFieldType,
-    native_bt.FIELD_TYPE_ID_STATIC_ARRAY: StaticArrayFieldType,
-    native_bt.FIELD_TYPE_ID_DYNAMIC_ARRAY: DynamicArrayFieldType,
-    native_bt.FIELD_TYPE_ID_VARIANT: VariantFieldType,
+_FIELD_CLASS_TYPE_TO_OBJ = {
+    native_bt.FIELD_CLASS_TYPE_UNSIGNED_INTEGER: UnsignedIntegerFieldType,
+    native_bt.FIELD_CLASS_TYPE_SIGNED_INTEGER: SignedIntegerFieldType,
+    native_bt.FIELD_CLASS_TYPE_REAL: RealFieldType,
+    native_bt.FIELD_CLASS_TYPE_UNSIGNED_ENUMERATION: UnsignedEnumerationFieldType,
+    native_bt.FIELD_CLASS_TYPE_SIGNED_ENUMERATION: SignedEnumerationFieldType,
+    native_bt.FIELD_CLASS_TYPE_STRING: StringFieldType,
+    native_bt.FIELD_CLASS_TYPE_STRUCTURE: StructureFieldType,
+    native_bt.FIELD_CLASS_TYPE_STATIC_ARRAY: StaticArrayFieldType,
+    native_bt.FIELD_CLASS_TYPE_DYNAMIC_ARRAY: DynamicArrayFieldType,
+    native_bt.FIELD_CLASS_TYPE_VARIANT: VariantFieldType,
 }
