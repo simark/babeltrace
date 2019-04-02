@@ -40,4 +40,4 @@ else
 	export LD_LIBRARY_PATH="${BT_BUILD_PATH}/lib/.libs:${LD_LIBRARY_PATH}"
 fi
 
-exec $@
+exec "$@"

@@ -26,9 +26,7 @@ import collections
 from bt2 import native_bt, utils, object
 
 class Scope:
-    PACKET_HEADER           = native_bt.SCOPE_PACKET_HEADER
     PACKET_CONTEXT          = native_bt.SCOPE_PACKET_CONTEXT
-    EVENT_HEADER            = native_bt.SCOPE_EVENT_HEADER
     EVENT_COMMON_CONTEXT    = native_bt.SCOPE_EVENT_COMMON_CONTEXT
     EVENT_SPECIFIC_CONTEXT  = native_bt.SCOPE_EVENT_SPECIFIC_CONTEXT
     EVENT_PAYLOAD           = native_bt.SCOPE_EVENT_PAYLOAD
@@ -49,9 +47,7 @@ class FieldPath(object._SharedObject, collections.abc.Iterable):
 
 
 _SCOPE_TO_OBJ = {
-        native_bt.SCOPE_PACKET_HEADER: Scope.PACKET_HEADER,
         native_bt.SCOPE_PACKET_CONTEXT: Scope.PACKET_CONTEXT,
-        native_bt.SCOPE_EVENT_HEADER: Scope.EVENT_HEADER,
         native_bt.SCOPE_EVENT_COMMON_CONTEXT: Scope.EVENT_COMMON_CONTEXT,
         native_bt.SCOPE_EVENT_SPECIFIC_CONTEXT: Scope.EVENT_SPECIFIC_CONTEXT,
         native_bt.SCOPE_EVENT_PAYLOAD: Scope.EVENT_PAYLOAD
