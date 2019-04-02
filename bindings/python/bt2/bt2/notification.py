@@ -46,7 +46,7 @@ class _Notification(object._SharedObject):
 
 
 class _EventNotification(_Notification):
-    _TYPE = native_bt.NOTIFICATION_TYPE_EVENT
+    _TYPE = native_bt.MESSAGE_TYPE_EVENT
 
     def __init__(self, priv_conn_priv_iter, event_class, packet):
         utils._check_type(event_class, bt2.event_class._EventClass)
@@ -67,7 +67,7 @@ class _EventNotification(_Notification):
 
 
 class _PacketBeginningNotification(_Notification):
-    _TYPE = native_bt.NOTIFICATION_TYPE_PACKET_BEGIN
+    _TYPE = native_bt.MESSAGE_TYPE_PACKET_BEGINNING
 
     def __init__(self, priv_conn_priv_iter, packet):
         utils._check_type(packet, bt2.packet._Packet)
@@ -86,7 +86,7 @@ class _PacketBeginningNotification(_Notification):
 
 
 class _PacketEndNotification(_Notification):
-    _TYPE = native_bt.NOTIFICATION_TYPE_PACKET_END
+    _TYPE = native_bt.MESSAGE_TYPE_PACKET_END
 
     def __init__(self, priv_conn_priv_iter, packet):
         utils._check_type(packet, bt2.packet._Packet)
@@ -105,7 +105,7 @@ class _PacketEndNotification(_Notification):
 
 
 class _StreamBeginningNotification(_Notification):
-    _TYPE = native_bt.NOTIFICATION_TYPE_STREAM_BEGIN
+    _TYPE = native_bt.MESSAGE_TYPE_STREAM_BEGINNING
 
     def __init__(self, priv_conn_priv_iter, stream):
         utils._check_type(stream, bt2.stream._Stream)
@@ -138,7 +138,7 @@ class _StreamBeginningNotification(_Notification):
 
 
 class _StreamEndNotification(_Notification):
-    _TYPE = native_bt.NOTIFICATION_TYPE_STREAM_END
+    _TYPE = native_bt.MESSAGE_TYPE_STREAM_END
 
     def __init__(self, priv_conn_priv_iter, stream):
         utils._check_type(stream, bt2.stream._Stream)
@@ -171,7 +171,7 @@ class _StreamEndNotification(_Notification):
 
 
 class _InactivityNotification(_Notification):
-    _TYPE = native_bt.NOTIFICATION_TYPE_INACTIVITY
+    _TYPE = native_bt.MESSAGE_TYPE_MESSAGE_ITERATOR_INACTIVITY
 
     def __init__(self, priv_conn_priv_iter, clock_class):
         ptr = native_bt.notification_inactivity_create(priv_conn_priv_iter._ptr, clock_class._ptr)
@@ -197,10 +197,10 @@ class _InactivityNotification(_Notification):
 
 
 _NOTIF_TYPE_TO_CLS = {
-    native_bt.NOTIFICATION_TYPE_EVENT: _EventNotification,
-    native_bt.NOTIFICATION_TYPE_PACKET_BEGIN: _PacketBeginningNotification,
-    native_bt.NOTIFICATION_TYPE_PACKET_END: _PacketEndNotification,
-    native_bt.NOTIFICATION_TYPE_STREAM_BEGIN: _StreamBeginningNotification,
-    native_bt.NOTIFICATION_TYPE_STREAM_END: _StreamEndNotification,
-    native_bt.NOTIFICATION_TYPE_INACTIVITY: _InactivityNotification,
+    native_bt.MESSAGE_TYPE_EVENT: _EventNotification,
+    native_bt.MESSAGE_TYPE_PACKET_BEGINNING: _PacketBeginningNotification,
+    native_bt.MESSAGE_TYPE_PACKET_END: _PacketEndNotification,
+    native_bt.MESSAGE_TYPE_STREAM_BEGINNING: _StreamBeginningNotification,
+    native_bt.MESSAGE_TYPE_STREAM_END: _StreamEndNotification,
+    native_bt.MESSAGE_TYPE_MESSAGE_ITERATOR_INACTIVITY: _InactivityNotification,
 }

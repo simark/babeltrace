@@ -65,7 +65,7 @@ class _GenericNotificationIterator(bt2.object._SharedObject, _NotificationIterat
 
 
 class _PrivateConnectionNotificationIterator(_GenericNotificationIterator):
-    _GET_NOFICATION_RANGE = native_bt.py3_private_connection_get_notification_range
+    _GET_NOFICATION_RANGE = native_bt.py3_self_component_port_input_get_msg_range
     @property
     def component(self):
         comp_ptr = native_bt.private_connection_notification_iterator_get_component(self._ptr)
@@ -74,7 +74,7 @@ class _PrivateConnectionNotificationIterator(_GenericNotificationIterator):
 
 
 class _OutputPortNotificationIterator(_GenericNotificationIterator):
-    _GET_NOFICATION_RANGE = native_bt.py3_output_port_get_notification_range
+    _GET_NOFICATION_RANGE = native_bt.py3_port_output_get_msg_range
 
 
 class _UserNotificationIterator(_NotificationIterator):

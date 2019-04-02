@@ -638,14 +638,14 @@ class _DynamicArrayField(_ArrayField, _Field):
 
 
 _FIELD_ID_TO_OBJ = {
-    native_bt.FIELD_TYPE_ID_UNSIGNED_INTEGER: _UnsignedIntegerField,
-    native_bt.FIELD_TYPE_ID_SIGNED_INTEGER: _SignedIntegerField,
-    native_bt.FIELD_TYPE_ID_REAL: _RealField,
-    native_bt.FIELD_TYPE_ID_UNSIGNED_ENUMERATION: _UnsignedEnumerationField,
-    native_bt.FIELD_TYPE_ID_SIGNED_ENUMERATION: _SignedEnumerationField,
-    native_bt.FIELD_TYPE_ID_STRING: _StringField,
-    native_bt.FIELD_TYPE_ID_STRUCTURE: _StructureField,
-    native_bt.FIELD_TYPE_ID_STATIC_ARRAY: _StaticArrayField,
-    native_bt.FIELD_TYPE_ID_DYNAMIC_ARRAY: _DynamicArrayField,
-    native_bt.FIELD_TYPE_ID_VARIANT: _VariantField,
+    native_bt.FIELD_CLASS_TYPE_UNSIGNED_INTEGER: _UnsignedIntegerField,
+    native_bt.FIELD_CLASS_TYPE_SIGNED_INTEGER: _SignedIntegerField,
+    native_bt.FIELD_CLASS_TYPE_REAL: _RealField,
+    native_bt.FIELD_CLASS_TYPE_UNSIGNED_ENUMERATION: _UnsignedEnumerationField,
+    native_bt.FIELD_CLASS_TYPE_SIGNED_ENUMERATION: _SignedEnumerationField,
+    native_bt.FIELD_CLASS_TYPE_STRING: _StringField,
+    native_bt.FIELD_CLASS_TYPE_STRUCTURE: _StructureField,
+    native_bt.FIELD_CLASS_TYPE_STATIC_ARRAY: _StaticArrayField,
+    native_bt.FIELD_CLASS_TYPE_DYNAMIC_ARRAY: _DynamicArrayField,
+    native_bt.FIELD_CLASS_TYPE_VARIANT: _VariantField,
 }
