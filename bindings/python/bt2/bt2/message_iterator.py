@@ -29,14 +29,10 @@ import bt2
 
 class _MessageIterator(collections.abc.Iterator):
     def _handle_status(self, status, gen_error_msg):
-        if status == native_bt.MESSAGE_ITERATOR_STATUS_CANCELED:
-            raise bt2.MessageIteratorCanceled
-        elif status == native_bt.MESSAGE_ITERATOR_STATUS_AGAIN:
+        if status == native_bt.MESSAGE_ITERATOR_STATUS_AGAIN:
             raise bt2.TryAgain
         elif status == native_bt.MESSAGE_ITERATOR_STATUS_END:
             raise bt2.Stop
-        elif status == native_bt.MESSAGE_ITERATOR_STATUS_UNSUPPORTED:
-            raise bt2.UnsupportedFeature
         elif status < 0:
             raise bt2.Error(gen_error_msg)
 
