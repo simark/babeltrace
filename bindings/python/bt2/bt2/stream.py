@@ -22,7 +22,6 @@
 
 __all__ = ['_Stream']
 
-from . import domain
 from bt2 import native_bt, utils
 import bt2.packet
 

@@ -21,8 +21,7 @@
 # THE SOFTWARE.
 
 import copy
-from bt2 import native_bt, utils, domain
-from . import domain
+from bt2 import native_bt, utils
 import bt2.fields
 import bt2
 
