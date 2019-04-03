@@ -120,14 +120,14 @@ class _StreamClass(bt2.object._SharedObject, collections.abc.Mapping):
 
         native_bt.get(ft_ptr)
 
-        return bt2.field_types._create_field_type_from_ptr(ft_ptr)
+        return bt2.field_class._create_field_type_from_ptr(ft_ptr)
 
     @event_header_field_type.setter
     def event_header_field_type(self, event_header_field_type):
         event_header_field_type_ptr = None
 
         if event_header_field_type is not None:
-            utils._check_type(event_header_field_type, bt2.field_types._FieldType)
+            utils._check_type(event_header_field_type, bt2.field_class._FieldClass)
             event_header_field_type_ptr = event_header_field_type._ptr
 
             ret = native_bt.stream_class_set_event_header_field_type(self._ptr,
@@ -142,14 +142,14 @@ class _StreamClass(bt2.object._SharedObject, collections.abc.Mapping):
             return
         native_bt.get(ft_ptr)
 
-        return bt2.field_types._create_field_type_from_ptr(ft_ptr)
+        return bt2.field_class._create_field_type_from_ptr(ft_ptr)
 
     @packet_context_field_type.setter
     def packet_context_field_type(self, packet_context_field_type):
         if packet_context_field_type is None:
             return
 
-        utils._check_type(packet_context_field_type, bt2.field_types._FieldType)
+        utils._check_type(packet_context_field_type, bt2.field_class._FieldClass)
         packet_context_field_type_ptr = packet_context_field_type._ptr
 
         ret = native_bt.stream_class_set_packet_context_field_type(self._ptr,
@@ -165,14 +165,14 @@ class _StreamClass(bt2.object._SharedObject, collections.abc.Mapping):
 
         native_bt.get(ft_ptr)
 
-        return bt2.field_types._create_field_type_from_ptr(ft_ptr)
+        return bt2.field_class._create_field_type_from_ptr(ft_ptr)
 
     @event_common_context_field_type.setter
     def event_common_context_field_type(self, event_common_context_field_type):
         event_common_context_field_type_ptr = None
 
         if event_common_context_field_type is not None:
-            utils._check_type(event_common_context_field_type, bt2.field_types._FieldType)
+            utils._check_type(event_common_context_field_type, bt2.field_class._FieldClass)
             event_common_context_field_type_ptr = event_common_context_field_type._ptr
 
             ret = native_bt.stream_class_set_event_common_context_field_type(self._ptr,

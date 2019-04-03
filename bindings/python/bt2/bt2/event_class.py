@@ -30,7 +30,7 @@ import copy
 from bt2 import utils, native_bt
 import bt2
 
-from . import event, field_types
+from . import event, field_class
 
 class EventClassLogLevel:
     EMERGENCY = native_bt.EVENT_CLASS_LOG_LEVEL_EMERGENCY
@@ -123,12 +123,12 @@ class _EventClass(bt2.object._SharedObject):
 
         native_bt.get(ft_ptr)
 
-        return bt2.field_types._create_field_type_from_ptr(ft_ptr)
+        return bt2.field_class._create_field_type_from_ptr(ft_ptr)
 
     @specific_context_field_type.setter
     def specific_context_field_type(self, context_field_type):
         if context_field_type is not None:
-            utils._check_type(context_field_type, field_types._FieldType)
+            utils._check_type(context_field_type, field_class._FieldClass)
             ret = native_bt.event_class_set_specific_context_field_type(self._ptr, context_field_type._ptr)
             utils._handle_ret(ret, "cannot set event class object's context field type")
 
@@ -141,13 +141,13 @@ class _EventClass(bt2.object._SharedObject):
 
         native_bt.get(ft_ptr)
 
-        return bt2.field_types._create_field_type_from_ptr(ft_ptr)
+        return bt2.field_class._create_field_type_from_ptr(ft_ptr)
 
     @payload_field_type.setter
     def payload_field_type(self, payload_field_type):
 
         if payload_field_type is not None:
-            utils._check_type(payload_field_type, field_types._FieldType)
+            utils._check_type(payload_field_type, field_class._FieldClass)
             ret = native_bt.event_class_set_payload_field_type(self._ptr, payload_field_type._ptr)
             utils._handle_ret(ret, "cannot set event class object's payload field type")
 

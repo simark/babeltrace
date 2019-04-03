@@ -24,7 +24,7 @@ __all__ = ['_StaticArrayField', '_DynamicArrayField', '_UnsignedEnumerationField
         '_UnsignedEnumerationField', '_Field' ,'_RealField', '_IntegerField',
         '_StringField', '_StructureField', '_VariantField']
 
-from bt2 import field_types, native_bt, utils
+from bt2 import field_class, native_bt, utils
 import abc
 import bt2
 import collections.abc
@@ -39,7 +39,7 @@ def _create_field_from_ptr(ptr, owner_ptr):
     field_type_ptr = native_bt.field_borrow_type(ptr)
     native_bt.get(field_type_ptr)
     utils._handle_ptr(field_type_ptr, "cannot get field object's type")
-    field_type = bt2.field_types._create_field_type_from_ptr(field_type_ptr)
+    field_type = bt2.field_class._create_field_type_from_ptr(field_type_ptr)
     typeid = native_bt.field_type_get_type_id(field_type._ptr)
     field = _FIELD_ID_TO_OBJ[typeid]._create_from_ptr(ptr, owner_ptr)
     field._field_type = field_type

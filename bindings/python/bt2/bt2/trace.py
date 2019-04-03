@@ -28,7 +28,7 @@ import collections.abc
 import uuid as uuidp
 from bt2 import utils, native_bt
 import bt2
-from . import object, field_types, stream_class
+from . import object, field_class, stream_class
 
 class _StreamClassIterator(collections.abc.Iterator):
     def __init__(self, trace):
@@ -275,14 +275,14 @@ class Trace(object._SharedObject, collections.abc.Mapping):
             return
         native_bt.get(ft_ptr)
 
-        return bt2.field_types._create_field_type_from_ptr(ft_ptr)
+        return bt2.field_class._create_field_type_from_ptr(ft_ptr)
 
     @packet_header_field_type.setter
     def packet_header_field_type(self, packet_header_field_type):
         packet_header_field_type_ptr = None
 
         if packet_header_field_type is not None:
-            utils._check_type(packet_header_field_type, field_types._FieldType)
+            utils._check_type(packet_header_field_type, field_class._FieldClass)
             packet_header_field_type_ptr = packet_header_field_type._ptr
 
         ret = native_bt.trace_set_packet_header_field_type(self._ptr,

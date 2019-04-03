@@ -20,10 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-__all__ = ['IntegerDisplayBase', 'UnsignedIntegerFieldType', 'SignedIntegerFieldType',
-        'RealFieldType', 'UnsignedEnumerationFieldType', 'SignedEnumerationFieldType',
-        'StringFieldType', 'StructureFieldType', 'VariantFieldType',
-        'StaticArrayFieldType', 'DynamicArrayFieldType']
+__all__ = ['IntegerDisplayBase', 'UnsignedIntegerFieldClass', 'SignedIntegerFieldClass',
+        'RealFieldClass', 'UnsignedEnumerationFieldClass', 'SignedEnumerationFieldClass',
+        'StringFieldClass', 'StructureFieldClass', 'VariantFieldClass',
+        'StaticArrayFieldClass', 'DynamicArrayFieldClass']
 
 import collections
 from bt2 import native_bt, utils, object
@@ -37,9 +37,9 @@ class IntegerDisplayBase:
     BINARY = native_bt.FIELD_CLASS_INTEGER_PREFERRED_DISPLAY_BASE_BINARY
     OCTAL = native_bt.FIELD_CLASS_INTEGER_PREFERRED_DISPLAY_BASE_OCTAL
     DECIMAL = native_bt.FIELD_CLASS_INTEGER_PREFERRED_DISPLAY_BASE_DECIMAL
-    HEXADECIMAL = native_bt.FIELD_CLASS_INTEGER_PREFERRED_DISPLAY_BASE_HEXADECIMAL 
+    HEXADECIMAL = native_bt.FIELD_CLASS_INTEGER_PREFERRED_DISPLAY_BASE_HEXADECIMAL
 
-class _FieldType(object._SharedObject):  
+class _FieldClass(object._SharedObject):
     def __init__(self, ptr):
         super().__init__(ptr)
 
@@ -48,13 +48,13 @@ class _FieldType(object._SharedObject):
             raise bt2.CreationError('cannot create {} field type object'.format(self._NAME.lower()))
 
 
-class _IntegerFieldType(_FieldType):
+class _IntegerFieldClass(_FieldClass):
     def __init__(self, ptr, range=None, display_base=None):
         super().__init__(ptr)
         if range is not None:
             utils._check_uint64(range)
             if range == 0:
-                raise ValueError("IntegerFieldType range is zero")
+                raise ValueError("IntegerFieldClass range is zero")
             self.range=range
 
         if display_base is not None:
@@ -82,19 +82,19 @@ class _IntegerFieldType(_FieldType):
         native_bt.field_type_integer_set_preferred_display_base(self._ptr, base)
 
 
-class _UnsignedIntegerFieldType(_IntegerFieldType):
+class _UnsignedIntegerFieldClass(_IntegerFieldClass):
     pass
-class _SignedIntegerFieldType(_IntegerFieldType):
+class _SignedIntegerFieldClass(_IntegerFieldClass):
     pass
 
-class UnsignedIntegerFieldType(_UnsignedIntegerFieldType):
+class UnsignedIntegerFieldClass(_UnsignedIntegerFieldClass):
     _NAME = 'UnsignedInteger'
     def __init__(self, range=None, display_base=None):
         ptr = native_bt.field_type_unsigned_integer_create();
         self._check_create_status(ptr)
         super().__init__(ptr, range, display_base)
 
-class SignedIntegerFieldType(_SignedIntegerFieldType):
+class SignedIntegerFieldClass(_SignedIntegerFieldClass):
     _NAME = 'SignedInteger'
     def __init__(self, range=None, display_base=None):
         ptr = native_bt.field_type_signed_integer_create();
@@ -102,7 +102,7 @@ class SignedIntegerFieldType(_SignedIntegerFieldType):
         super().__init__(ptr, range, display_base)
 
 
-class RealFieldType(_FieldType):
+class RealFieldClass(_FieldClass):
     _NAME = 'SignedInteger'
     def __init__(self, is_single_precision=None):
         ptr = native_bt.field_type_real_create();
@@ -122,7 +122,7 @@ class RealFieldType(_FieldType):
         utils._check_bool(is_single_precision)
         native_bt.field_type_real_set_is_single_precision(self._ptr, is_single_precision)
 
-class _EnumerationFieldTypeMappingRange:
+class _EnumerationFieldClassMappingRange:
     def __init__(self, lower, upper):
         self._lower = lower
         self._upper = upper
@@ -136,7 +136,7 @@ class _EnumerationFieldTypeMappingRange:
         return self._upper
 
 
-class _EnumerationFieldTypeMapping(collections.abc.Set):
+class _EnumerationFieldClassMapping(collections.abc.Set):
     def __init__(self, mapping_ptr, label, is_signed):
         self._mapping_ptr = mapping_ptr
         self._is_signed = is_signed
@@ -167,9 +167,9 @@ class _EnumerationFieldTypeMapping(collections.abc.Set):
 
         for idx in range(len(self)):
             lower, upper = mapping_ranges_get_range_by_index_fn(self._mapping_ptr, idx)
-            yield _EnumerationFieldTypeMappingRange(lower, upper)
+            yield _EnumerationFieldClassMappingRange(lower, upper)
 
-class _EnumerationFieldType(_IntegerFieldType, collections.abc.Mapping):
+class _EnumerationFieldClass(_IntegerFieldClass, collections.abc.Mapping):
     def __len__(self):
         return native_bt.field_type_enumeration_get_mapping_count(self._ptr)
 
@@ -208,7 +208,7 @@ class _EnumerationFieldType(_IntegerFieldType, collections.abc.Mapping):
 
         for idx in range(len(self)):
             label, mapping_ptr = borrow_mapping_by_index_fn(self._ptr, idx)
-            yield _EnumerationFieldTypeMapping(mapping_ptr, label, is_signed=self._is_signed)
+            yield _EnumerationFieldClassMapping(mapping_ptr, label, is_signed=self._is_signed)
 
     def __getitem__(self, key):
         utils._check_str(key)
@@ -225,8 +225,8 @@ class _EnumerationFieldType(_IntegerFieldType, collections.abc.Mapping):
         return self
 
 
-class UnsignedEnumerationFieldType(_EnumerationFieldType, _UnsignedIntegerFieldType):
-    _NAME = 'UnsignedEnumerationFieldType'
+class UnsignedEnumerationFieldClass(_EnumerationFieldClass, _UnsignedIntegerFieldClass):
+    _NAME = 'UnsignedEnumerationFieldClass'
     _is_signed = False
     def __init__(self, range=None, display_base=None):
         ptr = native_bt.field_type_unsigned_enumeration_create();
@@ -234,8 +234,8 @@ class UnsignedEnumerationFieldType(_EnumerationFieldType, _UnsignedIntegerFieldT
         super().__init__(ptr, range, display_base)
 
 
-class SignedEnumerationFieldType(_EnumerationFieldType, _SignedIntegerFieldType):
-    _NAME = 'SignedEnumerationFieldType'
+class SignedEnumerationFieldClass(_EnumerationFieldClass, _SignedIntegerFieldClass):
+    _NAME = 'SignedEnumerationFieldClass'
     _is_signed = True
     def __init__(self, range=None, display_base=None):
         ptr = native_bt.field_type_signed_enumeration_create();
@@ -243,7 +243,7 @@ class SignedEnumerationFieldType(_EnumerationFieldType, _SignedIntegerFieldType)
         super().__init__(ptr, range, display_base)
 
 
-class StringFieldType(_FieldType):
+class StringFieldClass(_FieldClass):
     _NAME = 'String'
     def __init__(self):
         ptr = native_bt.field_type_string_create();
@@ -275,7 +275,7 @@ class _FieldContainer(collections.abc.Mapping):
 
     def append_field(self, name, field_type):
         utils._check_str(name)
-        utils._check_type(field_type, _FieldType)
+        utils._check_type(field_type, _FieldClass)
         ret = self._add_field(name, field_type._ptr)
         utils._handle_ret(ret, "cannot add field to {} field type object".format(self._NAME.lower()))
 
@@ -290,7 +290,7 @@ class _FieldContainer(collections.abc.Mapping):
         return self._at(index)
 
 
-class _StructureFieldTypeFieldIterator(collections.abc.Iterator):
+class _StructureFieldClassFieldIterator(collections.abc.Iterator):
     def __init__(self, struct_field_type):
         self._struct_field_type = struct_field_type
         self._at = 0
@@ -305,9 +305,9 @@ class _StructureFieldTypeFieldIterator(collections.abc.Iterator):
         return name
 
 
-class StructureFieldType(_FieldType, _FieldContainer):
+class StructureFieldClass(_FieldClass, _FieldContainer):
     _NAME = 'Structure'
-    _ITER_CLS = _StructureFieldTypeFieldIterator
+    _ITER_CLS = _StructureFieldClassFieldIterator
     def __init__(self):
         ptr = native_bt.field_type_structure_create()
         self._check_create_status(ptr)
@@ -332,7 +332,7 @@ class StructureFieldType(_FieldType, _FieldContainer):
         return _create_field_type_from_ptr(field_type_ptr)
 
 
-class _VariantFieldTypeFieldIterator(collections.abc.Iterator):
+class _VariantFieldClassFieldIterator(collections.abc.Iterator):
     def __init__(self, variant_field_type):
         self._variant_field_type = variant_field_type
         self._at = 0
@@ -346,9 +346,9 @@ class _VariantFieldTypeFieldIterator(collections.abc.Iterator):
         self._at += 1
         return name
 
-class VariantFieldType(_FieldType, _FieldContainer):
+class VariantFieldClass(_FieldClass, _FieldContainer):
     _NAME = 'Variant'
-    _ITER_CLS = _VariantFieldTypeFieldIterator
+    _ITER_CLS = _VariantFieldClassFieldIterator
 
     def __init__(self, selector_ft=None):
         ptr = native_bt.field_type_variant_create()
@@ -392,7 +392,7 @@ class VariantFieldType(_FieldType, _FieldContainer):
         return _create_field_type_from_ptr(field_type_ptr)
 
 
-class ArrayFieldType(_FieldType):
+class ArrayFieldClass(_FieldClass):
     @property
     def element_field_type(self):
         elem_ft_ptr = native_bt.field_type_array_borrow_element_field_type(self._ptr)
@@ -400,9 +400,9 @@ class ArrayFieldType(_FieldType):
         return _create_field_type_from_ptr(elem_ft_ptr)
         
 
-class StaticArrayFieldType(ArrayFieldType):
+class StaticArrayFieldClass(ArrayFieldClass):
     def __init__(self, elem_ft, length):
-        utils._check_type(elem_ft, _FieldType)
+        utils._check_type(elem_ft, _FieldClass)
         utils._check_uint64(length)
         ptr = native_bt.field_type_static_array_create(elem_ft._ptr, length)
         self._check_create_status(ptr)
@@ -413,9 +413,9 @@ class StaticArrayFieldType(ArrayFieldType):
         return native_bt.field_type_static_array_get_length(self._ptr)
 
 
-class DynamicArrayFieldType(ArrayFieldType):
+class DynamicArrayFieldClass(ArrayFieldClass):
     def __init__(self, elem_ft, length_ft=None):
-        utils._check_type(elem_ft, _FieldType)
+        utils._check_type(elem_ft, _FieldClass)
         ptr = native_bt.field_type_dynamic_array_create(elem_ft._ptr)
         self._check_create_status(ptr)
         super().__init__(ptr)
@@ -433,7 +433,7 @@ class DynamicArrayFieldType(ArrayFieldType):
         return bt2.FieldPath._create_from_ptr(ptr)
 
     def _set_length_field_type(self, length_ft):
-        utils._check_type(length_ft, _UnsignedIntegerFieldType)
+        utils._check_type(length_ft, _UnsignedIntegerFieldClass)
         ret = native_bt.field_type_dynamic_array_set_length_field_type(self._ptr, length_ft._ptr)
         utils._handle_ret(ret, "cannot set dynamic array length field type")
 
@@ -441,14 +441,14 @@ class DynamicArrayFieldType(ArrayFieldType):
 
 
 _FIELD_CLASS_TYPE_TO_OBJ = {
-    native_bt.FIELD_CLASS_TYPE_UNSIGNED_INTEGER: UnsignedIntegerFieldType,
-    native_bt.FIELD_CLASS_TYPE_SIGNED_INTEGER: SignedIntegerFieldType,
-    native_bt.FIELD_CLASS_TYPE_REAL: RealFieldType,
-    native_bt.FIELD_CLASS_TYPE_UNSIGNED_ENUMERATION: UnsignedEnumerationFieldType,
-    native_bt.FIELD_CLASS_TYPE_SIGNED_ENUMERATION: SignedEnumerationFieldType,
-    native_bt.FIELD_CLASS_TYPE_STRING: StringFieldType,
-    native_bt.FIELD_CLASS_TYPE_STRUCTURE: StructureFieldType,
-    native_bt.FIELD_CLASS_TYPE_STATIC_ARRAY: StaticArrayFieldType,
-    native_bt.FIELD_CLASS_TYPE_DYNAMIC_ARRAY: DynamicArrayFieldType,
-    native_bt.FIELD_CLASS_TYPE_VARIANT: VariantFieldType,
+    native_bt.FIELD_CLASS_TYPE_UNSIGNED_INTEGER: UnsignedIntegerFieldClass,
+    native_bt.FIELD_CLASS_TYPE_SIGNED_INTEGER: SignedIntegerFieldClass,
+    native_bt.FIELD_CLASS_TYPE_REAL: RealFieldClass,
+    native_bt.FIELD_CLASS_TYPE_UNSIGNED_ENUMERATION: UnsignedEnumerationFieldClass,
+    native_bt.FIELD_CLASS_TYPE_SIGNED_ENUMERATION: SignedEnumerationFieldClass,
+    native_bt.FIELD_CLASS_TYPE_STRING: StringFieldClass,
+    native_bt.FIELD_CLASS_TYPE_STRUCTURE: StructureFieldClass,
+    native_bt.FIELD_CLASS_TYPE_STATIC_ARRAY: StaticArrayFieldClass,
+    native_bt.FIELD_CLASS_TYPE_DYNAMIC_ARRAY: DynamicArrayFieldClass,
+    native_bt.FIELD_CLASS_TYPE_VARIANT: VariantFieldClass,
 }
