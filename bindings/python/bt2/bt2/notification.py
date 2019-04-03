@@ -22,7 +22,7 @@
 
 import copy
 import collections
-from bt2 import native_bt, utils, domain
+from bt2 import native_bt, utils
 from bt2 import object
 import bt2.clock_value
 import bt2.event
