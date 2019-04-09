@@ -1,0 +1,91 @@
+#!/bin/bash
+
+. "@abs_top_builddir@/tests/utils/common.sh"
+
+NUM_TESTS=15
+
+plan_tests $NUM_TESTS
+
+export LD_LIBRARY_PATH="${BT_BUILD_PATH}/python-plugin-provider/.libs:${LD_LIBRARY_PATH}"
+export PYTHONPATH="${BT_BUILD_PATH}/bindings/python/bt2/build/build_lib:${PYTHONPATH}"
+
+# If Babeltrace is compiled with ASan, the leak detection report will cause
+# unexpected output.
+export ASAN_OPTIONS=detect_leaks=0
+
+# Run one test, expecting success.
+function run_one_test
+{
+    local test_name="$1"
+    local params="$2"
+    local expected_output="$3"
+    output=$("${BT_BIN}" run --plugin-path="${BT_SRC_PATH}/tests/cli/test_params_plugin" \
+               --component=src:source.test_params.MySource --component=snk:sink.test_params.MySink --connect src:snk \
+               -p $params)
+    ret="$?"
+    if [ "$ret" -ne 0 ]; then
+        fail "$test_name"
+        diag "Expected exit code 0, got $ret"
+        return
+    fi
+
+    if [ "$output" = "$expected_output" ]; then
+        pass "$test_name"
+    else
+        fail "$test_name"
+        diag "Params:   $params"
+        diag "Expected: $expected_output"
+        diag "Got:      $output"
+    fi
+}
+
+# Run one test, expecting failure.
+function run_one_test_error
+{
+    local test_name="$1"
+    local params="$2"
+    local expected_output="$3"
+    output=$("${BT_BIN}" run --plugin-path="${BT_SRC_PATH}/tests/cli/test_params_plugin" \
+               --component=src:source.test_params.MySource --component=snk:sink.test_params.MySink --connect src:snk \
+               -p $params 2>&1)
+    ret="$?"
+    if [ "$ret" -eq 0 ]; then
+        fail "$test_name"
+        diag "Expected exit code to be different than 0, got 0"
+        return
+    fi
+
+    # The error message is quite long, so just look if the expected_output is a
+    # substring of the output.
+    if [[ "$output" == *"$expected_output"* ]]; then
+        pass "$test_name"
+    else
+        fail "$test_name"
+        diag "Params:   $params"
+        diag "Expected substring: $expected_output"
+        diag "Got:      $output"
+    fi
+}
+
+run_one_test_error "missing value" "val=" "Command line error: Expecting value"
+
+run_one_test "simple integer" "val=2" "{'val': 2}"
+run_one_test "simple negative integer" "val=-2" "{'val': -2}"
+run_one_test "simple real" "val=3.4" "{'val': 3.4}"
+run_one_test "simple negative real" "val=-3.4" "{'val': -3.4}"
+run_one_test "simple string" "val=\"bob\"" "{'val': 'bob'}"
+
+for x in true TRUE yes YES; do
+    run_one_test "simple bool $x" "val=$x" "{'val': True}"
+done
+
+for x in false FALSE no NO; do
+    run_one_test "simple bool $x" "val=$x" "{'val': False}"
+done
+
+# This currently does not work.
+#for x in null NULL nul; do
+#    run_one_test "simple null $x" "val=$x" "{'val': None}"
+#done
+
+run_one_test "multiple values" "val1=2,val2=\"hi!\",val3=1.23" "{'val1': 2, 'val2': 'hi!', 'val3': 1.23}"
