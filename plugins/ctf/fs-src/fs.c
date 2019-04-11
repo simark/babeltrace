@@ -1333,7 +1333,13 @@ struct ctf_fs_component *ctf_fs_create(
 	 */
 	ctf_fs->self_comp = self_comp;
 	value = bt_value_map_borrow_entry_value_const(params, "path");
-	if (value && !bt_value_is_string(value)) {
+	if (!value) {
+		BT_LOGE("missing \"path\" parameter");
+		goto error;
+	}
+
+	if (!bt_value_is_string(value)) {
+		BT_LOGE("\"path\" parameter is not a string");
 		goto error;
 	}
 
