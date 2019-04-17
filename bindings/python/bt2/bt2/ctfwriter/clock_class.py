@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from bt2 import native_bt, object, utils
+from bt2 import native_bt, utils, ctfwriter
 import uuid as uuidp
 import numbers
 import bt2
@@ -46,7 +46,7 @@ class ClockClassOffset:
         return hash((self.seconds, self.cycles))
 
 
-class ClockClass(bt2.object._SharedObject):
+class ClockClass(ctfwriter.object._CtfWriterSharedObject):
     def __init__(self, name, frequency, description=None, precision=None,
                  offset=None, is_absolute=None, uuid=None):
         utils._check_str(name)

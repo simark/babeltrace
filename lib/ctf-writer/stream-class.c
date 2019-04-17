@@ -330,8 +330,8 @@ int bt_ctf_stream_class_common_add_event_class(
 			ret = -1;
 			goto end;
 		}
-		stream_class->next_event_id++;
 		*event_id = stream_class->next_event_id;
+        stream_class->next_event_id++;
 	}
 
 	bt_ctf_object_set_parent(&event_class->base, &stream_class->base);

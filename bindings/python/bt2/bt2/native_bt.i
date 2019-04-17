@@ -36,7 +36,8 @@
 #include <babeltrace/property.h>
 #include <babeltrace/assert-internal.h>
 
-typedef const uint8_t *bt_uuid;
+typedef const uint8_t *bt_uuid_in;
+typedef const uint8_t *bt_uuid_out;
 %}
 
 typedef int bt_bool;
@@ -122,12 +123,16 @@ typedef int bt_bool;
 }
 
 /* Input argument typemap for UUID bytes */
-%typemap(in) bt_uuid {
-	$1 = (unsigned char *) PyBytes_AsString($input);
+%typemap(in) bt_uuid_in {
+    if (!PyObject_IsTrue($input)) {
+	    $1 = NULL;
+    } else {
+        $1 = (unsigned char *) PyBytes_AsString($input);
+    }
 }
 
 /* Output argument typemap for UUID bytes */
-%typemap(out) bt_uuid {
+%typemap(out) bt_uuid_out {
 	if (!$1) {
 		Py_INCREF(Py_None);
 		$result = Py_None;

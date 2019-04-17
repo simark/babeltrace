@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from bt2 import native_bt, object, utils
+from bt2 import native_bt, utils, ctfwriter
 import collections.abc
 import functools
 import numbers
@@ -88,7 +88,7 @@ def create_value(value):
     raise TypeError("cannot create value object from '{}' object".format(value.__class__.__name__))
 
 
-class _Value(object._SharedObject, metaclass=abc.ABCMeta):
+class _Value(ctfwriter.object._CtfWriterSharedObject, metaclass=abc.ABCMeta):
     def __eq__(self, other):
         if other is None:
             # self is never the null value object

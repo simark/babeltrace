@@ -1369,38 +1369,49 @@ void merge_matching_ctf_fs_ds_file_groups(
 
 
 	for (guint s_i = 0; s_i < src->len; s_i++) {
-		struct ctf_fs_ds_file_group *src_group = src->pdata[s_i];
-		bool merged = false;
+		struct ctf_fs_ds_file_group *src_group = g_ptr_array_index(src, s_i);
+		struct ctf_fs_ds_file_group *dest_group = NULL;
 
 		/* A stream instance without ID can't match a stream in the other trace.  */
 		if (src_group->stream_id != -1) {
 			/* Let's search for a matching ds_file_group in the destination.  */
 			for (guint d_i = 0; d_i < dest_len; d_i++) {
-				struct ctf_fs_ds_file_group *dest_group = dest->pdata[d_i];
+				struct ctf_fs_ds_file_group *candidate_dest = g_ptr_array_index(dest, d_i);
 
 				/* Can't match a stream instance without ID.  */
-				if (dest_group->stream_id == -1) {
+				if (candidate_dest->stream_id == -1) {
 					continue;
 				}
 
 				/* If the two groups have the same stream instance id
-					and belong to the same stream class (stream instance
-					ids are per-stream class), they represent the same
-					stream instance. */
-				if (dest_group->stream_id == src_group->stream_id &&
-					dest_group->sc->id == src_group->sc->id) {
-					merge_ctf_fs_ds_file_groups(dest_group, src_group);
-					merged = true;
-					break;
+				   and belong to the same stream class (stream instance
+				   ids are per-stream class), they represent the same
+				   stream instance. */
+				if (candidate_dest->stream_id != src_group->stream_id ||
+					candidate_dest->sc->id != src_group->sc->id) {
+					continue;
 				}
+
+				dest_group = candidate_dest;
+				break;
 			}
 		}
 
 		/* Didn't find a friend in dest to merge our src_group into?
-		   Add it as a new group to dest. */
-		if (!merged) {
-			g_ptr_array_add(dest, src_group);
+		   Create a new empty one. */
+		if (!dest_group) {
+			struct ctf_stream_class *sc = ctf_trace_class_borrow_stream_class_by_id(
+				dest_trace->metadata->tc, src_group->sc->id);
+			BT_ASSERT(sc);
+
+			dest_group = ctf_fs_ds_file_group_create(dest_trace, sc,
+				src_group->stream_id);
+
+			g_ptr_array_add(dest_trace->ds_file_groups, dest_group);
 		}
+
+		BT_ASSERT(dest_group);
+		merge_ctf_fs_ds_file_groups(dest_group, src_group);
 	}
 }
 

@@ -32,11 +32,11 @@ enum bt_ctf_byte_order bt_ctf_trace_get_native_byte_order(
 int bt_ctf_trace_set_native_byte_order(struct bt_ctf_trace *trace,
 		enum bt_ctf_byte_order native_byte_order);
 
-const unsigned char *bt_ctf_trace_get_uuid(
+bt_uuid_out bt_ctf_trace_get_uuid(
 		struct bt_ctf_trace *trace);
 
 int bt_ctf_trace_set_uuid(struct bt_ctf_trace *trace,
-		const unsigned char *uuid);
+		bt_uuid_in uuid);
 
 struct bt_ctf_field_type *bt_ctf_trace_get_packet_header_field_type(
 		struct bt_ctf_trace *trace);

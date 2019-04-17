@@ -22,16 +22,27 @@
 
 __all__ = ['CtfWriter']
 
-from bt2 import utils
+from bt2 import utils, ctfwriter
 import bt2
 import bt2.native_bt as native_bt
 from . import Clock
+from uuid import UUID
 
 
-class CtfWriter(bt2.object._SharedObject):
-    def __init__(self, path):
+class CtfWriter(ctfwriter.object._CtfWriterSharedObject):
+    def __init__(self, path, auto_uuid=True, uuid=None,
+                 with_stream_instance_id=False):
         utils._check_str(path)
-        ptr = native_bt.ctf_writer_create(path)
+
+        if auto_uuid and uuid:
+            raise bt2.CreationError('auto_uuid and uuid can\'t be used simultaneously')
+
+        with_uuid = auto_uuid or uuid
+        if uuid:
+            utils._check_type(uuid, UUID)
+            uuid = uuid.bytes
+
+        ptr = native_bt.ctf_writer_create(path, with_uuid, uuid, with_stream_instance_id)
 
         if ptr is None:
             raise bt2.CreationError('cannot create CTF writer object')

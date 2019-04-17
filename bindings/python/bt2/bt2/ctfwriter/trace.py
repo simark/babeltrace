@@ -20,13 +20,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from bt2 import native_bt, object, utils
+from bt2 import native_bt, utils
 import bt2.ctfwriter.field_types
 import collections.abc
 import bt2.ctfwriter.values
 import bt2.ctfwriter.stream
 import copy
 import bt2
+import uuid
+from bt2 import ctfwriter
 
 
 class _StreamClassIterator(collections.abc.Iterator):
@@ -160,7 +162,7 @@ class _TraceEnv(collections.abc.MutableMapping):
         return _TraceEnvIterator(self)
 
 
-class Trace(bt2.object._SharedObject, collections.abc.Mapping):
+class Trace(ctfwriter.object._CtfWriterSharedObject, collections.abc.Mapping):
     def __init__(self, name=None, native_byte_order=None, env=None,
                  packet_header_field_type=None, clock_classes=None,
                  stream_classes=None):
@@ -248,6 +250,14 @@ class Trace(bt2.object._SharedObject, collections.abc.Mapping):
     @property
     def env(self):
         return _TraceEnv(self)
+
+    @property
+    def uuid(self):
+        uuid_bytes = native_bt.ctf_trace_get_uuid(self._ptr)
+        if uuid_bytes is None:
+            return None
+
+        return uuid.UUID(bytes=uuid_bytes)
 
     @property
     def clock_classes(self):

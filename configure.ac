@@ -762,6 +762,7 @@ AC_CONFIG_FILES([
 	tests/bindings/python/Makefile
 	tests/bindings/python/bt2/Makefile
 	tests/plugins/Makefile
+	tests/plugins/ctf/Makefile
 	tests/python-plugin-provider/Makefile
 	extras/Makefile
 	extras/valgrind/Makefile

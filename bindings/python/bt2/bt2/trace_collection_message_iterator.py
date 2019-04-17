@@ -110,6 +110,10 @@ class TraceCollectionMessageIterator(bt2.message_iterator._MessageIterator):
         self._validate_component_specs(filter_component_specs)
         self._build_graph()
 
+    @property
+    def graph(self):
+        return self._graph
+
     def _validate_component_specs(self, comp_specs):
         for comp_spec in comp_specs:
             if type(comp_spec) is not ComponentSpec:

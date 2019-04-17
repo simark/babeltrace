@@ -45,8 +45,8 @@ int bt_ctf_clock_set_offset(struct bt_ctf_clock *clock,
 int bt_ctf_clock_get_is_absolute(struct bt_ctf_clock *clock);
 int bt_ctf_clock_set_is_absolute(struct bt_ctf_clock *clock,
 		int is_absolute);
-bt_uuid bt_ctf_clock_get_uuid(struct bt_ctf_clock *clock);
+bt_uuid_out bt_ctf_clock_get_uuid(struct bt_ctf_clock *clock);
 int bt_ctf_clock_set_uuid(struct bt_ctf_clock *clock,
-		bt_uuid uuid);
+		bt_uuid_in uuid);
 int bt_ctf_clock_set_time(struct bt_ctf_clock *clock,
 		int64_t time);

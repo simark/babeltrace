@@ -480,7 +480,7 @@ static void create_writer_user_full(struct writer_user *user)
 		perror("# perror");
 	}
 
-	user->writer = bt_ctf_writer_create(trace_path);
+	user->writer = bt_ctf_writer_create(trace_path, BT_TRUE, NULL, false);
 	BT_ASSERT(user->writer);
 	ret = bt_ctf_writer_set_byte_order(user->writer,
 		BT_CTF_BYTE_ORDER_LITTLE_ENDIAN);

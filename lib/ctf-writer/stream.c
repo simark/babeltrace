@@ -281,6 +281,7 @@ end:
 	BT_CTF_OBJECT_PUT_REF_AND_RESET(trace);
 	return ret;
 }
+
 static
 int set_packet_header_stream_id(struct bt_ctf_stream *stream)
 {
@@ -319,6 +320,43 @@ end:
 }
 
 static
+int set_packet_header_stream_instance_id(struct bt_ctf_stream *stream)
+{
+	int ret = 0;
+	uint32_t stream_id;
+	struct bt_ctf_field *stream_instance_id_field =
+		bt_ctf_field_structure_get_field_by_name(
+			stream->packet_header, "stream_instance_id");
+
+	if (!stream_instance_id_field) {
+		/* No stream_instance_id field found. Not an error, skip. */
+		BT_LOGV("No field named `stream_id` in packet header: skipping: "
+			"stream-addr=%p, stream-name=\"%s\"",
+			stream, bt_ctf_stream_get_name(stream));
+		goto end;
+	}
+
+	stream_id = stream->common.id;
+	ret = bt_ctf_field_integer_unsigned_set_value(stream_instance_id_field,
+		(uint64_t) stream_id);
+	if (ret) {
+		BT_LOGW("Cannot set packet header field's `stream_instance_id` integer field's value: "
+			"stream-addr=%p, stream-name=\"%s\", field-addr=%p, value=%" PRIu64,
+			stream, bt_ctf_stream_get_name(stream),
+			stream_instance_id_field, (uint64_t) stream_id);
+	} else {
+		BT_LOGV("Set packet header field's `stream_instance_id` field's value: "
+			"stream-addr=%p, stream-name=\"%s\", field-addr=%p, value=%" PRIu64,
+			stream, bt_ctf_stream_get_name(stream),
+			stream_instance_id_field, (uint64_t) stream_id);
+	}
+
+end:
+	bt_ctf_object_put_ref(stream_instance_id_field);
+	return ret;
+}
+
+static
 int auto_populate_packet_header(struct bt_ctf_stream *stream)
 {
 	int ret = 0;
@@ -346,6 +384,14 @@ int auto_populate_packet_header(struct bt_ctf_stream *stream)
 	ret = set_packet_header_stream_id(stream);
 	if (ret) {
 		BT_LOGW("Cannot set packet header's stream class ID field: "
+			"stream-addr=%p, stream-name=\"%s\"",
+			stream, bt_ctf_stream_get_name(stream));
+		goto end;
+	}
+
+	ret = set_packet_header_stream_instance_id(stream);
+	if (ret) {
+		BT_LOGW("Cannot set packet header's stream instance ID field: "
 			"stream-addr=%p, stream-name=\"%s\"",
 			stream, bt_ctf_stream_get_name(stream));
 		goto end;

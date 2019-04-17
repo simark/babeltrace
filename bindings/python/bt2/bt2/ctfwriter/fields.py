@@ -22,7 +22,7 @@
 
 __all__ = ['_IntegerField', '_FloatingPointNumberField', '_EnumerationField', '_StringField', '_StructureField', '_VariantField', '_ArrayField', '_SequenceField']
 
-from bt2 import native_bt, object, utils
+from bt2 import native_bt, utils, ctfwriter
 import bt2.ctfwriter.field_types
 import collections.abc
 import functools
@@ -52,7 +52,7 @@ def _create_from_ptr(ptr):
     return field
 
 
-class _Field(bt2.object._SharedObject, metaclass=abc.ABCMeta):
+class _Field(ctfwriter.object._CtfWriterSharedObject, metaclass=abc.ABCMeta):
     @property
     def field_type(self):
         return self._field_type

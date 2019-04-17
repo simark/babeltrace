@@ -23,10 +23,11 @@
 
 __all__ = ['_Event']
 
-from bt2 import native_bt
+from bt2 import native_bt, ctfwriter
 import bt2
 
-class _Event(bt2.object._SharedObject):
+
+class _Event(ctfwriter.object._CtfWriterSharedObject):
     @property
     def event_class(self):
         return self._event_class

@@ -49,10 +49,17 @@ struct bt_ctf_clock;
  * The creation of a writer sets its reference count to 1.
  *
  * @param path Path to the trace's containing folder (string is copied).
+ * @param with_uuid If true, the trace will have a UUID.
+ * @param uuid UUID to assign the trace if `with_uuid` is true.  If NULL and `with_uuid`
+ *             is true, a random UUID will be generated.  If `with_uuid` is
+ *             false, this parameter has no effect.
+ * @param with_stream_instance_id If true, stream packet headers will include
+ *             the `stream_instance_id` field.
  *
  * Returns an allocated writer on success, NULL on error.
  */
-extern struct bt_ctf_writer *bt_ctf_writer_create(const char *path);
+extern struct bt_ctf_writer *bt_ctf_writer_create(const char *path,
+		bt_bool with_uuid, bt_uuid uuid, bt_bool with_stream_instance_id);
 
 /*
  * bt_ctf_writer_get_trace: Get a writer's associated trace.

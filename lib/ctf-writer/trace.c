@@ -187,12 +187,6 @@ int bt_ctf_trace_common_set_uuid(struct bt_ctf_trace_common *trace,
 		goto end;
 	}
 
-	if (!uuid) {
-		BT_LOGW_STR("Invalid parameter: UUID is NULL.");
-		ret = -1;
-		goto end;
-	}
-
 	if (trace->frozen) {
 		BT_LOGW("Invalid parameter: trace is frozen: "
 			"addr=%p, name=\"%s\"",
@@ -201,27 +195,33 @@ int bt_ctf_trace_common_set_uuid(struct bt_ctf_trace_common *trace,
 		goto end;
 	}
 
-	memcpy(trace->uuid, uuid, BABELTRACE_UUID_LEN);
-	trace->uuid_set = BT_TRUE;
-	BT_LOGV("Set trace's UUID: addr=%p, name=\"%s\", "
-		"uuid=\"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x\"",
-		trace, bt_ctf_trace_common_get_name(trace),
-		(unsigned int) uuid[0],
-		(unsigned int) uuid[1],
-		(unsigned int) uuid[2],
-		(unsigned int) uuid[3],
-		(unsigned int) uuid[4],
-		(unsigned int) uuid[5],
-		(unsigned int) uuid[6],
-		(unsigned int) uuid[7],
-		(unsigned int) uuid[8],
-		(unsigned int) uuid[9],
-		(unsigned int) uuid[10],
-		(unsigned int) uuid[11],
-		(unsigned int) uuid[12],
-		(unsigned int) uuid[13],
-		(unsigned int) uuid[14],
-		(unsigned int) uuid[15]);
+	if (uuid) {
+		memcpy(trace->uuid, uuid, BABELTRACE_UUID_LEN);
+		trace->uuid_set = BT_TRUE;
+		BT_LOGV("Set trace's UUID: addr=%p, name=\"%s\", "
+			"uuid=\"%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x\"",
+			trace, bt_ctf_trace_common_get_name(trace),
+			(unsigned int) uuid[0],
+			(unsigned int) uuid[1],
+			(unsigned int) uuid[2],
+			(unsigned int) uuid[3],
+			(unsigned int) uuid[4],
+			(unsigned int) uuid[5],
+			(unsigned int) uuid[6],
+			(unsigned int) uuid[7],
+			(unsigned int) uuid[8],
+			(unsigned int) uuid[9],
+			(unsigned int) uuid[10],
+			(unsigned int) uuid[11],
+			(unsigned int) uuid[12],
+			(unsigned int) uuid[13],
+			(unsigned int) uuid[14],
+			(unsigned int) uuid[15]);
+	} else {
+		trace->uuid_set = BT_FALSE;
+		BT_LOGV("Set trace's UUID: addr=%p, name=\"%s\", uuid=nil",
+			trace, bt_ctf_trace_common_get_name(trace));
+	}
 
 end:
 	return ret;

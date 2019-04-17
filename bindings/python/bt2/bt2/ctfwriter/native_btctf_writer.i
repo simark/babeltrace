@@ -27,7 +27,8 @@ struct bt_ctf_stream;
 struct bt_ctf_stream_class;
 struct bt_ctf_clock;
 
-struct bt_ctf_writer *bt_ctf_writer_create(const char *path);
+struct bt_ctf_writer *bt_ctf_writer_create(const char *path,
+		bt_bool with_uuid, bt_uuid_in uuid, bt_bool with_stream_instance_id);
 struct bt_ctf_trace *bt_ctf_writer_get_trace(
 		struct bt_ctf_writer *writer);
 struct bt_ctf_stream *bt_ctf_writer_create_stream(

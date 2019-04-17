@@ -1634,7 +1634,7 @@ int main(int argc, char **argv)
 
 	metadata_path = g_build_filename(trace_path, "metadata", NULL);
 
-	writer = bt_ctf_writer_create(trace_path);
+	writer = bt_ctf_writer_create(trace_path, BT_TRUE, NULL, false);
 	ok(writer, "bt_ctf_create succeeds in creating trace with path");
 
 	ok(!bt_ctf_writer_get_trace(NULL),

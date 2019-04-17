@@ -54,7 +54,8 @@ static
 void bt_ctf_writer_destroy(struct bt_ctf_object *obj);
 
 static
-int init_trace_packet_header(struct bt_ctf_trace *trace)
+int init_trace_packet_header(struct bt_ctf_trace *trace, bool with_uuid,
+		bool with_stream_instance_id)
 {
 	int ret = 0;
 	struct bt_ctf_field_type *_uint32_t =
@@ -77,16 +78,26 @@ int init_trace_packet_header(struct bt_ctf_trace *trace)
 		goto end;
 	}
 
-	ret = bt_ctf_field_type_structure_add_field(trace_packet_header_type,
-		uuid_array_type, "uuid");
-	if (ret) {
-		goto end;
+	if (with_uuid) {
+		ret = bt_ctf_field_type_structure_add_field(trace_packet_header_type,
+			uuid_array_type, "uuid");
+		if (ret) {
+			goto end;
+		}
 	}
 
 	ret = bt_ctf_field_type_structure_add_field(trace_packet_header_type,
 		_uint32_t, "stream_id");
 	if (ret) {
 		goto end;
+	}
+
+	if (with_stream_instance_id) {
+		ret = bt_ctf_field_type_structure_add_field(
+			trace_packet_header_type, _uint32_t, "stream_instance_id");
+		if (ret) {
+			goto end;
+		}
 	}
 
 	ret = bt_ctf_trace_set_packet_header_field_type(trace,
@@ -102,11 +113,12 @@ end:
 	return ret;
 }
 
-struct bt_ctf_writer *bt_ctf_writer_create(const char *path)
+struct bt_ctf_writer *bt_ctf_writer_create(const char *path, bt_bool with_uuid,
+		bt_uuid uuid, bt_bool with_stream_instance_id)
 {
 	int ret;
 	struct bt_ctf_writer *writer = NULL;
-	unsigned char uuid[16];
+	unsigned char uuid_local[16];
 	char *metadata_path = NULL;
 
 	if (!path) {
@@ -131,21 +143,29 @@ struct bt_ctf_writer *bt_ctf_writer_create(const char *path)
 		goto error_destroy;
 	}
 
-	ret = init_trace_packet_header(writer->trace);
+	ret = init_trace_packet_header(writer->trace, with_uuid,
+		with_stream_instance_id);
 	if (ret) {
 		goto error_destroy;
 	}
 
-	/* Generate a UUID for this writer's trace */
-	ret = bt_uuid_generate(uuid);
-	if (ret) {
-		BT_LOGE_STR("Cannot generate UUID for CTF writer's trace.");
-		goto error_destroy;
-	}
+	if (with_uuid) {
+		/* Generate a UUID for this writer's trace if the user requested
+		   to have a UUID but did not provide one. */
+		if (!uuid) {
+			uuid = uuid_local;
 
-	ret = bt_ctf_trace_set_uuid(writer->trace, uuid);
-	if (ret) {
-		goto error_destroy;
+			ret = bt_uuid_generate(uuid_local);
+			if (ret) {
+				BT_LOGE_STR("Cannot generate UUID for CTF writer's trace.");
+				goto error_destroy;
+			}
+		}
+
+		ret = bt_ctf_trace_set_uuid(writer->trace, uuid);
+		if (ret) {
+			goto error_destroy;
+		}
 	}
 
 	bt_ctf_object_set_parent(&writer->trace->common.base, &writer->base);

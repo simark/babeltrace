@@ -25,7 +25,7 @@ __all__ = ['ByteOrder', 'Encoding', 'Base', 'IntegerFieldType', 'FloatingPointNu
         'EnumerationFieldType', 'StringFieldType', 'StructureFieldType',
         'VariantFieldType', 'ArrayFieldType', 'SequenceFieldType']
 
-from bt2 import native_bt, object, utils
+from bt2 import native_bt, object, utils, ctfwriter
 import collections.abc
 import bt2.field
 import abc
@@ -37,7 +37,7 @@ def _create_from_ptr(ptr):
     return _TYPE_ID_TO_OBJ[typeid]._create_from_ptr(ptr)
 
 
-class _FieldType(bt2.object._SharedObject, metaclass=abc.ABCMeta):
+class _FieldType(ctfwriter.object._CtfWriterSharedObject, metaclass=abc.ABCMeta):
     def __init__(self, ptr):
         super().__init__(ptr)
 

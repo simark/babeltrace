@@ -20,9 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-from bt2 import native_bt, object, utils
+from bt2 import native_bt, utils, ctfwriter
 import collections.abc
-#import bt2.ctf_writer
 import bt2.stream
 import copy
 import bt2
@@ -41,13 +40,13 @@ class _EventClassIterator(collections.abc.Iterator):
                                                                  self._at)
         assert(ec_ptr)
         ev_id = native_bt.ctf_event_class_get_id(ec_ptr)
-        native_bt.ctf_put(ec_ptr)
+        native_bt.ctf_object_put_ref(ec_ptr)
         utils._handle_ret(ev_id, "cannot get event class object's ID")
         self._at += 1
         return ev_id
 
 
-class StreamClass(object._SharedObject, collections.abc.Mapping):
+class StreamClass(ctfwriter.object._CtfWriterSharedObject, collections.abc.Mapping):
     def __init__(self, name, id=None, packet_context_field_type=None,
                  event_header_field_type=None, event_context_field_type=None,
                  event_classes=None):
@@ -73,7 +72,7 @@ class StreamClass(object._SharedObject, collections.abc.Mapping):
         if event_classes is not None:
             for event_class in event_classes:
                 self.add_event_class(event_class)
-        
+
         self._next_stream_id = 0
 
     def __getitem__(self, key):
@@ -215,8 +214,8 @@ class StreamClass(object._SharedObject, collections.abc.Mapping):
 
         if id is None:
             id = self._next_stream_id
-            self._next_stream_id += 1;
-            
+            self._next_stream_id += 1
+
         stream_ptr = native_bt.ctf_stream_create(self._ptr, name, id)
 
         if stream_ptr is None:
