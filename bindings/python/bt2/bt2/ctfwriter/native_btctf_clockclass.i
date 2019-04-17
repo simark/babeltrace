@@ -55,6 +55,6 @@ bt_bool bt_ctf_clock_class_is_absolute(
 		struct bt_ctf_clock_class *clock_class);
 int bt_ctf_clock_class_set_is_absolute(
 		struct bt_ctf_clock_class *clock_class, bt_bool is_absolute);
-BTUUID bt_ctf_clock_class_get_uuid(struct bt_ctf_clock_class *clock_class);
+bt_uuid bt_ctf_clock_class_get_uuid(struct bt_ctf_clock_class *clock_class);
 int bt_ctf_clock_class_set_uuid(struct bt_ctf_clock_class *clock_class,
-		BTUUID uuid);
+		bt_uuid uuid);
