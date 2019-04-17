@@ -22,12 +22,13 @@
 
 __all__ = ['Clock']
 
-from bt2 import object, utils, native_bt
+from bt2 import utils, native_bt
 import bt2
 import uuid as uuidp
+from bt2.ctfwriter import object
 
 
-class Clock(object._SharedObject):
+class Clock(object._CtfWriterSharedObject):
     def __init__(self, name, description=None, frequency=None, precision=None,
                  offset=None, is_absolute=None, uuid=None):
         utils._check_str(name)
@@ -140,5 +141,6 @@ class Clock(object._SharedObject):
     def _time(self, time):
         utils._check_int64(time)
         ret = native_bt.ctf_clock_set_time(self._ptr, time)
+        utils._handle_ret(ret, "cannot set CTF writer clock object's time")
 
     time = property(fset=_time)

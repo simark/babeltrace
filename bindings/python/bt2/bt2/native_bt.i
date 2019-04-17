@@ -36,7 +36,6 @@
 #include <babeltrace/property.h>
 #include <babeltrace/assert-internal.h>
 
-typedef const unsigned char *BTUUID;
 typedef const uint8_t *bt_uuid;
 %}
 
