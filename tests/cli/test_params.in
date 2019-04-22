@@ -2,7 +2,7 @@
 
 . "@abs_top_builddir@/tests/utils/common.sh"
 
-NUM_TESTS=17
+NUM_TESTS=28
 
 plan_tests $NUM_TESTS
 
@@ -91,3 +91,16 @@ done
 #done
 
 run_one_test "multiple values" "val1=2,val2=\"hi!\",val3=1.23" "{'val1': 2, 'val2': 'hi!', 'val3': 1.23}"
+
+run_one_test "empty array" "val1=[]" "{'val1': []}"
+run_one_test "array of integers" "val1=[1,2,3]" "{'val1': [1, 2, 3]}"
+run_one_test "array of integers with trailing comma" "val1=[1,2,3]" "{'val1': [1, 2, 3]}"
+run_one_test "nested arrays" "val1=[[11],2,[\"salut\",1.45]]" "{'val1': [[11], 2, ['salut', 1.45]]}"
+run_one_test "value after array" "val1=[2,],val2=3" "{'val1': [2], 'val2': 3}"
+
+run_one_test_error "incomplete array 1" "val1=[" "Command line error: Expecting value"
+run_one_test_error "incomplete array 2" "val1=[1" "Command line error: Expecting , or ]"
+run_one_test_error "incomplete array 3" "val1=[1," "Command line error: Expecting value"
+run_one_test_error "incomplete array 4" "val1=[1,," "Command line error: Expecting value"
+run_one_test_error "incomplete array 5" "val1=[1,,]" "Command line error: Expecting value"
+run_one_test_error "missing command in array" "val1=[1\"bob\"]" "Command line error: Expecting , or ]"
