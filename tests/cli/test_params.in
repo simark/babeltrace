@@ -2,7 +2,7 @@
 
 . "@abs_top_builddir@/tests/utils/common.sh"
 
-NUM_TESTS=15
+NUM_TESTS=17
 
 plan_tests $NUM_TESTS
 
@@ -68,6 +68,8 @@ function run_one_test_error
 }
 
 run_one_test_error "missing value" "val=" "Command line error: Expecting value"
+run_one_test_error "missing value after - 1" "val=-" "Command line error: Expecting value"
+run_one_test_error "missing value after - 2" "val=-,val2=2" "Command line error: Expecting value"
 
 run_one_test "simple integer" "val=2" "{'val': 2}"
 run_one_test "simple negative integer" "val=-2" "{'val': -2}"
