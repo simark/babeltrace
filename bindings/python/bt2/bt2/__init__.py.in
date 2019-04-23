@@ -85,10 +85,6 @@ class InvalidQueryParams(Error):
     pass
 
 
-class UnsupportedFeature(Exception):
-    pass
-
-
 class NoSinkComponent(Exception):
     pass
 

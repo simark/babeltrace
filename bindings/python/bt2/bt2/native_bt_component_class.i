@@ -517,7 +517,6 @@ static PyObject *lookup_cc_ptr_to_py_cls(const bt_component_class *bt_cc)
 
 static PyObject *py_mod_bt2 = NULL;
 static PyObject *py_mod_bt2_exc_error_type = NULL;
-static PyObject *py_mod_bt2_exc_unsupported_feature_type = NULL;
 static PyObject *py_mod_bt2_exc_try_again_type = NULL;
 static PyObject *py_mod_bt2_exc_stop_type = NULL;
 static PyObject *py_mod_bt2_exc_port_connection_refused_type = NULL;
@@ -540,9 +539,6 @@ static void bt_py3_cc_init_from_bt2(void)
 	py_mod_bt2_exc_error_type =
 		PyObject_GetAttrString(py_mod_bt2, "Error");
 	BT_ASSERT(py_mod_bt2_exc_error_type);
-	py_mod_bt2_exc_unsupported_feature_type =
-		PyObject_GetAttrString(py_mod_bt2, "UnsupportedFeature");
-	BT_ASSERT(py_mod_bt2_exc_unsupported_feature_type);
 	py_mod_bt2_exc_try_again_type =
 		PyObject_GetAttrString(py_mod_bt2, "TryAgain");
 	BT_ASSERT(py_mod_bt2_exc_try_again_type);
@@ -577,7 +573,6 @@ static void bt_py3_cc_exit_handler(void)
 	 */
 	Py_XDECREF(py_mod_bt2);
 	Py_XDECREF(py_mod_bt2_exc_error_type);
-	Py_XDECREF(py_mod_bt2_exc_unsupported_feature_type);
 	Py_XDECREF(py_mod_bt2_exc_try_again_type);
 	Py_XDECREF(py_mod_bt2_exc_stop_type);
 	Py_XDECREF(py_mod_bt2_exc_port_connection_refused_type);
@@ -721,10 +716,6 @@ bt_py3_exc_to_self_message_iterator_status(void)
 	}
 
 	if (PyErr_GivenExceptionMatches(exc,
-			py_mod_bt2_exc_unsupported_feature_type)) {
-		// TODO: Is that right?
-		status = BT_SELF_MESSAGE_ITERATOR_STATUS_ERROR;
-	} else if (PyErr_GivenExceptionMatches(exc,
 			py_mod_bt2_exc_stop_type)) {
 		status = BT_SELF_MESSAGE_ITERATOR_STATUS_END;
 	} else if (PyErr_GivenExceptionMatches(exc,
