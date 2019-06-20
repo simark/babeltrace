@@ -24,6 +24,8 @@
  * SOFTWARE.
  */
 
+#include <babeltrace2/graph/message-stream-const.h>
+
 #include "compat/compiler.h"
 #include "lib/trace-ir/stream.h"
 #include "lib/trace-ir/clock-snapshot.h"
@@ -34,6 +36,8 @@
 struct bt_message_stream {
 	struct bt_message parent;
 	struct bt_stream *stream;
+	struct bt_clock_snapshot *default_cs;
+	enum bt_message_stream_clock_snapshot_state cs_state;
 };
 
 #endif /* BABELTRACE_GRAPH_MESSAGE_STREAM_INTERNAL_H */

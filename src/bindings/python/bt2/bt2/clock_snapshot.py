@@ -62,7 +62,3 @@ class _ClockSnapshot(object._UniqueObject):
 
 class _UnknownClockSnapshot:
     pass
-
-
-class _InfiniteClockSnapshot:
-    pass

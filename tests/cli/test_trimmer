@@ -50,6 +50,7 @@ function expect_success()
 	local msg="$1"
 	shift
 
+	echo "${BT_TESTS_BT2_BIN}" "${TRACE_PATH}" "$@"
 	"${BT_TESTS_BT2_BIN}" "${TRACE_PATH}" "$@" 2>/dev/null > "${tmp_out}"
 	ok $? "trimmer: ${msg}: exit status"
 	num_events=$(wc -l < "${tmp_out}")

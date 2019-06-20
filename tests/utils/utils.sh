@@ -118,10 +118,10 @@ bt_diff_cli() {
 	# Run the CLI to get a detailed file. Strip any \r present due to
 	# Windows (\n -> \r\n). "diff --string-trailing-cr" is not used since it
 	# is not present on Solaris.
-	echo "$args" | xargs "$BT_TESTS_BT2_BIN" 2>/dev/null | tr -d "\r" > "$temp_output_file"
+	echo "$args" | xargs "$BT_TESTS_BT2_BIN"  | tr -d "\r" > "$temp_output_file"
 
 	# Compare output with expected output
-	if ! diff "$temp_output_file" "$expected_file" 2>/dev/null >"$temp_diff"; then
+	if ! diff -u "$temp_output_file" "$expected_file" 2>/dev/null >"$temp_diff"; then
 		echo "ERROR: for '$args': actual and expected outputs differ:" >&2
 		cat "$temp_diff" >&2
 		ret=1
@@ -200,7 +200,7 @@ run_python_bt2() {
 		lib_search_path="${BT_TESTS_BUILDDIR}/../src/lib/.libs:${PATH:-}"
 	else
 		lib_search_var="LD_LIBRARY_PATH"
-		lib_search_path="${BT_TESTS_BUILDDIR}/../src/lib/.libs:${LD_LIBRARY_PATH:-}"
+		lib_search_path="${BT_TESTS_BUILDDIR}/../src/python-plugin-provider/.libs:${BT_TESTS_BUILDDIR}/../src/lib/.libs:${LD_LIBRARY_PATH:-}"
 	fi
 	if [ "x${test_lib_search_path:-}" != "x" ]; then
 		lib_search_path+=":${test_lib_search_path}"
