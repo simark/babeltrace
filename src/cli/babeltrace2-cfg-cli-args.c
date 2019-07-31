@@ -3181,7 +3181,9 @@ end:
 
 static
 void create_implicit_component_args_from_auto_discovered_sources(
-		const struct auto_source_discovery *auto_disc, GPtrArray *component_args)
+		const struct auto_source_discovery *auto_disc,
+		const bt_value *leftover_params,
+		GPtrArray *component_args)
 {
 	gchar *cc_name = NULL;
 	struct implicit_component_args *comp = NULL;
@@ -3204,6 +3206,29 @@ void create_implicit_component_args_from_auto_discovered_sources(
 		comp = create_implicit_component_args(cc_name);
 		if (!comp) {
 			goto end;
+		}
+
+		/* Append params of all the leftovers that contributed to this component instance coming into existence. */
+
+		for (int orig_indices_i = 0; orig_indices_i < bt_value_array_get_size(res->original_input_indices); orig_indices_i++) {
+			const bt_value *orig_idx_value = bt_value_array_borrow_element_by_index(res->original_input_indices, orig_indices_i);
+
+			BT_ASSERT(bt_value_get_type(orig_idx_value) == BT_VALUE_TYPE_UNSIGNED_INTEGER);
+
+			uint64_t orig_idx = bt_value_integer_unsigned_get(orig_idx_value);
+			const bt_value *params_array = bt_value_array_borrow_element_by_index_const(leftover_params, orig_idx);
+
+			for (int params_i = 0; params_i < bt_value_array_get_size(params_array); params_i++) {
+				const bt_value *params_value = bt_value_array_borrow_element_by_index_const(params_array, params_i);
+				const char *params;
+
+				BT_ASSERT(bt_value_get_type(params_value) == BT_VALUE_TYPE_STRING);
+
+				params = bt_value_string_get(params_value);
+				bt_value_array_append_string_element(comp->extra_params, "--params");
+				bt_value_array_append_string_element(comp->extra_params, params);
+			}
+
 		}
 
 		status = append_parameter_to_args(comp->extra_params, "inputs", res->inputs);
@@ -3269,6 +3294,7 @@ struct bt_config *bt_config_convert_from_args(int argc, const char *argv[],
 	GList *filter_names = NULL;
 	GList *sink_names = NULL;
 	bt_value *leftovers = NULL;
+	bt_value *leftover_params = NULL;
 	struct implicit_component_args implicit_ctf_output_args = { 0 };
 	struct implicit_component_args implicit_lttng_live_args = { 0 };
 	struct implicit_component_args implicit_dummy_args = { 0 };
@@ -3373,6 +3399,12 @@ struct bt_config *bt_config_convert_from_args(int argc, const char *argv[],
 
 	leftovers = bt_value_array_create();
 	if (!leftovers) {
+		BT_CLI_LOGE_APPEND_CAUSE_OOM();
+		goto error;
+	}
+
+	leftover_params = bt_value_array_create();
+	if (!leftover_params) {
 		BT_CLI_LOGE_APPEND_CAUSE_OOM();
 		goto error;
 	}
@@ -3530,21 +3562,27 @@ struct bt_config *bt_config_convert_from_args(int argc, const char *argv[],
 				break;
 			}
 			case OPT_PARAMS:
-				if (current_item_type != CONVERT_CURRENT_ITEM_TYPE_COMPONENT) {
+				if (current_item_type == CONVERT_CURRENT_ITEM_TYPE_COMPONENT) {
+					if (bt_value_array_append_string_element(run_args,
+							"--params")) {
+						BT_CLI_LOGE_APPEND_CAUSE_OOM();
+						goto error;
+					}
+
+					if (bt_value_array_append_string_element(run_args, arg)) {
+						BT_CLI_LOGE_APPEND_CAUSE_OOM();
+						goto error;
+					}
+				} else if (current_item_type == CONVERT_CURRENT_ITEM_TYPE_LEFTOVER) {
+					bt_value *array;
+					uint64_t idx = bt_value_array_get_size(leftover_params) - 1;
+
+					array = bt_value_array_borrow_element_by_index(leftover_params, idx);
+					bt_value_array_append_string_element(array, arg);
+				} else {
 					BT_CLI_LOGE_APPEND_CAUSE(
-						"No current component (--component option) of which to set parameters:\n    %s",
+						"No current component (--component option) or leftover of which to set parameters:\n    %s",
 						arg);
-					goto error;
-				}
-
-				if (bt_value_array_append_string_element(run_args,
-						"--params")) {
-					BT_CLI_LOGE_APPEND_CAUSE_OOM();
-					goto error;
-				}
-
-				if (bt_value_array_append_string_element(run_args, arg)) {
-					BT_CLI_LOGE_APPEND_CAUSE_OOM();
 					goto error;
 				}
 				break;
@@ -3657,6 +3695,12 @@ struct bt_config *bt_config_convert_from_args(int argc, const char *argv[],
 
 			append_status = bt_value_array_append_string_element(leftovers,
 				argpar_item_non_opt->arg);
+			if (append_status != BT_VALUE_ARRAY_APPEND_ELEMENT_STATUS_OK) {
+				BT_CLI_LOGE_APPEND_CAUSE_OOM();
+				goto error;
+			}
+
+			append_status = bt_value_array_append_empty_array_element(leftover_params);
 			if (append_status != BT_VALUE_ARRAY_APPEND_ELEMENT_STATUS_OK) {
 				BT_CLI_LOGE_APPEND_CAUSE_OOM();
 				goto error;
@@ -4136,7 +4180,7 @@ struct bt_config *bt_config_convert_from_args(int argc, const char *argv[],
 			}
 
 			create_implicit_component_args_from_auto_discovered_sources(
-				&auto_disc, discovered_source_args);
+				&auto_disc, leftover_params, discovered_source_args);
 		}
 	}
 
