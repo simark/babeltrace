@@ -37,6 +37,7 @@
 #include "common/macros.h"
 #include <babeltrace2/babeltrace.h>
 #include "fs.h"
+#include "logging/comp-logging.h"
 
 #define METADATA_TEXT_SIG	"/* CTF 1.8"
 
@@ -476,13 +477,16 @@ end:
 
 BT_HIDDEN
 bt_component_class_query_method_status trace_info_query(
-		bt_self_component_class_source *comp_class,
+		bt_self_component_class_source *self_comp_class_src,
 		const bt_value *params, bt_logging_level log_level,
 		const bt_value **user_result)
 {
 	struct ctf_fs_component *ctf_fs = NULL;
 	bt_component_class_query_method_status status =
 		BT_COMPONENT_CLASS_QUERY_METHOD_STATUS_OK;
+	bt_self_component_class *self_comp_class =
+		bt_self_component_class_source_as_self_component_class(
+			self_comp_class_src);
 	bt_value *result = NULL;
 	const bt_value *inputs_value = NULL;
 	int ret = 0;
@@ -491,7 +495,8 @@ bt_component_class_query_method_status trace_info_query(
 	BT_ASSERT(params);
 
 	if (!bt_value_is_map(params)) {
-		BT_LOGE("Query parameters is not a map value object.");
+		BT_COMP_CLASS_LOGE_APPEND_CAUSE(self_comp_class,
+			"Query parameters is not a map value object.");
 		status = BT_COMPONENT_CLASS_QUERY_METHOD_STATUS_ERROR;
 		goto error;
 	}
@@ -501,12 +506,12 @@ bt_component_class_query_method_status trace_info_query(
 		goto error;
 	}
 
-	if (!read_src_fs_parameters(params, &inputs_value, ctf_fs)) {
+	if (!read_src_fs_parameters(params, &inputs_value, ctf_fs, NULL, self_comp_class)) {
 		status = BT_COMPONENT_CLASS_QUERY_METHOD_STATUS_ERROR;
 		goto error;
 	}
 
-	if (ctf_fs_component_create_ctf_fs_traces(NULL, ctf_fs, inputs_value)) {
+	if (ctf_fs_component_create_ctf_fs_traces(ctf_fs, inputs_value, NULL, self_comp_class)) {
 		goto error;
 	}
 

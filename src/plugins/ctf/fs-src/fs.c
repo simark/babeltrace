@@ -258,20 +258,18 @@ bt_component_class_message_iterator_init_method_status ctf_fs_iterator_init(
 	bt_component_class_message_iterator_init_method_status ret =
 		BT_COMPONENT_CLASS_MESSAGE_ITERATOR_INIT_METHOD_STATUS_OK;
 	bt_logging_level log_level;
-	bt_self_component *self_comp;
+	bt_self_component *self_comp = bt_self_component_source_as_self_component(self_comp_src);
 
 	port_data = bt_self_component_port_get_data(
 		bt_self_component_port_output_as_self_component_port(
 			self_port));
 	BT_ASSERT(port_data);
 	log_level = port_data->ctf_fs->log_level;
-	self_comp = port_data->ctf_fs->self_comp;
 	msg_iter_data = g_new0(struct ctf_fs_msg_iter_data, 1);
 	if (!msg_iter_data) {
 		ret = BT_COMPONENT_CLASS_MESSAGE_ITERATOR_INIT_METHOD_STATUS_MEMORY_ERROR;
 		goto error;
 	}
-
 	msg_iter_data->log_level = log_level;
 	msg_iter_data->self_comp = self_comp;
 	msg_iter_data->pc_msg_iter = self_msg_iter;
@@ -389,7 +387,6 @@ struct ctf_fs_component *ctf_fs_component_create(bt_logging_level log_level,
 	}
 
 	ctf_fs->log_level = log_level;
-	ctf_fs->self_comp = self_comp;
 	ctf_fs->port_data =
 		g_ptr_array_new_with_free_func(port_data_destroy_notifier);
 	if (!ctf_fs->port_data) {
@@ -466,13 +463,15 @@ gchar *ctf_fs_make_port_name(struct ctf_fs_ds_file_group *ds_file_group)
 static
 int create_one_port_for_trace(struct ctf_fs_component *ctf_fs,
 		struct ctf_fs_trace *ctf_fs_trace,
-		struct ctf_fs_ds_file_group *ds_file_group)
+		struct ctf_fs_ds_file_group *ds_file_group,
+		bt_self_component_source *self_comp_src)
 {
 	int ret = 0;
 	struct ctf_fs_port_data *port_data = NULL;
 	gchar *port_name;
 	bt_logging_level log_level = ctf_fs->log_level;
-	bt_self_component *self_comp = ctf_fs->self_comp;
+	bt_self_component *self_comp =
+		bt_self_component_source_as_self_component(self_comp_src);
 
 	port_name = ctf_fs_make_port_name(ds_file_group);
 	if (!port_name) {
@@ -490,7 +489,7 @@ int create_one_port_for_trace(struct ctf_fs_component *ctf_fs,
 	port_data->ctf_fs = ctf_fs;
 	port_data->ds_file_group = ds_file_group;
 	ret = bt_self_component_source_add_output_port(
-		ctf_fs->self_comp_src, port_name, port_data, NULL);
+		self_comp_src, port_name, port_data, NULL);
 	if (ret) {
 		goto error;
 	}
@@ -511,12 +510,14 @@ end:
 
 static
 int create_ports_for_trace(struct ctf_fs_component *ctf_fs,
-		struct ctf_fs_trace *ctf_fs_trace)
+		struct ctf_fs_trace *ctf_fs_trace,
+		bt_self_component_source *self_comp_src)
 {
 	int ret = 0;
 	size_t i;
 	bt_logging_level log_level = ctf_fs_trace->log_level;
-	bt_self_component *self_comp = ctf_fs_trace->self_comp;
+	bt_self_component *self_comp =
+		bt_self_component_source_as_self_component(self_comp_src);
 
 	/* Create one output port for each stream file group */
 	for (i = 0; i < ctf_fs_trace->ds_file_groups->len; i++) {
@@ -524,7 +525,7 @@ int create_ports_for_trace(struct ctf_fs_component *ctf_fs,
 			g_ptr_array_index(ctf_fs_trace->ds_file_groups, i);
 
 		ret = create_one_port_for_trace(ctf_fs, ctf_fs_trace,
-			ds_file_group);
+			ds_file_group, self_comp_src);
 		if (ret) {
 			BT_COMP_LOGE("Cannot create output port.");
 			goto end;
@@ -1266,7 +1267,9 @@ GList *ctf_fs_create_trace_names(GList *trace_paths, const char *base_path) {
 static
 int ctf_fs_component_create_ctf_fs_traces_one_root(
 		struct ctf_fs_component *ctf_fs,
-		const char *path_param)
+		const char *path_param,
+		bt_self_component *self_comp,
+		bt_self_component_class *self_comp_class)
 {
 	struct ctf_fs_trace *ctf_fs_trace = NULL;
 	int ret = 0;
@@ -1276,7 +1279,6 @@ int ctf_fs_component_create_ctf_fs_traces_one_root(
 	GList *tp_node;
 	GList *tn_node;
 	bt_logging_level log_level = ctf_fs->log_level;
-	bt_self_component *self_comp = ctf_fs->self_comp;
 
 	norm_path = bt_common_normalize_path(path_param, NULL);
 	if (!norm_path) {
@@ -1292,10 +1294,7 @@ int ctf_fs_component_create_ctf_fs_traces_one_root(
 	}
 
 	if (!trace_paths) {
-		BT_COMP_LOGE("No CTF traces recursively found in `%s`.",
-			path_param);
-		(void) BT_CURRENT_THREAD_ERROR_APPEND_CAUSE_FROM_COMPONENT(
-			ctf_fs->self_comp,
+		BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(self_comp, self_comp_class,
 			"No CTF traces recursively found in `%s`.", path_param);
 		goto error;
 	}
@@ -2264,9 +2263,11 @@ end:
 	return ret;
 }
 
-int ctf_fs_component_create_ctf_fs_traces(bt_self_component_source *self_comp,
+int ctf_fs_component_create_ctf_fs_traces(
 		struct ctf_fs_component *ctf_fs,
-		const bt_value *paths_value)
+		const bt_value *paths_value,
+		bt_self_component *self_comp,
+		bt_self_component_class *self_comp_class)
 {
 	int ret = 0;
 	uint64_t i;
@@ -2277,7 +2278,7 @@ int ctf_fs_component_create_ctf_fs_traces(bt_self_component_source *self_comp,
 		const char *input = bt_value_string_get(path_value);
 
 		ret = ctf_fs_component_create_ctf_fs_traces_one_root(ctf_fs,
-			input);
+			input, self_comp, self_comp_class);
 		if (ret) {
 			goto end;
 		}
@@ -2403,22 +2404,24 @@ end:
 
 static
 bool validate_inputs_parameter(struct ctf_fs_component *ctf_fs,
-		const bt_value *inputs)
+		const bt_value *inputs, bt_self_component *self_comp,
+		bt_self_component_class *self_comp_class)
 {
 	bool ret;
 	bt_value_type type;
 	uint64_t i;
 	bt_logging_level log_level = ctf_fs->log_level;
-	bt_self_component *self_comp = ctf_fs->self_comp;
 
 	if (!inputs) {
-		BT_COMP_LOGE("missing \"inputs\" parameter");
+		BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(self_comp,
+			self_comp_class, "missing \"inputs\" parameter");
 		goto error;
 	}
 
 	type = bt_value_get_type(inputs);
 	if (type != BT_VALUE_TYPE_ARRAY) {
-		BT_COMP_LOGE("`inputs` parameter: expecting array value: type=%s",
+		BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(self_comp,
+			self_comp_class, "`inputs` parameter: expecting array value: type=%s",
 			bt_common_value_type_string(type));
 		goto error;
 	}
@@ -2429,7 +2432,8 @@ bool validate_inputs_parameter(struct ctf_fs_component *ctf_fs,
 		elem = bt_value_array_borrow_element_by_index_const(inputs, i);
 		type = bt_value_get_type(elem);
 		if (type != BT_VALUE_TYPE_STRING) {
-			BT_COMP_LOGE("`inputs` parameter: expecting string value: index=%" PRIu64 ", type=%s",
+			BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(self_comp, self_comp_class,
+				"`inputs` parameter: expecting string value: index=%" PRIu64 ", type=%s",
 				i, bt_common_value_type_string(type));
 			goto error;
 		}
@@ -2446,15 +2450,16 @@ end:
 }
 
 bool read_src_fs_parameters(const bt_value *params,
-		const bt_value **inputs, struct ctf_fs_component *ctf_fs) {
+		const bt_value **inputs, struct ctf_fs_component *ctf_fs,
+		bt_self_component *self_comp,
+		bt_self_component_class *self_comp_class) {
 	bool ret;
 	const bt_value *value;
 	bt_logging_level log_level = ctf_fs->log_level;
-	bt_self_component *self_comp = ctf_fs->self_comp;
 
 	/* inputs parameter */
 	*inputs = bt_value_map_borrow_entry_value_const(params, "inputs");
-	if (!validate_inputs_parameter(ctf_fs, *inputs)) {
+	if (!validate_inputs_parameter(ctf_fs, *inputs, self_comp, self_comp_class)) {
 		goto error;
 	}
 
@@ -2495,8 +2500,9 @@ end:
 
 static
 struct ctf_fs_component *ctf_fs_create(
-		bt_self_component_source *self_comp_src,
-		const bt_value *params)
+	const bt_value *params,
+	bt_self_component_source *self_comp_src,
+	bt_self_component_class *self_comp_class)
 {
 	struct ctf_fs_component *ctf_fs = NULL;
 	guint i;
@@ -2510,15 +2516,15 @@ struct ctf_fs_component *ctf_fs_create(
 		goto error;
 	}
 
-	if (!read_src_fs_parameters(params, &inputs_value, ctf_fs)) {
+	if (!read_src_fs_parameters(params, &inputs_value, ctf_fs,
+			self_comp, self_comp_class)) {
 		goto error;
 	}
 
 	bt_self_component_set_data(self_comp, ctf_fs);
-	ctf_fs->self_comp = self_comp;
-	ctf_fs->self_comp_src = self_comp_src;
 
-	if (ctf_fs_component_create_ctf_fs_traces(self_comp_src, ctf_fs, inputs_value)) {
+	if (ctf_fs_component_create_ctf_fs_traces(ctf_fs, inputs_value,
+			self_comp, self_comp_class)) {
 		goto error;
 	}
 
@@ -2529,7 +2535,7 @@ struct ctf_fs_component *ctf_fs_create(
 			goto error;
 		}
 
-		if (create_ports_for_trace(ctf_fs, trace)) {
+		if (create_ports_for_trace(ctf_fs, trace, self_comp_src)) {
 			goto error;
 		}
 	}
@@ -2547,14 +2553,14 @@ end:
 
 BT_HIDDEN
 bt_component_class_init_method_status ctf_fs_init(
-		bt_self_component_source *self_comp,
+		bt_self_component_source *self_comp_src,
 		const bt_value *params, __attribute__((unused)) void *init_method_data)
 {
 	struct ctf_fs_component *ctf_fs;
 	bt_component_class_init_method_status ret =
 		BT_COMPONENT_CLASS_INIT_METHOD_STATUS_OK;
 
-	ctf_fs = ctf_fs_create(self_comp, params);
+	ctf_fs = ctf_fs_create(params, self_comp_src, NULL);
 	if (!ctf_fs) {
 		ret = BT_COMPONENT_CLASS_INIT_METHOD_STATUS_ERROR;
 	}
