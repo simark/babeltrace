@@ -345,7 +345,7 @@ def _setup_seek_test(sink_cls, user_seek_beginning=None, user_can_seek_beginning
         MySourceIter._user_seek_beginning = user_seek_beginning
 
     if user_can_seek_beginning is not None:
-        MySourceIter._user_can_seek_beginning = property(user_can_seek_beginning)
+        MySourceIter._user_can_seek_beginning = user_can_seek_beginning
 
     class MySource(bt2._UserSourceComponent, message_iterator_class=MySourceIter):
         def __init__(self, params, obj):
@@ -390,7 +390,7 @@ class UserMessageIteratorSeekBeginningTestCase(unittest.TestCase):
 
             def _user_consume(self):
                 nonlocal can_seek_beginning
-                can_seek_beginning = self._msg_iter.can_seek_beginning
+                can_seek_beginning = self._msg_iter.can_seek_beginning()
 
         def _user_can_seek_beginning(self):
             nonlocal input_port_iter_can_seek_beginning
@@ -424,7 +424,7 @@ class UserMessageIteratorSeekBeginningTestCase(unittest.TestCase):
 
             def _user_consume(self):
                 nonlocal can_seek_beginning
-                can_seek_beginning = self._msg_iter.can_seek_beginning
+                can_seek_beginning = self._msg_iter.can_seek_beginning()
 
         def _user_seek_beginning(self):
             pass
@@ -448,7 +448,7 @@ class UserMessageIteratorSeekBeginningTestCase(unittest.TestCase):
 
             def _user_consume(self):
                 nonlocal can_seek_beginning
-                can_seek_beginning = self._msg_iter.can_seek_beginning
+                can_seek_beginning = self._msg_iter.can_seek_beginning()
 
         graph = _setup_seek_test(MySink)
         can_seek_beginning = None
@@ -467,7 +467,7 @@ class UserMessageIteratorSeekBeginningTestCase(unittest.TestCase):
 
             def _user_consume(self):
                 # This is expected to raise.
-                self._msg_iter.can_seek_beginning
+                self._msg_iter.can_seek_beginning()
 
         def _user_can_seek_beginning(self):
             raise ValueError('moustiquaire')
@@ -494,7 +494,7 @@ class UserMessageIteratorSeekBeginningTestCase(unittest.TestCase):
 
             def _user_consume(self):
                 # This is expected to raise.
-                self._msg_iter.can_seek_beginning
+                self._msg_iter.can_seek_beginning()
 
         def _user_can_seek_beginning(self):
             return 'Amqui'
