@@ -1,0 +1,25 @@
+#!/bin/bash
+
+SH_TAP=1
+
+if [ "x${BT_TESTS_SRCDIR:-}" != "x" ]; then
+	UTILSSH="$BT_TESTS_SRCDIR/utils/utils.sh"
+else
+	UTILSSH="$(dirname "$0")/../../utils/utils.sh"
+fi
+
+# shellcheck source=../../../utils/utils.sh
+source "$UTILSSH"
+
+temp_input_dir=$(mktemp -d)
+temp_output_dir=$(mktemp -d)
+
+set -x
+
+mkdir -p "${temp_input_dir}/hello/kitty"
+cp -a "${BT_CTF_TRACES_PATH}/intersection/3eventsintersect" "${temp_input_dir}/hello/kitty"
+
+"${BT_TESTS_BT2_BIN}" "${temp_input_dir}" -c sink.ctf.fs -p "path=\"${temp_output_dir}\""
+
+echo "in: ${temp_input_dir}"
+echo "out: ${temp_output_dir}"
