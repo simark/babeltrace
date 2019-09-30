@@ -2206,6 +2206,134 @@ end:
 	return ret;
 }
 
+enum map_entry_presence {
+	map_entry_mandantory,
+	map_entry_optional,
+};
+
+#define MAP_ENTRY_END { NULL, 0, 0 }
+
+struct map_entry_descr {
+	const char *name;
+	enum map_entry_presence presence;
+	bt_value_type type;
+};
+
+static const struct map_entry_descr fs_params_descr[] = {
+	{ "inputs", map_entry_mandantory, BT_VALUE_TYPE_ARRAY },
+	MAP_ENTRY_END
+};
+
+struct validate_params_using_descr_data
+{
+	const struct map_entry_descr *descr;
+	GPtrArray *available_params;
+
+	bt_self_component *self_comp;
+	bt_self_component_class *self_comp_class;
+	bt_logging_level log_level;
+};
+
+static
+bt_bool validate_one_param_using_descr(const char *key,
+		const bt_value *object, void *v_data)
+{
+	struct validate_params_using_descr_data *data = v_data;
+	const struct map_entry_descr *candidate;
+	guint i;
+	bt_logging_level log_level = data->log_level;
+	bt_bool ret;
+
+	/* Check if this param is in the available params. */
+	for (i = 0; i < data->available_params->len; i++) {
+		candidate = g_ptr_array_index(data->available_params, i);
+
+		if (g_str_equal(key, candidate->name)) {
+			break;
+		}
+	}
+
+	if (i < data->available_params->len) {
+		g_ptr_array_remove_index_fast(data->available_params, i);
+
+		if (bt_value_get_type(object) != candidate->type) {
+			BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(
+				data->self_comp,
+				data->self_comp_class,
+				"Unexpected type for parameter `%s`: expected-type=%s, actual-type=%s",
+				key,
+				bt_common_value_type_string(bt_value_get_type(object)),
+				bt_common_value_type_string(candidate->type));
+			goto error;
+		}
+	} else {
+		BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(
+			data->self_comp,
+			data->self_comp_class,
+			"Unexpected parameter %s.",
+			key);
+		goto error;
+	}
+
+	ret = true;
+	goto end;
+
+error:
+	ret = false;
+
+end:
+	return ret;
+}
+
+static
+bool validate_params_using_descr(
+		const struct map_entry_descr *descr,
+		const bt_value *map,
+		bt_self_component *self_comp,
+		bt_self_component_class *self_comp_class,
+		bt_logging_level log_level) {
+	bool ret;
+	struct validate_params_using_descr_data data;
+	bt_value_map_foreach_entry_const_status foreach_entry_status;
+	GPtrArray *available_params = NULL;
+	const struct map_entry_descr *descr_iter;
+
+	BT_ASSERT(bt_value_get_type(map) == BT_VALUE_TYPE_MAP);
+
+	available_params = g_ptr_array_new();
+	if (!available_params) {
+		BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(self_comp,
+			self_comp_class, "Failed to allocate one GPtrArray.");
+		goto error;
+	}
+
+	for (descr_iter = descr; descr_iter->name; descr_iter++) {
+		g_ptr_array_add(available_params, (gpointer) descr_iter);
+	}
+
+	data.descr = descr;
+	data.available_params = available_params;
+	data.self_comp = self_comp;
+	data.self_comp_class = self_comp_class;
+	data.log_level = log_level;
+
+	foreach_entry_status = bt_value_map_foreach_entry_const(map,
+		validate_one_param_using_descr, &data);
+	if (foreach_entry_status != BT_VALUE_MAP_FOREACH_ENTRY_CONST_STATUS_OK) {
+		goto error;
+	}
+
+	ret = true;
+	goto end;
+
+error:
+	ret = false;
+
+end:
+	g_ptr_array_free(available_params, TRUE);
+	return ret;
+}
+
 /*
  * Validate the "paths" parameter passed to this component.  It must be
  * present, and it must be an array of strings.
@@ -2273,6 +2401,10 @@ bool read_src_fs_parameters(const bt_value *params,
 	bool ret;
 	const bt_value *value;
 	bt_logging_level log_level = ctf_fs->log_level;
+
+	if (!validate_params_using_descr(fs_params_descr, params, self_comp, self_comp_class, log_level)) {
+		goto error;
+	}
 
 	/* inputs parameter */
 	*inputs = bt_value_map_borrow_entry_value_const(params, "inputs");
