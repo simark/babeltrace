@@ -609,7 +609,7 @@ static
 enum lttng_live_iterator_status emit_inactivity_message(
 		struct lttng_live_msg_iter *lttng_live_msg_iter,
 		struct lttng_live_stream_iterator *stream_iter,
-		bt_message **message, uint64_t timestamp)
+		const bt_message **message, uint64_t timestamp)
 {
 	enum lttng_live_iterator_status ret = LTTNG_LIVE_ITERATOR_STATUS_OK;
 	bt_logging_level log_level = lttng_live_msg_iter->log_level;
@@ -641,7 +641,7 @@ static
 enum lttng_live_iterator_status lttng_live_iterator_next_handle_one_quiescent_stream(
 		struct lttng_live_msg_iter *lttng_live_msg_iter,
 		struct lttng_live_stream_iterator *lttng_live_stream,
-		bt_message **message)
+		const bt_message **message)
 {
 	enum lttng_live_iterator_status ret = LTTNG_LIVE_ITERATOR_STATUS_OK;
 
@@ -767,7 +767,7 @@ static
 enum lttng_live_iterator_status lttng_live_iterator_next_handle_one_active_data_stream(
 		struct lttng_live_msg_iter *lttng_live_msg_iter,
 		struct lttng_live_stream_iterator *lttng_live_stream,
-		bt_message **message)
+		const bt_message **message)
 {
 	enum lttng_live_iterator_status ret = LTTNG_LIVE_ITERATOR_STATUS_OK;
 	bt_logging_level log_level = lttng_live_msg_iter->log_level;
@@ -836,7 +836,7 @@ static
 enum lttng_live_iterator_status lttng_live_iterator_close_stream(
 		struct lttng_live_msg_iter *lttng_live_msg_iter,
 		struct lttng_live_stream_iterator *stream_iter,
-		bt_message **curr_msg)
+		const bt_message **curr_msg)
 {
 	enum lttng_live_iterator_status live_status =
 		LTTNG_LIVE_ITERATOR_STATUS_OK;
@@ -915,7 +915,7 @@ static
 enum lttng_live_iterator_status lttng_live_iterator_next_msg_on_stream(
 		struct lttng_live_msg_iter *lttng_live_msg_iter,
 		struct lttng_live_stream_iterator *stream_iter,
-		bt_message **curr_msg)
+		const bt_message **curr_msg)
 {
 	bt_logging_level log_level = lttng_live_msg_iter->log_level;
 	bt_self_component *self_comp = lttng_live_msg_iter->self_comp;
@@ -1009,7 +1009,7 @@ enum lttng_live_iterator_status next_stream_iterator_for_trace(
 		 * iterator get it.
 		 */
 		while (!stream_iter->current_msg) {
-			bt_message *msg = NULL;
+			const bt_message *msg = NULL;
 			int64_t curr_msg_ts_ns = INT64_MAX;
 			stream_iter_status = lttng_live_iterator_next_msg_on_stream(
 				lttng_live_msg_iter, stream_iter, &msg);
