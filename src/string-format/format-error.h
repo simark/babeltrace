@@ -1,6 +1,8 @@
+#ifndef _BABELTRACE_STRING_FORMAT_FORMAT_ERROR_H
+#define _BABELTRACE_STRING_FORMAT_FORMAT_ERROR_H
+
 /*
- * The MIT License (MIT)
- * Copyright (c) 2019 EfficiOS Inc. and Linux Foundation
+ * Copyright EfficiOS, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -17,21 +19,17 @@
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
-/*
- * We include current-thread.h here, because for now, it only contains
- * error-related things.
- */
-%include <babeltrace2/current-thread.h>
-%include <babeltrace2/error-const.h>
-%include <babeltrace2/error-cause-const.h>
+#include <babeltrace2/babeltrace.h>
+#include <common/common.h>
+#include <common/macros.h>
+#include <glib.h>
 
-%{
-#include "native_bt_error.i.h"
-%}
+BT_HIDDEN
+gchar *format_bt_error(const bt_error *error, unsigned int columns,
+		bt_logging_level log_level);
 
-static
-PyObject *bt_bt2_format_bt_error(const bt_error *error);
+#endif /* _BABELTRACE_STRING_FORMAT_FORMAT_ERROR_H */

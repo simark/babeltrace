@@ -1,5 +1,6 @@
 from bt2 import native_bt
 from collections import abc
+import textwrap
 
 
 class ComponentClassType:
@@ -212,7 +213,4 @@ class _Error(Exception, abc.Sequence):
         return len(self._causes)
 
     def __str__(self):
-        s = self._msg + '\n'
-        for c in self:
-            s += str(c) + '\n'
-        return s
+        return native_bt.bt2_format_bt_error(self._ptr)
