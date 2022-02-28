@@ -7,4 +7,10 @@ libcppcommon_la_SOURCES = \
 	text-parse-error.hpp text-parse-error.cpp \
 	str-scanner.hpp str-scanner.cpp
 
-EXTRA_DIST = bt2 optional.hpp string_view.hpp uuid-view.hpp nlohmann/json.hpp
+EXTRA_DIST = \
+	bt2 \
+	optional.hpp \
+	string_view.hpp \
+	uuid-view.hpp \
+	nlohmann/json.hpp \
+	parse-json.hpp
