@@ -5,7 +5,8 @@ noinst_LTLIBRARIES = libcppcommon.la
 libcppcommon_la_SOURCES = \
 	text-loc.hpp text-loc.cpp \
 	text-parse-error.hpp text-parse-error.cpp \
-	str-scanner.hpp str-scanner.cpp
+	str-scanner.hpp str-scanner.cpp \
+	json-val.hpp json-val.cpp
 
 EXTRA_DIST = \
 	bt2 \
