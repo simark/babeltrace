@@ -13,4 +13,5 @@ EXTRA_DIST = \
 	string_view.hpp \
 	uuid-view.hpp \
 	nlohmann/json.hpp \
-	parse-json.hpp
+	parse-json.hpp \
+	make-unique.hpp
