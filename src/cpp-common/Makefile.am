@@ -6,7 +6,8 @@ libcppcommon_la_SOURCES = \
 	text-loc.hpp text-loc.cpp \
 	text-parse-error.hpp text-parse-error.cpp \
 	str-scanner.hpp str-scanner.cpp \
-	json-val.hpp json-val.cpp
+	json-val.hpp json-val.cpp \
+	parse-json-as-val.hpp parse-json-as-val.cpp
 
 EXTRA_DIST = \
 	bt2 \
