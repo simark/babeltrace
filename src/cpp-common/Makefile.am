@@ -20,4 +20,5 @@ EXTRA_DIST = \
 	nlohmann/json.hpp \
 	parse-json.hpp \
 	make-unique.hpp \
-	safe-ops.hpp
+	safe-ops.hpp \
+	data-len.hpp
