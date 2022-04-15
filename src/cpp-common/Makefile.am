@@ -19,4 +19,5 @@ EXTRA_DIST = \
 	uuid-view.hpp \
 	nlohmann/json.hpp \
 	parse-json.hpp \
-	make-unique.hpp
+	make-unique.hpp \
+	safe-ops.hpp
