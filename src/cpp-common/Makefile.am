@@ -14,6 +14,8 @@ libcppcommon_la_SOURCES = \
 
 EXTRA_DIST = \
 	bt2 \
+	comp-exc.hpp \
+	comp-logging.hpp \
 	optional.hpp \
 	string_view.hpp \
 	uuid-view.hpp \
