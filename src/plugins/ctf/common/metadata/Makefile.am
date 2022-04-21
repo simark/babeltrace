@@ -1,3 +1,3 @@
 # SPDX-License-Identifier: MIT
 
-SUBDIRS = src metadata
+EXTRA_DIST = int-range.hpp
