@@ -811,6 +811,7 @@ AC_CONFIG_FILES([
   src/plugins/common/param-validation/Makefile
   src/plugins/ctf/common/Makefile
   src/plugins/ctf/common/metadata/Makefile
+  src/plugins/ctf/common/logging/Makefile
   src/plugins/ctf/common/src/bfcr/Makefile
   src/plugins/ctf/common/src/Makefile
   src/plugins/ctf/common/src/metadata/Makefile

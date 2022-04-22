@@ -1,3 +1,3 @@
 # SPDX-License-Identifier: MIT
 
-SUBDIRS = src metadata
+SUBDIRS = src metadata logging
