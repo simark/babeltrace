@@ -23,4 +23,5 @@ EXTRA_DIST = \
 	parse-json.hpp \
 	make-unique.hpp \
 	safe-ops.hpp \
-	data-len.hpp
+	data-len.hpp \
+	endian.hpp
