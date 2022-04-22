@@ -24,4 +24,5 @@ EXTRA_DIST = \
 	make-unique.hpp \
 	safe-ops.hpp \
 	data-len.hpp \
-	endian.hpp
+	endian.hpp \
+	align.hpp
