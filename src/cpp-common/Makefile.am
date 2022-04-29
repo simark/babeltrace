@@ -10,7 +10,8 @@ libcppcommon_la_SOURCES = \
 	parse-json-as-val.hpp parse-json-as-val.cpp \
 	bt2-value-from-json-val.hpp bt2-value-from-json-val.cpp \
 	val-req.hpp \
-	json-val-req.hpp
+	json-val-req.hpp \
+	uuid-view.hpp uuid-view.cpp
 
 EXTRA_DIST = \
 	bt2 \
@@ -18,7 +19,7 @@ EXTRA_DIST = \
 	comp-logging.hpp \
 	optional.hpp \
 	string_view.hpp \
-	uuid-view.hpp \
+	uuid.hpp \
 	nlohmann/json.hpp \
 	parse-json.hpp \
 	make-unique.hpp \
