@@ -25,4 +25,5 @@ EXTRA_DIST = \
 	safe-ops.hpp \
 	data-len.hpp \
 	endian.hpp \
-	align.hpp
+	align.hpp \
+	std-int.hpp
