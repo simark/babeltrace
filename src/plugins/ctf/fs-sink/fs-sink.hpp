@@ -11,11 +11,15 @@
 #include <babeltrace2/babeltrace.h>
 #include <stdbool.h>
 #include <glib.h>
+#include "plugins/ctf/common/logging/log-cfg.hpp"
 
 struct fs_sink_comp
 {
-    bt_logging_level log_level = BT_LOGGING_LEVEL_NONE;
-    bt_self_component *self_comp = nullptr;
+    explicit fs_sink_comp(const ctf::LogCfg& logCfgParam) noexcept : logCfg {logCfgParam}
+    {
+    }
+
+    const ctf::LogCfg logCfg;
 
     /* Owned by this */
     bt_message_iterator *upstream_iter = nullptr;
