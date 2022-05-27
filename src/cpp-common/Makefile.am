@@ -3,6 +3,7 @@
 noinst_LTLIBRARIES = libcppcommon.la
 
 libcppcommon_la_SOURCES = \
+	file-utils.hpp file-utils.cpp \
 	text-loc.hpp text-loc.cpp \
 	text-parse-error.hpp text-parse-error.cpp \
 	str-scanner.hpp str-scanner.cpp \
