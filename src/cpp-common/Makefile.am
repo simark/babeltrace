@@ -18,6 +18,7 @@ EXTRA_DIST = \
 	exc.hpp \
 	comp-logging.hpp \
 	glib-up.hpp \
+	libc-up.hpp \
 	optional.hpp \
 	string_view.hpp \
 	uuid.hpp \
