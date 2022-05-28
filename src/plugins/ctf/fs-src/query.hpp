@@ -12,17 +12,15 @@
 #include "common/macros.h"
 #include "plugins/ctf/common/logging/log-cfg.hpp"
 #include <babeltrace2/babeltrace.h>
+#include "cpp-common/bt2/value.hpp"
 
 BT_HIDDEN
-bt_component_class_query_method_status
-metadata_info_query(const bt_value *params, const ctf::LogCfg& logCfg, const bt_value **result);
+bt2::Value::Shared metadata_info_query(bt2::ConstMapValue params, const ctf::LogCfg& logCfg);
 
 BT_HIDDEN
-bt_component_class_query_method_status
-trace_infos_query(const bt_value *params, const ctf::LogCfg& logCfg, const bt_value **result);
+bt2::Value::Shared trace_infos_query(bt2::ConstMapValue params, const ctf::LogCfg& logCfg);
 
 BT_HIDDEN
-bt_component_class_query_method_status
-support_info_query(const bt_value *params, const ctf::LogCfg& logCfg, const bt_value **result);
+bt2::Value::Shared support_info_query(bt2::ConstMapValue params, const ctf::LogCfg& logCfg);
 
 #endif /* BABELTRACE_PLUGIN_CTF_FS_QUERY_H */
