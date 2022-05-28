@@ -17,6 +17,7 @@ EXTRA_DIST = \
 	bt2 \
 	exc.hpp \
 	comp-logging.hpp \
+	glib-up.hpp \
 	optional.hpp \
 	string_view.hpp \
 	uuid.hpp \
