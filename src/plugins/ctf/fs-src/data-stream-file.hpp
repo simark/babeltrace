@@ -207,7 +207,4 @@ ctf_fs_ds_group_medops_data_create(struct ctf_fs_ds_file_group *ds_file_group,
 BT_HIDDEN
 void ctf_fs_ds_group_medops_data_reset(struct ctf_fs_ds_group_medops_data *data);
 
-BT_HIDDEN
-void ctf_fs_ds_group_medops_data_destroy(struct ctf_fs_ds_group_medops_data *data);
-
 #endif /* CTF_FS_DS_FILE_H */
