@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <glib.h>
 #include <memory>
+#include <string>
 #include "common/macros.h"
 #include "../common/logging/log-cfg.hpp"
 #include "cpp-common/libc-up.hpp"
@@ -29,8 +30,7 @@ struct ctf_fs_file
 
     const ctf::LogCfg logCfg;
 
-    /* Owned by this */
-    GString *path = nullptr;
+    std::string path;
 
     bt2_common::FileUP fp;
 
