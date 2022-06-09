@@ -10,7 +10,24 @@
 #include <stdio.h>
 #include <glib.h>
 #include "common/macros.h"
-#include "fs.hpp"
+#include "../common/logging/log-cfg.hpp"
+
+struct ctf_fs_file
+{
+    explicit ctf_fs_file(const ctf::LogCfg& logCfgParam) noexcept : logCfg {logCfgParam}
+    {
+    }
+
+    const ctf::LogCfg logCfg;
+
+    /* Owned by this */
+    GString *path = nullptr;
+
+    /* Owned by this */
+    FILE *fp = nullptr;
+
+    off_t size = 0;
+};
 
 BT_HIDDEN
 void ctf_fs_file_destroy(struct ctf_fs_file *file);
