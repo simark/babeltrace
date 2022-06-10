@@ -402,18 +402,25 @@ end:
     return;
 }
 
-enum ctf_msg_iter_medium_status ctf_fs_ds_group_medops_data_create(
-    struct ctf_fs_ds_file_group *ds_file_group, bt_self_message_iterator *self_msg_iter,
-    const ctf::LogCfg& logCfg, struct ctf_fs_ds_group_medops_data **out)
+void ctf_fs_ds_group_medops_data_deleter::operator()(ctf_fs_ds_group_medops_data *data)
+{
+    ctf_fs_ds_group_medops_data_destroy(data);
+}
+
+enum ctf_msg_iter_medium_status
+ctf_fs_ds_group_medops_data_create(struct ctf_fs_ds_file_group *ds_file_group,
+                                   bt_self_message_iterator *self_msg_iter,
+                                   const ctf::LogCfg& logCfg, ctf_fs_ds_group_medops_data_up& out)
 {
     BT_ASSERT(self_msg_iter);
     BT_ASSERT(ds_file_group);
     BT_ASSERT(ds_file_group->index);
     BT_ASSERT(!ds_file_group->index->entries.empty());
 
-    ctf_fs_ds_group_medops_data *data = new ctf_fs_ds_group_medops_data {logCfg};
-    data->ds_file_group = ds_file_group;
-    data->self_msg_iter = self_msg_iter;
+    out.reset(new ctf_fs_ds_group_medops_data {logCfg});
+
+    out->ds_file_group = ds_file_group;
+    out->self_msg_iter = self_msg_iter;
 
     /*
      * No need to prepare the first file.  ctf_msg_iter will call
@@ -421,7 +428,6 @@ enum ctf_msg_iter_medium_status ctf_fs_ds_group_medops_data_create(
      * done then.
      */
 
-    *out = data;
     return CTF_MSG_ITER_MEDIUM_STATUS_OK;
 }
 
