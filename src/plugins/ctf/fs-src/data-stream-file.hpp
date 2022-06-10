@@ -73,12 +73,6 @@ struct ctf_fs_ds_file
 
     /* Offset in the file where the current mapping starts. */
     off_t mmap_offset_in_file = 0;
-
-    /*
-     * Offset, in the current mapping, of the address to return on the next
-     * request.
-     */
-    off_t request_offset_in_mapping = 0;
 };
 
 struct ctf_fs_ds_index_entry

@@ -26,6 +26,7 @@
 #include "../common/src/metadata/tsdl/decoder.hpp"
 #include "../common/src/metadata/tsdl/ctf-meta-configure-ir-trace.hpp"
 #include "../common/src/msg-iter/msg-iter.hpp"
+#include "../common/src/metadata/ctf-ir.hpp"
 #include "query.hpp"
 #include "plugins/common/param-validation/param-validation.h"
 #include "cpp-common/exc.hpp"
@@ -237,9 +238,12 @@ ctf_fs_iterator_init(bt_self_message_iterator *self_msg_iter,
             return ctf_msg_iter_medium_status_to_msg_iter_initialize_status(medium_status);
         }
 
+        ctf::src::TraceCls *ctfTraceCls =
+            msg_iter_data->ds_file_group->ctf_fs_trace->irGenerator.ctfTraceCls();
+        BT_ASSERT(ctfTraceCls);
+
         msg_iter_data->msg_iter = ctf_msg_iter_create(
-            msg_iter_data->ds_file_group->ctf_fs_trace->metadata->tc,
-            bt_common_get_page_size(logCfg.logLevel) * 8, ctf_fs_ds_group_medops,
+            ctfTraceCls, bt_common_get_page_size(logCfg.logLevel) * 8, ctf_fs_ds_group_medops,
             msg_iter_data->msg_iter_medops_data.get(), self_msg_iter, logCfg);
         if (!msg_iter_data->msg_iter) {
             BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp, "Cannot create a CTF message iterator.");

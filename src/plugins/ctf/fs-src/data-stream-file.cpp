@@ -42,18 +42,28 @@ static inline size_t remaining_mmap_bytes(struct ctf_fs_ds_file *ds_file)
 
 static bool offset_ist_mapped(struct ctf_fs_ds_file *ds_file, off_t offset_in_file)
 {
+    if (!ds_file->mmap_addr)
+        return false;
+
     return offset_in_file >= ds_file->mmap_offset_in_file &&
            offset_in_file < (ds_file->mmap_offset_in_file + ds_file->mmap_len);
 }
 
-static enum ctf_msg_iter_medium_status ds_file_munmap(struct ctf_fs_ds_file *ds_file)
+enum ds_file_status
+{
+    DS_FILE_STATUS_OK = 0,
+    DS_FILE_STATUS_ERROR = -1,
+    DS_FILE_STATUS_EOF = 1,
+};
+
+static ds_file_status ds_file_munmap(struct ctf_fs_ds_file *ds_file)
 {
     const ctf::LogCfg& logCfg = ds_file->logCfg;
 
     BT_ASSERT(ds_file);
 
     if (!ds_file->mmap_addr) {
-        return CTF_MSG_ITER_MEDIUM_STATUS_OK;
+        return DS_FILE_STATUS_OK;
     }
 
     if (bt_munmap(ds_file->mmap_addr, ds_file->mmap_len)) {
@@ -61,12 +71,12 @@ static enum ctf_msg_iter_medium_status ds_file_munmap(struct ctf_fs_ds_file *ds_
                            ": address=%p, size=%zu, file_path=\"%s\", file=%p", ds_file->mmap_addr,
                            ds_file->mmap_len, ds_file->file ? ds_file->file->path.c_str() : "NULL",
                            ds_file->file ? ds_file->file->fp.get() : NULL);
-        return CTF_MSG_ITER_MEDIUM_STATUS_ERROR;
+        return DS_FILE_STATUS_ERROR;
     }
 
     ds_file->mmap_addr = NULL;
 
-    return CTF_MSG_ITER_MEDIUM_STATUS_OK;
+    return DS_FILE_STATUS_OK;
 }
 
 /*
@@ -74,14 +84,9 @@ static enum ctf_msg_iter_medium_status ds_file_munmap(struct ctf_fs_ds_file *ds_
  * mapping.  If the currently mmap-ed region already contains
  * `requested_offset_in_file`, the mapping is kept.
  *
- * Set `ds_file->requested_offset_in_mapping` based on `request_offset_in_file`,
- * such that the next call to `request_bytes` will return bytes starting at that
- * position.
- *
  * `requested_offset_in_file` must be a valid offset in the file.
  */
-static enum ctf_msg_iter_medium_status ds_file_mmap(struct ctf_fs_ds_file *ds_file,
-                                                    off_t requested_offset_in_file)
+static ds_file_status ds_file_mmap(struct ctf_fs_ds_file *ds_file, off_t requested_offset_in_file)
 {
     const ctf::LogCfg& logCfg = ds_file->logCfg;
 
@@ -90,18 +95,16 @@ static enum ctf_msg_iter_medium_status ds_file_mmap(struct ctf_fs_ds_file *ds_fi
     BT_ASSERT(requested_offset_in_file < ds_file->file->size);
 
     /*
-     * If the mapping already contains the requested offset, just adjust
-     * requested_offset_in_mapping.
+     * If the mapping already contains the requested range, we have nothing to
+     * do.
      */
     if (offset_ist_mapped(ds_file, requested_offset_in_file)) {
-        ds_file->request_offset_in_mapping =
-            requested_offset_in_file - ds_file->mmap_offset_in_file;
-        return CTF_MSG_ITER_MEDIUM_STATUS_OK;
+        return DS_FILE_STATUS_OK;
     }
 
     /* Unmap old region */
-    ctf_msg_iter_medium_status status = ds_file_munmap(ds_file);
-    if (status != CTF_MSG_ITER_MEDIUM_STATUS_OK) {
+    ds_file_status status = ds_file_munmap(ds_file);
+    if (status != DS_FILE_STATUS_OK) {
         return status;
     }
 
@@ -124,275 +127,22 @@ static enum ctf_msg_iter_medium_status ds_file_mmap(struct ctf_fs_ds_file *ds_fi
         BT_COMP_LOGE("Cannot memory-map address (size %zu) of file \"%s\" (%p) at offset %jd: %s",
                      ds_file->mmap_len, ds_file->file->path.c_str(), ds_file->file->fp.get(),
                      (intmax_t) ds_file->mmap_offset_in_file, strerror(errno));
-        return CTF_MSG_ITER_MEDIUM_STATUS_ERROR;
+        return DS_FILE_STATUS_ERROR;
     }
 
-    return CTF_MSG_ITER_MEDIUM_STATUS_OK;
+    return DS_FILE_STATUS_OK;
 }
 
-/*
- * Change the mapping of the file to read the region that follows the current
- * mapping.
- *
- * If the file hasn't been mapped yet, then everything (mmap_offset_in_file,
- * mmap_len, request_offset_in_mapping) should have the value 0, which will
- * result in the beginning of the file getting mapped.
- *
- * return _EOF if the current mapping is the end of the file.
- */
-
-static enum ctf_msg_iter_medium_status ds_file_mmap_next(struct ctf_fs_ds_file *ds_file)
+static ctf_fs_ds_index_entry::UP ctf_fs_ds_index_entry_create(const bt2_common::DataLen offset,
+                                                              const bt2_common::DataLen packetSize)
 {
-    /*
-     * If we're called, it's because more bytes are requested but we have
-     * given all the bytes of the current mapping.
-     */
-    BT_ASSERT(ds_file->request_offset_in_mapping == ds_file->mmap_len);
+    ctf_fs_ds_index_entry::UP entry =
+        bt2_common::makeUnique<ctf_fs_ds_index_entry>(offset, packetSize);
 
-    /*
-     * If the current mapping coincides with the end of the file, there is
-     * no next mapping.
-     */
-    if (ds_file->mmap_offset_in_file + ds_file->mmap_len == ds_file->file->size) {
-        return CTF_MSG_ITER_MEDIUM_STATUS_EOF;
-    }
+    entry->packet_seq_num = UINT64_MAX;
 
-    return ds_file_mmap(ds_file, ds_file->mmap_offset_in_file + ds_file->mmap_len);
+    return entry;
 }
-
-static enum ctf_msg_iter_medium_status medop_request_bytes(size_t request_sz, uint8_t **buffer_addr,
-                                                           size_t *buffer_sz, void *data)
-{
-    struct ctf_fs_ds_file *ds_file = (struct ctf_fs_ds_file *) data;
-    const ctf::LogCfg& logCfg = ds_file->logCfg;
-
-    BT_ASSERT(request_sz > 0);
-
-    /*
-     * Check if we have at least one memory-mapped byte left. If we don't,
-     * mmap the next file.
-     */
-    if (remaining_mmap_bytes(ds_file) == 0) {
-        /* Are we at the end of the file? */
-        if (ds_file->mmap_offset_in_file >= ds_file->file->size) {
-            BT_COMP_LOGD("Reached end of file \"%s\" (%p)", ds_file->file->path.c_str(),
-                         ds_file->file->fp.get());
-            return CTF_MSG_ITER_MEDIUM_STATUS_EOF;
-        }
-
-        ctf_msg_iter_medium_status status = ds_file_mmap_next(ds_file);
-        switch (status) {
-        case CTF_MSG_ITER_MEDIUM_STATUS_OK:
-            break;
-        case CTF_MSG_ITER_MEDIUM_STATUS_EOF:
-            return CTF_MSG_ITER_MEDIUM_STATUS_EOF;
-        default:
-            BT_COMP_LOGE("Cannot memory-map next region of file \"%s\" (%p)",
-                         ds_file->file->path.c_str(), ds_file->file->fp.get());
-            return status;
-        }
-    }
-
-    BT_ASSERT(remaining_mmap_bytes(ds_file) > 0);
-    *buffer_sz = MIN(remaining_mmap_bytes(ds_file), request_sz);
-
-    BT_ASSERT(ds_file->mmap_addr);
-    *buffer_addr = ((uint8_t *) ds_file->mmap_addr) + ds_file->request_offset_in_mapping;
-
-    ds_file->request_offset_in_mapping += *buffer_sz;
-
-    return CTF_MSG_ITER_MEDIUM_STATUS_OK;
-}
-
-static bt_stream *medop_borrow_stream(bt_stream_class *stream_class, int64_t stream_id, void *data)
-{
-    struct ctf_fs_ds_file *ds_file = (struct ctf_fs_ds_file *) data;
-    bt_stream_class *ds_file_stream_class;
-
-    ds_file_stream_class = (*ds_file->stream)->cls().libObjPtr();
-
-    if (stream_class != ds_file_stream_class) {
-        /*
-         * Not supported: two packets described by two different
-         * stream classes within the same data stream file.
-         */
-        return nullptr;
-    }
-
-    return (*ds_file->stream)->libObjPtr();
-}
-
-static enum ctf_msg_iter_medium_status medop_seek(off_t offset, void *data)
-{
-    struct ctf_fs_ds_file *ds_file = (struct ctf_fs_ds_file *) data;
-
-    BT_ASSERT(offset >= 0);
-    BT_ASSERT(offset < ds_file->file->size);
-
-    return ds_file_mmap(ds_file, offset);
-}
-
-BT_HIDDEN
-struct ctf_msg_iter_medium_ops ctf_fs_ds_file_medops = {
-    medop_request_bytes,
-    medop_seek,
-    nullptr,
-    medop_borrow_stream,
-};
-
-struct ctf_fs_ds_group_medops_data
-{
-    explicit ctf_fs_ds_group_medops_data(const ctf::LogCfg& logCfgParam) noexcept :
-        logCfg {logCfgParam}
-    {
-    }
-
-    /* Weak, set once at creation time. */
-    struct ctf_fs_ds_file_group *ds_file_group = nullptr;
-
-    /*
-     * Index (as in element rank) of the index entry of ds_file_groups'
-     * index we will read next (so, the one after the one we are reading
-     * right now).
-     */
-    guint next_index_entry_index = 0;
-
-    /*
-     * File we are currently reading.  Changes whenever we switch to
-     * reading another data file.
-     *
-     * Owned by this.
-     */
-    ctf_fs_ds_file::UP file;
-
-    /* Weak, for context / logging / appending causes. */
-    bt_self_message_iterator *self_msg_iter = nullptr;
-    const ctf::LogCfg logCfg;
-};
-
-static enum ctf_msg_iter_medium_status medop_group_request_bytes(size_t request_sz,
-                                                                 uint8_t **buffer_addr,
-                                                                 size_t *buffer_sz, void *void_data)
-{
-    struct ctf_fs_ds_group_medops_data *data = (struct ctf_fs_ds_group_medops_data *) void_data;
-
-    /* Return bytes from the current file. */
-    return medop_request_bytes(request_sz, buffer_addr, buffer_sz, data->file.get());
-}
-
-static bt_stream *medop_group_borrow_stream(bt_stream_class *stream_class, int64_t stream_id,
-                                            void *void_data)
-{
-    struct ctf_fs_ds_group_medops_data *data = (struct ctf_fs_ds_group_medops_data *) void_data;
-
-    return medop_borrow_stream(stream_class, stream_id, data->file.get());
-}
-
-/*
- * Set `data->file` to prepare it to read the packet described
- * by `index_entry`.
- */
-
-static enum ctf_msg_iter_medium_status
-ctf_fs_ds_group_medops_set_file(struct ctf_fs_ds_group_medops_data *data,
-                                struct ctf_fs_ds_index_entry *index_entry,
-                                bt_self_message_iterator *self_msg_iter, const ctf::LogCfg& logCfg)
-{
-    BT_ASSERT(data);
-    BT_ASSERT(index_entry);
-
-    /* Check if that file is already the one mapped. */
-    if (!data->file || strcmp(index_entry->path, data->file->file->path.c_str()) != 0) {
-        /* Create the new file. */
-        data->file = ctf_fs_ds_file_create(data->ds_file_group->ctf_fs_trace,
-                                           data->ds_file_group->stream, index_entry->path, logCfg);
-
-        if (!data->file) {
-            BT_MSG_ITER_LOGE_APPEND_CAUSE(self_msg_iter, "failed to create ctf_fs_ds_file.");
-            return CTF_MSG_ITER_MEDIUM_STATUS_ERROR;
-        }
-    }
-
-    /*
-     * Ensure the right portion of the file will be returned on the next
-     * request_bytes call.
-     */
-    return ds_file_mmap(data->file.get(), index_entry->offset.bytes());
-}
-
-static enum ctf_msg_iter_medium_status medop_group_switch_packet(void *void_data)
-{
-    struct ctf_fs_ds_group_medops_data *data = (struct ctf_fs_ds_group_medops_data *) void_data;
-
-    /* If we have gone through all index entries, we are done. */
-    if (data->next_index_entry_index >= data->ds_file_group->index->entries.size()) {
-        return CTF_MSG_ITER_MEDIUM_STATUS_EOF;
-    }
-
-    /*
-     * Otherwise, look up the next index entry / packet and prepare it
-     *  for reading.
-     */
-    ctf_fs_ds_index_entry& index_entry =
-        data->ds_file_group->index->entries[data->next_index_entry_index];
-
-    ctf_msg_iter_medium_status status =
-        ctf_fs_ds_group_medops_set_file(data, &index_entry, data->self_msg_iter, data->logCfg);
-    if (status != CTF_MSG_ITER_MEDIUM_STATUS_OK) {
-        return status;
-    }
-
-    data->next_index_entry_index++;
-
-    return CTF_MSG_ITER_MEDIUM_STATUS_OK;
-}
-
-void ctf_fs_ds_group_medops_data_deleter::operator()(ctf_fs_ds_group_medops_data *data)
-{
-    delete data;
-}
-
-enum ctf_msg_iter_medium_status
-ctf_fs_ds_group_medops_data_create(struct ctf_fs_ds_file_group *ds_file_group,
-                                   bt_self_message_iterator *self_msg_iter,
-                                   const ctf::LogCfg& logCfg, ctf_fs_ds_group_medops_data_up& out)
-{
-    BT_ASSERT(self_msg_iter);
-    BT_ASSERT(ds_file_group);
-    BT_ASSERT(ds_file_group->index);
-    BT_ASSERT(!ds_file_group->index->entries.empty());
-
-    out.reset(new ctf_fs_ds_group_medops_data {logCfg});
-
-    out->ds_file_group = ds_file_group;
-    out->self_msg_iter = self_msg_iter;
-
-    /*
-     * No need to prepare the first file.  ctf_msg_iter will call
-     * switch_packet before reading the first packet, it will be
-     * done then.
-     */
-
-    return CTF_MSG_ITER_MEDIUM_STATUS_OK;
-}
-
-void ctf_fs_ds_group_medops_data_reset(struct ctf_fs_ds_group_medops_data *data)
-{
-    data->next_index_entry_index = 0;
-}
-
-struct ctf_msg_iter_medium_ops ctf_fs_ds_group_medops = {
-    .request_bytes = medop_group_request_bytes,
-
-    /*
-     * We don't support seeking using this medops.  It would probably be
-     * possible, but it's not needed at the moment.
-     */
-    .seek = NULL,
-
-    .switch_packet = medop_group_switch_packet,
-    .borrow_stream = medop_group_borrow_stream,
-};
 
 static int convert_cycles_to_ns(struct ctf_clock_class *clock_class, uint64_t cycles, int64_t *ns)
 {

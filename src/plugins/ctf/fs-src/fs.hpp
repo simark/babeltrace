@@ -17,40 +17,26 @@
 #include <babeltrace2/babeltrace.h>
 #include "cpp-common/data-len.hpp"
 #include "data-stream-file.hpp"
-#include "metadata.hpp"
-#include "../common/src/metadata/tsdl/decoder.hpp"
+#include "../common/src/metadata/ctf-ir-generator.hpp"
 #include "cpp-common/glib-up.hpp"
 
 BT_HIDDEN
 extern bool ctf_fs_debug;
 
-struct ctf_fs_metadata
-{
-    using UP = std::unique_ptr<ctf_fs_metadata>;
-
-    /* Owned by this */
-    ctf_metadata_decoder_up decoder;
-
-    /* Owned by this */
-    nonstd::optional<bt2::TraceClass::Shared> trace_class;
-
-    /* Weak (owned by `decoder` above) */
-    struct ctf_trace_class *tc = nullptr;
-
-    int bo = 0;
-};
-
 struct ctf_fs_trace
 {
     using UP = std::unique_ptr<ctf_fs_trace>;
 
-    explicit ctf_fs_trace(const ctf::LogCfg& logCfgParam) noexcept : logCfg {logCfgParam}
+    explicit ctf_fs_trace(const ctf::LogCfg& logCfgParam,
+                          const ctf::src::ClkClsCfg clkClsCfg) noexcept :
+        logCfg {logCfgParam},
+        irGenerator {logCfg, clkClsCfg}
     {
     }
 
     const ctf::LogCfg logCfg;
 
-    ctf_fs_metadata::UP metadata;
+    ctf::src::CtfIrGenerator irGenerator;
 
     nonstd::optional<bt2::Trace::Shared> trace;
 
