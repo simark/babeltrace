@@ -634,7 +634,7 @@ static int create_ds_file_groups(struct ctf_fs_trace *ctf_fs_trace)
         }
 
         /* Create the file. */
-        ctf_fs_file::UP file = ctf_fs_file_create(logCfg);
+        ctf_fs_file::UP file = bt2_common::makeUnique<ctf_fs_file>(logCfg);
         if (!file) {
             BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(
                 logCfg.selfComp, logCfg.selfCompClass,
