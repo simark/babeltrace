@@ -28,7 +28,7 @@
 #include "../common/src/msg-iter/msg-iter.hpp"
 #include "query.hpp"
 #include "plugins/common/param-validation/param-validation.h"
-#include "cpp-common/comp-exc.hpp"
+#include "cpp-common/exc.hpp"
 
 struct tracer_info
 {

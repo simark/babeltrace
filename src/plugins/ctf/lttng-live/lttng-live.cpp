@@ -23,7 +23,7 @@
 #include <babeltrace2/babeltrace.h>
 #include "compat/compiler.h"
 #include <babeltrace2/types.h>
-#include "cpp-common/comp-exc.hpp"
+#include "cpp-common/exc.hpp"
 
 #include "plugins/common/muxing/muxing.h"
 #include "plugins/common/param-validation/param-validation.h"

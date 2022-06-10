@@ -17,7 +17,7 @@
 #include "common/assert.h"
 #include "ctfser/ctfser.h"
 #include "plugins/common/param-validation/param-validation.h"
-#include "cpp-common/comp-exc.hpp"
+#include "cpp-common/exc.hpp"
 
 #include "fs-sink.hpp"
 #include "fs-sink-trace.hpp"

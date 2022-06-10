@@ -10,7 +10,7 @@
 
 #include <cstdint>
 
-#include "cpp-common/comp-exc.hpp"
+#include "cpp-common/exc.hpp"
 #include "cpp-common/comp-logging.hpp"
 #include "cpp-common/read-fixed-len-int.hpp"
 #include "metadata-stream-decoder.hpp"
