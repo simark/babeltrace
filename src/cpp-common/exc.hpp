@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifndef BABELTRACE_CPP_COMMON_COMP_EXC_HPP
-#define BABELTRACE_CPP_COMMON_COMP_EXC_HPP
+#ifndef BABELTRACE_CPP_COMMON_EXC_HPP
+#define BABELTRACE_CPP_COMMON_EXC_HPP
 
 #include <exception>
 #include <string>
@@ -60,4 +60,4 @@ public:
 
 } /* namespace bt2_common */
 
-#endif /* BABELTRACE_CPP_COMMON_COMP_EXC_HPP */
+#endif /* BABELTRACE_CPP_COMMON_EXC_HPP */

@@ -13,7 +13,7 @@
 #include <memory>
 
 #include "cpp-common/data-len.hpp"
-#include "cpp-common/comp-exc.hpp"
+#include "cpp-common/exc.hpp"
 
 namespace ctf {
 namespace src {
