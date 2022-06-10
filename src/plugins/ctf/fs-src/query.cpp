@@ -163,7 +163,7 @@ static void populate_trace_info(const struct ctf_fs_trace *trace, bt2::MapValue 
 BT_HIDDEN
 bt2::Value::Shared trace_infos_query(bt2::ConstMapValue params, const ctf::LogCfg& logCfg)
 {
-    ctf_fs_component::UP ctf_fs = ctf_fs_component_create(logCfg);
+    ctf_fs_component::UP ctf_fs = bt2_common::makeUnique<ctf_fs_component>(logCfg);
     if (!ctf_fs) {
         BT_COMP_CLASS_LOGE_APPEND_CAUSE_AND_THROW(bt2_common::Error, logCfg.selfCompClass,
                                                   "Cannot create ctf_fs_component");
