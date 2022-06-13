@@ -323,7 +323,6 @@ ctf_fs_ds_group_medops_set_file(struct ctf_fs_ds_group_medops_data *data,
 static enum ctf_msg_iter_medium_status medop_group_switch_packet(void *void_data)
 {
     struct ctf_fs_ds_group_medops_data *data = (struct ctf_fs_ds_group_medops_data *) void_data;
-    struct ctf_fs_ds_index_entry *index_entry;
 
     /* If we have gone through all index entries, we are done. */
     if (data->next_index_entry_index >= data->ds_file_group->index->entries.size()) {
@@ -334,10 +333,11 @@ static enum ctf_msg_iter_medium_status medop_group_switch_packet(void *void_data
      * Otherwise, look up the next index entry / packet and prepare it
      *  for reading.
      */
-    index_entry = data->ds_file_group->index->entries[data->next_index_entry_index].get();
+    ctf_fs_ds_index_entry& index_entry =
+        data->ds_file_group->index->entries[data->next_index_entry_index];
 
     ctf_msg_iter_medium_status status =
-        ctf_fs_ds_group_medops_set_file(data, index_entry, data->self_msg_iter, data->logCfg);
+        ctf_fs_ds_group_medops_set_file(data, &index_entry, data->self_msg_iter, data->logCfg);
     if (status != CTF_MSG_ITER_MEDIUM_STATUS_OK) {
         return status;
     }
@@ -414,8 +414,6 @@ static ctf_fs_ds_index::UP build_index_from_idx_file(struct ctf_fs_ds_file *ds_f
     const char *mmap_begin = NULL, *file_pos = NULL;
     const struct ctf_packet_index_file_hdr *header = NULL;
     ctf_fs_ds_index::UP index;
-    ctf_fs_ds_index_entry::UP index_entry;
-    ctf_fs_ds_index_entry *prev_index_entry = NULL;
     bt2_common::DataLen totalPacketsSize = bt2_common::DataLen::fromBytes(0);
     size_t file_index_entry_size;
     size_t file_entry_count;
@@ -532,35 +530,31 @@ static ctf_fs_ds_index::UP build_index_from_idx_file(struct ctf_fs_ds_file *ds_f
             return nullptr;
         }
 
-        index_entry = bt2_common::makeUnique<ctf_fs_ds_index_entry>(offset, packetSize);
-        if (!index_entry) {
-            BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp, "Failed to create a ctf_fs_ds_index_entry.");
-            return nullptr;
-        }
+        ctf_fs_ds_index_entry index_entry {offset, packetSize};
 
         /* Set path to stream file. */
-        index_entry->path = file_info->path.c_str();
+        index_entry.path = file_info->path.c_str();
 
-        index_entry->timestamp_begin = be64toh(file_index->timestamp_begin);
-        index_entry->timestamp_end = be64toh(file_index->timestamp_end);
-        if (index_entry->timestamp_end < index_entry->timestamp_begin) {
+        index_entry.timestamp_begin = be64toh(file_index->timestamp_begin);
+        index_entry.timestamp_end = be64toh(file_index->timestamp_end);
+        if (index_entry.timestamp_end < index_entry.timestamp_begin) {
             BT_COMP_LOGW(
                 "Invalid packet time bounds encountered in LTTng trace index file (begin > end): "
                 "timestamp_begin=%" PRIu64 "timestamp_end=%" PRIu64,
-                index_entry->timestamp_begin, index_entry->timestamp_end);
+                index_entry.timestamp_begin, index_entry.timestamp_end);
             return nullptr;
         }
 
         /* Convert the packet's bound to nanoseconds since Epoch. */
-        ret = convert_cycles_to_ns(sc->default_clock_class, index_entry->timestamp_begin,
-                                   &index_entry->timestamp_begin_ns);
+        ret = convert_cycles_to_ns(sc->default_clock_class, index_entry.timestamp_begin,
+                                   &index_entry.timestamp_begin_ns);
         if (ret) {
             BT_COMP_LOGI_STR(
                 "Failed to convert raw timestamp to nanoseconds since Epoch during index parsing");
             return nullptr;
         }
-        ret = convert_cycles_to_ns(sc->default_clock_class, index_entry->timestamp_end,
-                                   &index_entry->timestamp_end_ns);
+        ret = convert_cycles_to_ns(sc->default_clock_class, index_entry.timestamp_end,
+                                   &index_entry.timestamp_end_ns);
         if (ret) {
             BT_COMP_LOGI_STR(
                 "Failed to convert raw timestamp to nanoseconds since Epoch during LTTng trace index parsing");
@@ -568,7 +562,7 @@ static ctf_fs_ds_index::UP build_index_from_idx_file(struct ctf_fs_ds_file *ds_f
         }
 
         if (version_minor >= 1) {
-            index_entry->packet_seq_num = be64toh(file_index->packet_seq_num);
+            index_entry.packet_seq_num = be64toh(file_index->packet_seq_num);
         }
 
         totalPacketsSize += packetSize;
@@ -576,7 +570,7 @@ static ctf_fs_ds_index::UP build_index_from_idx_file(struct ctf_fs_ds_file *ds_f
 
         prev_index_entry = index_entry.get();
 
-        index->entries.emplace_back(std::move(index_entry));
+        index->entries.emplace_back(index_entry);
     }
 
     /* Validate that the index addresses the complete stream. */
@@ -686,7 +680,8 @@ static ctf_fs_ds_index::UP build_index_from_stream_file(struct ctf_fs_ds_file *d
             return nullptr;
         }
 
-        index_entry = bt2_common::makeUnique<ctf_fs_ds_index_entry>(currentPacketOffset, currentPacketSize);
+        index_entry =
+            bt2_common::makeUnique<ctf_fs_ds_index_entry>(currentPacketOffset, currentPacketSize);
         if (!index_entry) {
             BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp, "Failed to create a ctf_fs_ds_index_entry.");
             return nullptr;
