@@ -15,10 +15,14 @@
 #include <vector>
 #include "common/macros.h"
 #include <babeltrace2/babeltrace.h>
+
 #include "cpp-common/data-len.hpp"
-#include "data-stream-file.hpp"
+
 #include "../common/src/metadata/ctf-ir-generator.hpp"
-#include "cpp-common/glib-up.hpp"
+#include "../common/src/metadata/ctf-ir.hpp"
+#include "../common/src/msg-iter.hpp"
+
+#include "data-stream-file.hpp"
 
 BT_HIDDEN
 extern bool ctf_fs_debug;
@@ -69,13 +73,16 @@ struct ctf_fs_component
 
     const ctf::LogCfg logCfg;
 
+    /* Array of struct ctf_fs_port_data *, owned by this */
     std::vector<ctf_fs_port_data::UP> port_data;
 
     ctf_fs_trace::UP trace;
 
     ctf::src::ClkClsCfg clkClsCfg;
+    ctf::src::Quirks quirks;
 };
 
+/* Data attached to a bt_self_message_iterator.  */
 struct ctf_fs_msg_iter_data
 {
     using UP = std::unique_ptr<ctf_fs_msg_iter_data>;
@@ -89,10 +96,10 @@ struct ctf_fs_msg_iter_data
     /* Weak */
     bt_self_message_iterator *self_msg_iter = nullptr;
 
-    /* Weak, belongs to ctf_fs_trace */
-    struct ctf_fs_ds_file_group *ds_file_group = nullptr;
+    /* Weak, belongs to ctf_fs_component */
+    ctf_fs_port_data *port_data = nullptr;
 
-    ctf_msg_iter_up msg_iter;
+    nonstd::optional<ctf::src::MsgIter> msgIter;
 
     /*
      * Saved error.  If we hit an error in the _next method, but have some
@@ -102,8 +109,6 @@ struct ctf_fs_msg_iter_data
     bt_message_iterator_class_next_method_status next_saved_status =
         BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_OK;
     const struct bt_error *next_saved_error = nullptr;
-
-    ctf_fs_ds_group_medops_data_up msg_iter_medops_data;
 };
 
 BT_HIDDEN
@@ -152,8 +157,8 @@ ctf_fs_iterator_seek_beginning(bt_self_message_iterator *message_iterator);
 
 BT_HIDDEN
 int ctf_fs_component_create_ctf_fs_trace(struct ctf_fs_component *ctf_fs,
-                                         const bt_value *paths_value,
-                                         const bt_value *trace_name_value,
+                                         bt2::ConstArrayValue pathsValue,
+                                         nonstd::optional<bt2::ConstStringValue> traceNameValue,
                                          bt_self_component *selfComp);
 
 /*
@@ -172,8 +177,10 @@ int ctf_fs_component_create_ctf_fs_trace(struct ctf_fs_component *ctf_fs,
  */
 
 BT_HIDDEN
-bool read_src_fs_parameters(const bt_value *params, const bt_value **paths,
-                            const bt_value **trace_name, struct ctf_fs_component *ctf_fs);
+bool read_src_fs_parameters(bt2::ConstMapValue params,
+                            nonstd::optional<bt2::ConstArrayValue>& inputs,
+                            nonstd::optional<bt2::ConstStringValue>& trace_name,
+                            struct ctf_fs_component *ctf_fs);
 
 /*
  * Generate the port name to be used for a given data stream file group.

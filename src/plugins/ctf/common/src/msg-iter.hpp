@@ -314,121 +314,36 @@ private:
 
 } /* namespace internal */
 
+/* Thrown by MsgIter::next to indicate that the end of the stream has been reached. */
+struct MsgIterEnded
+{
+};
+
 /* CTF message iterator */
 struct MsgIter
 {
-    MsgIter(bt_self_message_iterator *selfMsgIterParam, const ctf::src::TraceCls& tc,
-            bt2::Stream stream, ctf::src::Medium::UP medium, Quirks quirksParam,
-            const ctf::LogCfg& logCfgParam);
+    MsgIter(bt_self_message_iterator *selfMsgIter, const ctf::src::TraceCls& tc, bt2::Stream stream,
+            ctf::src::Medium::UP medium, Quirks quirks, const ctf::LogCfg logCfg);
 
     MsgIter(const MsgIter&) = delete;
     MsgIter& operator=(const MsgIter&) = delete;
 
-    void reset()
-    {
-    }
+    bt2::ConstMessage::Shared next();
 
+private:
     /* Current message iterator to create messages (weak) */
-    bt_self_message_iterator *selfMsgIter;
+    bt_self_message_iterator *_mSelfMsgIter;
 
-    const ctf::LogCfg logCfg;
+    const ctf::LogCfg _mLogCfg;
 
-    bt2::Stream stream;
-    ItemSeqIter itemSeqIter;
-    LoggingItemVisitor loggingVisitor;
-    internal::MsgIterItemVisitor itemVisitor;
-    bool sentStreamEnd = false;
+    bt2::Stream _mStream;
+    ItemSeqIter _mItemSeqIter;
+    LoggingItemVisitor _mLoggingVisitor;
+    internal::MsgIterItemVisitor _mItemVisitor;
+    bool _mSentStreamEnd = false;
 };
 
 }
-}
-
-/**
- * @file ctf-msg-iter.h
- *
- * CTF message iterator
- *
- * This is a common internal API used by CTF source plugins. It allows
- * one to get messages from a user-provided medium.
- */
-
-/**
- * CTF message iterator API status code.
- *
- * These use the same values as libbabeltrace2.
- */
-enum ctf_msg_iter_status
-{
-    /**
-     * End of file.
-     *
-     * The medium function called by the message iterator
-     * function reached the end of the file.
-     */
-    CTF_MSG_ITER_STATUS_EOF = 1,
-
-    /**
-     * There is no data available right now, try again later.
-     *
-     * Some condition resulted in the
-     * ctf_msg_iter_medium_ops::request_bytes() user function not
-     * having access to any data now. You should retry calling the
-     * last called message iterator function once the situation
-     * is resolved.
-     */
-    CTF_MSG_ITER_STATUS_AGAIN = 11,
-
-    /** General error. */
-    CTF_MSG_ITER_STATUS_ERROR = -1,
-
-    /** Memory error. */
-    CTF_MSG_ITER_STATUS_MEMORY_ERROR = -12,
-
-    /** Everything okay. */
-    CTF_MSG_ITER_STATUS_OK = 0,
-};
-
-/**
- * Returns the next message from a CTF message iterator.
- *
- * Upon successful completion, #CTF_MSG_ITER_STATUS_OK is
- * returned, and the next message is written to \p msg.
- * In this case, the caller is responsible for calling
- * bt_message_put() on the returned message.
- *
- * If this function returns #CTF_MSG_ITER_STATUS_AGAIN, the caller
- * should make sure that data becomes available to its medium, and
- * call this function again, until another status is returned.
- *
- * @param msg_iter		CTF message iterator
- * @param message		Returned message if the function's
- *				return value is #CTF_MSG_ITER_STATUS_OK
- * @returns			One of #ctf_msg_iter_status values
- */
-BT_HIDDEN
-enum ctf_msg_iter_status
-ctf_msg_iter_get_next_message(ctf::src::MsgIter *msgIter,
-                              nonstd::optional<bt2::ConstMessage::Shared>& message);
-
-BT_HIDDEN
-enum ctf_msg_iter_status ctf_msg_iter_seek(ctf::src::MsgIter *msgIter, off_t offset);
-
-static inline const char *ctf_msg_iter_status_string(enum ctf_msg_iter_status status)
-{
-    switch (status) {
-    case CTF_MSG_ITER_STATUS_EOF:
-        return "EOF";
-    case CTF_MSG_ITER_STATUS_AGAIN:
-        return "AGAIN";
-    case CTF_MSG_ITER_STATUS_ERROR:
-        return "ERROR";
-    case CTF_MSG_ITER_STATUS_MEMORY_ERROR:
-        return "MEMORY_ERROR";
-    case CTF_MSG_ITER_STATUS_OK:
-        return "OK";
-    }
-
-    bt_common_abort();
 }
 
 #endif /* CTF_COMMON_SRC_MSG_ITER_HPP */

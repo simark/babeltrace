@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <memory>
+#include <string>
 
 #include <glib.h>
 
@@ -17,7 +19,10 @@
 
 #include "common/macros.h"
 #include "compat/socket.h"
+#include "cpp-common/optional.hpp"
+#include "cpp-common/bt2/value.hpp"
 #include "plugins/ctf/common/logging/log-cfg.hpp"
+#include "cpp-common/glib-up.hpp"
 
 #define LTTNG_DEFAULT_NETWORK_VIEWER_PORT 5344
 
@@ -53,18 +58,22 @@ struct lttng_live_component;
 
 struct live_viewer_connection
 {
+    using UP = std::unique_ptr<live_viewer_connection>;
+
     explicit live_viewer_connection(const ctf::LogCfg& logCfgParam) noexcept : logCfg {logCfgParam}
     {
     }
 
+    ~live_viewer_connection();
+
     const ctf::LogCfg logCfg;
 
-    GString *url = nullptr;
+    std::string url;
 
-    GString *relay_hostname = nullptr;
-    GString *target_hostname = nullptr;
-    GString *session_name = nullptr;
-    GString *proto = nullptr;
+    bt2_common::GStringUP relay_hostname;
+    bt2_common::GStringUP target_hostname;
+    bt2_common::GStringUP session_name;
+    bt2_common::GStringUP proto;
 
     BT_SOCKET control_sock {};
     int port = 0;
@@ -100,7 +109,7 @@ struct packet_index
 enum lttng_live_viewer_status
 live_viewer_connection_create(const char *url, bool in_query,
                               struct lttng_live_msg_iter *lttng_live_msg_iter,
-                              const ctf::LogCfg& logCfg, struct live_viewer_connection **viewer);
+                              const ctf::LogCfg& logCfg, live_viewer_connection::UP& viewer);
 
 void live_viewer_connection_destroy(struct live_viewer_connection *conn);
 
@@ -109,6 +118,20 @@ lttng_live_create_viewer_session(struct lttng_live_msg_iter *lttng_live_msg_iter
 
 bt_component_class_query_method_status
 live_viewer_connection_list_sessions(struct live_viewer_connection *viewer_connection,
-                                     const bt_value **user_result);
+                                     nonstd::optional<bt2::Value::Shared>& user_result);
+
+enum lttng_live_get_stream_bytes_status
+{
+    LTTNG_LIVE_GET_STREAM_BYTES_STATUS_OK = __BT_FUNC_STATUS_OK,
+    LTTNG_LIVE_GET_STREAM_BYTES_STATUS_AGAIN = __BT_FUNC_STATUS_AGAIN,
+    LTTNG_LIVE_GET_STREAM_BYTES_STATUS_ERROR = __BT_FUNC_STATUS_ERROR,
+    LTTNG_LIVE_GET_STREAM_BYTES_STATUS_EOF = __BT_FUNC_STATUS_END,
+};
+
+BT_HIDDEN
+lttng_live_get_stream_bytes_status
+lttng_live_get_stream_bytes(struct lttng_live_msg_iter *lttng_live_msg_iter,
+                            struct lttng_live_stream_iterator *stream, uint8_t *buf,
+                            uint64_t offset, uint64_t req_len, uint64_t *recv_len);
 
 #endif /* LTTNG_LIVE_VIEWER_CONNECTION_H */

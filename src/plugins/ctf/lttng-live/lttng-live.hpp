@@ -19,8 +19,8 @@
 #include <babeltrace2/babeltrace.h>
 
 #include "common/macros.h"
-#include "../common/src/metadata/tsdl/decoder.hpp"
-#include "../common/src/msg-iter/msg-iter.hpp"
+#include "plugins/ctf/common/src/metadata/ctf-ir-generator.hpp"
+#include "../common/src/msg-iter.hpp"
 #include "viewer-connection.hpp"
 
 struct lttng_live_component;
@@ -50,15 +50,19 @@ enum lttng_live_stream_state
 /* Iterator over a live stream. */
 struct lttng_live_stream_iterator
 {
+    using UP = std::unique_ptr<lttng_live_stream_iterator>;
+
     explicit lttng_live_stream_iterator(const ctf::LogCfg& logCfgParam) noexcept :
         logCfg {logCfgParam}
     {
     }
 
+    ~lttng_live_stream_iterator();
+
     const ctf::LogCfg logCfg;
 
     /* Owned by this. */
-    bt_stream *stream = nullptr;
+    nonstd::optional<bt2::Stream::Shared> stream;
 
     /* Weak reference. */
     struct lttng_live_trace *trace = nullptr;
@@ -67,7 +71,7 @@ struct lttng_live_stream_iterator
      * Since only a single iterator per viewer connection, we have
      * only a single message iterator per stream.
      */
-    struct ctf_msg_iter *msg_iter = nullptr;
+    nonstd::optional<ctf::src::MsgIter> msgIter;
 
     uint64_t viewer_stream_id = 0;
 
@@ -106,24 +110,24 @@ struct lttng_live_stream_iterator
      * The current message produced by this live stream iterator. Owned by
      * this.
      */
-    const bt_message *current_msg = nullptr;
+    nonstd::optional<bt2::ConstMessage::Shared> currentMsg;
 
     /* Timestamp in nanoseconds of the current message (current_msg). */
     int64_t current_msg_ts_ns = 0;
 
-    /* Owned by this. */
-    uint8_t *buf = nullptr;
-    size_t buflen = 0;
+    std::vector<uint8_t> buf;
 
-    /* Owned by this. */
-    GString *name = nullptr;
+    std::string name;
 
     bool has_stream_hung_up = false;
 };
 
 struct lttng_live_metadata
 {
-    explicit lttng_live_metadata(const ctf::LogCfg& logCfgParam) noexcept : logCfg {logCfgParam}
+    using UP = std::unique_ptr<lttng_live_metadata>;
+
+    explicit lttng_live_metadata(const ctf::LogCfg& logCfgParam) noexcept :
+        logCfg {logCfgParam}, irGenerator {logCfg, ctf::src::ClkClsCfg {}}
     {
     }
 
@@ -131,8 +135,7 @@ struct lttng_live_metadata
 
     uint64_t stream_id = 0;
 
-    /* Weak reference. */
-    ctf_metadata_decoder_up decoder;
+    ctf::src::CtfIrGenerator irGenerator;
 };
 
 enum lttng_live_metadata_stream_state
@@ -159,6 +162,8 @@ enum lttng_live_metadata_stream_state
 
 struct lttng_live_trace
 {
+    using UP = std::unique_ptr<lttng_live_trace>;
+
     explicit lttng_live_trace(const ctf::LogCfg& logCfgParam) noexcept : logCfg {logCfgParam}
     {
     }
@@ -171,19 +176,13 @@ struct lttng_live_trace
     /* ctf trace ID within the session. */
     uint64_t id = 0;
 
-    /* Owned by this. */
-    bt_trace *trace = nullptr;
+    nonstd::optional<bt2::Trace::Shared> trace;
 
-    /* Weak reference. */
-    bt_trace_class *trace_class = nullptr;
+    lttng_live_metadata::UP metadata;
 
-    struct lttng_live_metadata *metadata = nullptr;
+    nonstd::optional<bt2::ConstClockClass> clockClass;
 
-    const bt_clock_class *clock_class = nullptr;
-
-    /* Array of pointers to struct lttng_live_stream_iterator. */
-    /* Owned by this. */
-    GPtrArray *stream_iterators = nullptr;
+    std::vector<lttng_live_stream_iterator::UP> streamIterators;
 
     enum lttng_live_metadata_stream_state metadata_stream_state =
         LTTNG_LIVE_METADATA_STREAM_STATE_NEEDED;
@@ -191,9 +190,13 @@ struct lttng_live_trace
 
 struct lttng_live_session
 {
+    using UP = std::unique_ptr<lttng_live_session>;
+
     explicit lttng_live_session(const ctf::LogCfg& logCfgParam) noexcept : logCfg {logCfgParam}
     {
     }
+
+    ~lttng_live_session();
 
     const ctf::LogCfg logCfg;
 
@@ -202,16 +205,14 @@ struct lttng_live_session
     /* Weak reference. */
     struct lttng_live_msg_iter *lttng_live_msg_iter = nullptr;
 
-    /* Owned by this. */
-    GString *hostname = nullptr;
+    std::string hostname;
 
-    /* Owned by this. */
-    GString *session_name = nullptr;
+    std::string session_name;
 
     uint64_t id = 0;
 
     /* Array of pointers to struct lttng_live_trace. */
-    GPtrArray *traces = nullptr;
+    std::vector<lttng_live_trace::UP> traces;
 
     bool attached = false;
     bool new_streams_needed = false;
@@ -231,6 +232,8 @@ enum session_not_found_action
  */
 struct lttng_live_component
 {
+    using UP = std::unique_ptr<lttng_live_component>;
+
     explicit lttng_live_component(const ctf::LogCfg& logCfgParam) noexcept : logCfg {logCfgParam}
     {
     }
@@ -242,7 +245,7 @@ struct lttng_live_component
 
     struct
     {
-        GString *url = nullptr;
+        std::string url;
         enum session_not_found_action sess_not_found_act = SESSION_NOT_FOUND_ACTION_CONTINUE;
     } params;
 
@@ -257,9 +260,13 @@ struct lttng_live_component
 
 struct lttng_live_msg_iter
 {
+    using UP = std::unique_ptr<lttng_live_msg_iter>;
+
     explicit lttng_live_msg_iter(const ctf::LogCfg& logCfgParam) noexcept : logCfg {logCfgParam}
     {
     }
+
+    ~lttng_live_msg_iter();
 
     const ctf::LogCfg logCfg;
 
@@ -272,10 +279,10 @@ struct lttng_live_msg_iter
     bt_self_message_iterator *self_msg_iter = nullptr;
 
     /* Owned by this. */
-    struct live_viewer_connection *viewer_connection = nullptr;
+    live_viewer_connection::UP viewer_connection;
 
     /* Array of pointers to struct lttng_live_session. */
-    GPtrArray *sessions = nullptr;
+    std::vector<lttng_live_session::UP> sessions;
 
     /* Number of live stream iterator this message iterator has.*/
     uint64_t active_stream_iter = 0;
@@ -354,21 +361,20 @@ int lttng_live_add_session(struct lttng_live_msg_iter *lttng_live_msg_iter, uint
  * written to the file.
  */
 enum lttng_live_get_one_metadata_status
-lttng_live_get_one_metadata_packet(struct lttng_live_trace *trace, FILE *fp, size_t *reply_len);
+lttng_live_get_one_metadata_packet(lttng_live_trace *trace, std::vector<uint8_t>& buf);
 
 enum lttng_live_iterator_status
 lttng_live_get_next_index(struct lttng_live_msg_iter *lttng_live_msg_iter,
                           struct lttng_live_stream_iterator *stream, struct packet_index *index);
-
-enum ctf_msg_iter_medium_status
-lttng_live_get_stream_bytes(struct lttng_live_msg_iter *lttng_live_msg_iter,
-                            struct lttng_live_stream_iterator *stream, uint8_t *buf,
-                            uint64_t offset, uint64_t req_len, uint64_t *recv_len);
 
 bool lttng_live_graph_is_canceled(struct lttng_live_msg_iter *msg_iter);
 
 BT_HIDDEN
 void lttng_live_stream_iterator_set_state(struct lttng_live_stream_iterator *stream_iter,
                                           enum lttng_live_stream_state new_state);
+
+BT_HIDDEN
+void lttng_live_stream_iterator_set_stream_class(lttng_live_stream_iterator *streamIter,
+                                                 uint64_t ctfStreamClsId);
 
 #endif /* BABELTRACE_PLUGIN_CTF_LTTNG_LIVE_H */

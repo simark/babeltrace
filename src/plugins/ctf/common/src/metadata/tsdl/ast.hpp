@@ -16,10 +16,12 @@
 #include "common/macros.h"
 #include "common/assert.h"
 
-#include "cpp-common/optional.hpp"
 #include "cpp-common/bt2/trace-ir.hpp"
-#include "decoder.hpp"
+#include "cpp-common/optional.hpp"
 #include "ctf-meta.hpp"
+#include "plugins/ctf/common/logging/log-cfg.hpp"
+#include "plugins/ctf/common/src/metadata/ctf-ir.hpp"
+#include "../../clk-cls-cfg.hpp"
 
 // the parameter name (of the reentrant 'yyparse' function)
 // data is a pointer to a 'SParserParam' structure
@@ -361,12 +363,18 @@ struct ctf_visitor_generate_ir_deleter
 
 struct ctf_visitor_generate_ir
 {
-    using UP = std::unique_ptr<ctf_visitor_generate_ir, ctf_visitor_generate_ir_deleter>;
+    using UP = std::unique_ptr<ctf_visitor_generate_ir>;
 
-    explicit ctf_visitor_generate_ir(const ctf_metadata_decoder_config& decoderConfig) noexcept :
-        decoder_config {decoderConfig}
+    ctf_visitor_generate_ir(const ctf::src::ClkClsCfg clkClsCfgParam,
+                            const ctf::LogCfg& logCfgParam) :
+        logCfg {logCfgParam},
+        clkClsCfg(clkClsCfgParam)
     {
     }
+
+    ~ctf_visitor_generate_ir();
+
+    const ctf::LogCfg logCfg;
 
     /* Trace IR trace class being filled (owned by this) */
     nonstd::optional<bt2::TraceClass::Shared> trace_class;
@@ -383,21 +391,12 @@ struct ctf_visitor_generate_ir
     /* True if this is an LTTng trace */
     bool is_lttng = false;
 
-    /* Config passed by the user */
-    struct ctf_metadata_decoder_config decoder_config;
+    const ctf::src::ClkClsCfg clkClsCfg;
 };
 
 BT_HIDDEN
-ctf_visitor_generate_ir::UP
-ctf_visitor_generate_ir_create(const struct ctf_metadata_decoder_config *config);
-
-BT_HIDDEN
-nonstd::optional<bt2::TraceClass::Shared>
-ctf_visitor_generate_ir_get_ir_trace_class(struct ctf_visitor_generate_ir *visitor);
-
-BT_HIDDEN
-struct ctf_trace_class *
-ctf_visitor_generate_ir_borrow_ctf_trace_class(struct ctf_visitor_generate_ir *visitor);
+ctf_visitor_generate_ir::UP ctf_visitor_generate_ir_create(const ctf::src::ClkClsCfg clkClsCfg,
+                                                           const ctf::LogCfg& logCfg);
 
 BT_HIDDEN
 int ctf_visitor_generate_ir_visit_node(struct ctf_visitor_generate_ir *visitor,

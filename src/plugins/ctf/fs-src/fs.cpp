@@ -12,27 +12,42 @@
 #define BT_LOG_TAG            "PLUGIN/SRC.CTF.FS"
 #include "logging/comp-logging.h"
 
-#include "common/common.h"
+#include <memory>
+#include <new>
+#include <queue>
+#include <stack>
+#include <type_traits>
+
 #include <babeltrace2/babeltrace.h>
-#include "common/uuid.h"
+
 #include <glib.h>
+
 #include "common/assert.h"
-#include <inttypes.h>
-#include <stdbool.h>
+#include "common/common.h"
+#include "common/uuid.h"
+
 #include "fs.hpp"
-#include "metadata.hpp"
 #include "data-stream-file.hpp"
 #include "file.hpp"
-#include "../common/src/metadata/tsdl/decoder.hpp"
-#include "../common/src/metadata/tsdl/ctf-meta-configure-ir-trace.hpp"
-#include "../common/src/msg-iter/msg-iter.hpp"
-#include "../common/src/metadata/ctf-ir.hpp"
 #include "query.hpp"
-#include "plugins/common/param-validation/param-validation.h"
 #include "cpp-common/exc.hpp"
 #include "cpp-common/make-unique.hpp"
-#include <vector>
-#include <sstream>
+#include "cpp-common/file-utils.hpp"
+#include "cpp-common/data-len.hpp"
+#include "cpp-common/glib-up.hpp"
+#include "plugins/common/param-validation/param-validation.h"
+
+#include "../common/src/item-seq/item-seq-iter.hpp"
+#include "../common/src/item-seq/logging-item-visitor.hpp"
+#include "../common/src/item-seq/medium.hpp"
+#include "../common/src/metadata/ctf-ir.hpp"
+#include "../common/src/metadata/tsdl/ctf-meta-configure-ir-trace.hpp"
+#include "../common/src/msg-iter/msg-iter.hpp"
+#include "../common/src/pkt-props.hpp"
+
+using namespace ctf::src;
+using namespace ctf;
+using namespace bt2_common::literals::datalen;
 
 struct tracer_info
 {
@@ -42,52 +57,6 @@ struct tracer_info
     int64_t patch;
 };
 
-static bt_message_iterator_class_next_method_status
-ctf_fs_iterator_next_one(struct ctf_fs_msg_iter_data *msg_iter_data, const bt_message **out_msg)
-{
-    bt_message_iterator_class_next_method_status status;
-    enum ctf_msg_iter_status msg_iter_status;
-    const ctf::LogCfg& logCfg = msg_iter_data->logCfg;
-
-    msg_iter_status = ctf_msg_iter_get_next_message(msg_iter_data->msg_iter.get(), out_msg);
-
-    switch (msg_iter_status) {
-    case CTF_MSG_ITER_STATUS_OK:
-        /* Cool, message has been written to *out_msg. */
-        status = BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_OK;
-        break;
-
-    case CTF_MSG_ITER_STATUS_EOF:
-        status = BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_END;
-        break;
-
-    case CTF_MSG_ITER_STATUS_AGAIN:
-        /*
-         * Should not make it this far as this is
-         * medium-specific; there is nothing for the user to do
-         * and it should have been handled upstream.
-         */
-        bt_common_abort();
-
-    case CTF_MSG_ITER_STATUS_ERROR:
-        BT_MSG_ITER_LOGE_APPEND_CAUSE(msg_iter_data->self_msg_iter,
-                                      "Failed to get next message from CTF message iterator.");
-        status = BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_ERROR;
-        break;
-
-    case CTF_MSG_ITER_STATUS_MEMORY_ERROR:
-        BT_MSG_ITER_LOGE_APPEND_CAUSE(msg_iter_data->self_msg_iter,
-                                      "Failed to get next message from CTF message iterator.");
-        status = BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_MEMORY_ERROR;
-        break;
-
-    default:
-        bt_common_abort();
-    }
-
-    return status;
-}
-
 BT_HIDDEN
 bt_message_iterator_class_next_method_status
 ctf_fs_iterator_next(bt_self_message_iterator *iterator, bt_message_array_const msgs,
@@ -95,32 +64,40 @@ ctf_fs_iterator_next(bt_self_message_iterator *iterator, bt_message_array_const 
 {
     struct ctf_fs_msg_iter_data *msg_iter_data =
         (struct ctf_fs_msg_iter_data *) bt_self_message_iterator_get_data(iterator);
-    const ctf::LogCfg& logCfg = msg_iter_data->logCfg;
+    uint64_t i = 0;
 
-    try {
-        uint64_t i = 0;
-
-        if (G_UNLIKELY(msg_iter_data->next_saved_error)) {
-            /*
+    if (G_UNLIKELY(msg_iter_data->next_saved_error)) {
+        /*
          * Last time we were called, we hit an error but had some
          * messages to deliver, so we stashed the error here.  Return
          * it now.
          */
-            BT_CURRENT_THREAD_MOVE_ERROR_AND_RESET(msg_iter_data->next_saved_error);
-            return msg_iter_data->next_saved_status;
+        BT_CURRENT_THREAD_MOVE_ERROR_AND_RESET(msg_iter_data->next_saved_error);
+        return msg_iter_data->next_saved_status;
+    }
+
+    bt_message_iterator_class_next_method_status status =
+        BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_OK;
+
+    do {
+        try {
+            bt2::ConstMessage::Shared msg = msg_iter_data->msgIter->next();
+            msgs[i] = msg.release().libObjPtr();
+            ++i;
+        } catch (const bt2::Error& error) {
+            status = BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_ERROR;
+            break;
+        } catch (const std::bad_alloc&) {
+            status = BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_END;
+            break;
+        } catch (const MsgIterEnded&) {
+            status = BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_END;
+            break;
         }
+    } while (i < capacity && status == BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_OK);
 
-        bt_message_iterator_class_next_method_status status;
-
-        do {
-            status = ctf_fs_iterator_next_one(msg_iter_data, &msgs[i]);
-            if (status == BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_OK) {
-                i++;
-            }
-        } while (i < capacity && status == BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_OK);
-
-        if (i > 0) {
-            /*
+    if (i > 0) {
+        /*
              * Even if ctf_fs_iterator_next_one() returned something
              * else than BT_MESSAGE_ITERATOR_NEXT_METHOD_STATUS_OK, we
              * accumulated message objects in the output
@@ -131,45 +108,50 @@ ctf_fs_iterator_next(bt_self_message_iterator *iterator, bt_message_array_const 
              * called, possibly without any accumulated
              * message, in which case we'll return it.
              */
-            if (status < 0) {
-                /*
+        if (status < 0) {
+            /*
                  * Save this error for the next _next call.  Assume that
                  * this component always appends error causes when
                  * returning an error status code, which will cause the
                  * current thread error to be non-NULL.
                  */
-                msg_iter_data->next_saved_error = bt_current_thread_take_error();
-                BT_ASSERT(msg_iter_data->next_saved_error);
-                msg_iter_data->next_saved_status = status;
-            }
-
-            *count = i;
-            status = BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_OK;
+            msg_iter_data->next_saved_error = bt_current_thread_take_error();
+            BT_ASSERT(msg_iter_data->next_saved_error);
+            msg_iter_data->next_saved_status = status;
         }
 
-        return status;
-    } catch (const std::bad_alloc&) {
-        return BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_MEMORY_ERROR;
-    } catch (const bt2_common::Error&) {
-        BT_COMP_LOGE_APPEND_CAUSE(msg_iter_data->logCfg.selfComp, "Failed to fetch next messages");
-        return BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_ERROR;
+        *count = i;
+        status = BT_MESSAGE_ITERATOR_CLASS_NEXT_METHOD_STATUS_OK;
     }
+
+    return status;
+}
+
+static void instantiateMsgIter(ctf_fs_msg_iter_data *msg_iter_data)
+{
+    const LogCfg& logCfg = msg_iter_data->logCfg;
+    ctf_fs_ds_file_group *ds_file_group = msg_iter_data->port_data->ds_file_group;
+
+    ctf::src::Medium::UP medium =
+        bt2_common::makeUnique<ctf::src::fs::CtfFsMedium>(ds_file_group->index, logCfg);
+    msg_iter_data->msgIter.emplace(msg_iter_data->self_msg_iter,
+                                   *ds_file_group->ctf_fs_trace->irGenerator.ctfTraceCls(),
+                                   **ds_file_group->stream, std::move(medium),
+                                   msg_iter_data->port_data->ctf_fs->quirks, logCfg);
 }
 
 BT_HIDDEN
 bt_message_iterator_class_seek_beginning_method_status
-ctf_fs_iterator_seek_beginning(bt_self_message_iterator *it)
+ctf_fs_iterator_seek_beginning(bt_self_message_iterator *self_msg_iter)
 {
-    struct ctf_fs_msg_iter_data *msg_iter_data =
-        (struct ctf_fs_msg_iter_data *) bt_self_message_iterator_get_data(it);
-
+    ctf_fs_msg_iter_data *msg_iter_data =
+        (ctf_fs_msg_iter_data *) bt_self_message_iterator_get_data(self_msg_iter);
     BT_ASSERT(msg_iter_data);
 
     const ctf::LogCfg& logCfg = msg_iter_data->logCfg;
 
     try {
-        ctf_msg_iter_reset(msg_iter_data->msg_iter.get());
-        ctf_fs_ds_group_medops_data_reset(msg_iter_data->msg_iter_medops_data.get());
+        instantiateMsgIter(msg_iter_data);
 
         return BT_MESSAGE_ITERATOR_CLASS_SEEK_BEGINNING_METHOD_STATUS_OK;
     } catch (const std::bad_alloc&) {
@@ -183,25 +165,7 @@ ctf_fs_iterator_seek_beginning(bt_self_message_iterator *it)
 BT_HIDDEN
 void ctf_fs_iterator_finalize(bt_self_message_iterator *it)
 {
-    ctf_fs_msg_iter_data::UP {
-        ((struct ctf_fs_msg_iter_data *) bt_self_message_iterator_get_data(it))};
-}
-
-static bt_message_iterator_class_initialize_method_status
-ctf_msg_iter_medium_status_to_msg_iter_initialize_status(enum ctf_msg_iter_medium_status status)
-{
-    switch (status) {
-    case CTF_MSG_ITER_MEDIUM_STATUS_EOF:
-    case CTF_MSG_ITER_MEDIUM_STATUS_AGAIN:
-    case CTF_MSG_ITER_MEDIUM_STATUS_ERROR:
-        return BT_MESSAGE_ITERATOR_CLASS_INITIALIZE_METHOD_STATUS_ERROR;
-    case CTF_MSG_ITER_MEDIUM_STATUS_MEMORY_ERROR:
-        return BT_MESSAGE_ITERATOR_CLASS_INITIALIZE_METHOD_STATUS_MEMORY_ERROR;
-    case CTF_MSG_ITER_MEDIUM_STATUS_OK:
-        return BT_MESSAGE_ITERATOR_CLASS_INITIALIZE_METHOD_STATUS_OK;
-    }
-
-    bt_common_abort();
+    ctf_fs_msg_iter_data::UP {(ctf_fs_msg_iter_data *) bt_self_message_iterator_get_data(it)};
 }
 
 BT_HIDDEN
@@ -219,42 +183,19 @@ ctf_fs_iterator_init(bt_self_message_iterator *self_msg_iter,
     const ctf::LogCfg& logCfg = port_data->ctf_fs->logCfg;
 
     try {
-        enum ctf_msg_iter_medium_status medium_status;
-
         ctf_fs_msg_iter_data::UP msg_iter_data =
             bt2_common::makeUnique<ctf_fs_msg_iter_data>(logCfg);
 
         msg_iter_data->self_msg_iter = self_msg_iter;
-        msg_iter_data->ds_file_group = port_data->ds_file_group;
+        msg_iter_data->port_data = port_data;
 
-        medium_status =
-            ctf_fs_ds_group_medops_data_create(msg_iter_data->ds_file_group, self_msg_iter, logCfg,
-                                               msg_iter_data->msg_iter_medops_data);
-        BT_ASSERT(medium_status == CTF_MSG_ITER_MEDIUM_STATUS_OK ||
-                  medium_status == CTF_MSG_ITER_MEDIUM_STATUS_ERROR ||
-                  medium_status == CTF_MSG_ITER_MEDIUM_STATUS_MEMORY_ERROR);
-        if (medium_status != CTF_MSG_ITER_MEDIUM_STATUS_OK) {
-            BT_MSG_ITER_LOGE_APPEND_CAUSE(self_msg_iter, "Failed to create ctf_fs_ds_group_medops");
-            return ctf_msg_iter_medium_status_to_msg_iter_initialize_status(medium_status);
-        }
-
-        ctf::src::TraceCls *ctfTraceCls =
-            msg_iter_data->ds_file_group->ctf_fs_trace->irGenerator.ctfTraceCls();
-        BT_ASSERT(ctfTraceCls);
-
-        msg_iter_data->msg_iter = ctf_msg_iter_create(
-            ctfTraceCls, bt_common_get_page_size(logCfg.logLevel) * 8, ctf_fs_ds_group_medops,
-            msg_iter_data->msg_iter_medops_data.get(), self_msg_iter, logCfg);
-        if (!msg_iter_data->msg_iter) {
-            BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp, "Cannot create a CTF message iterator.");
-            return BT_MESSAGE_ITERATOR_CLASS_INITIALIZE_METHOD_STATUS_MEMORY_ERROR;
-        }
+        instantiateMsgIter(msg_iter_data.get());
 
         /*
          * This iterator can seek forward if its stream class has a default
          * clock class.
          */
-        if (msg_iter_data->ds_file_group->sc->default_clock_class) {
+        if (msg_iter_data->port_data->ds_file_group->dataStreamCls.defClkCls()) {
             bt_self_message_iterator_configuration_set_can_seek_forward(config, true);
         }
 
@@ -277,7 +218,7 @@ void ctf_fs_finalize(bt_self_component_source *component)
 
 std::string ctf_fs_make_port_name(struct ctf_fs_ds_file_group *ds_file_group)
 {
-    std::stringstream name;
+    std::stringstream ss;
 
     /*
      * The unique port name is generated by concatenating unique identifiers
@@ -289,33 +230,32 @@ std::string ctf_fs_make_port_name(struct ctf_fs_ds_file_group *ds_file_group)
      */
 
     /* For the trace, use the uuid if present, else the path. */
-    if (ds_file_group->ctf_fs_trace->metadata->tc->is_uuid_set) {
-        char uuid_str[BT_UUID_STR_LEN + 1];
-
-        bt_uuid_to_str(ds_file_group->ctf_fs_trace->metadata->tc->uuid, uuid_str);
-        name << uuid_str;
+    nonstd::optional<bt2_common::Uuid> uuid =
+        ds_file_group->ctf_fs_trace->irGenerator.ctfTraceCls()->uuid();
+    if (uuid) {
+        ss << uuid->str();
     } else {
-        name << ds_file_group->ctf_fs_trace->path;
+        ss << ds_file_group->ctf_fs_trace->path;
     }
 
     /*
      * For the stream class, use the id if present.  We can omit this field
      * otherwise, as there will only be a single stream class.
      */
-    if (ds_file_group->sc->id != UINT64_C(-1)) {
-        name << " | " << ds_file_group->sc->id;
+    if (ds_file_group->dataStreamCls.id() != UINT64_C(-1)) {
+        ss << " | " << ds_file_group->dataStreamCls.id();
     }
 
     /* For the stream, use the id if present, else, use the path. */
     if (ds_file_group->stream_id != UINT64_C(-1)) {
-        name << " | " << ds_file_group->stream_id;
+        ss << " | " << ds_file_group->stream_id;
     } else {
         BT_ASSERT(ds_file_group->ds_file_infos.size() == 1);
-        const ctf_fs_ds_file_info& ds_file_info = *ds_file_group->ds_file_infos[0];
-        name << " | " << ds_file_info.path;
+        ctf_fs_ds_file_info *ds_file_info = ds_file_group->ds_file_infos[0].get();
+        ss << " | " << ds_file_info->path;
     }
 
-    return name.str();
+    return ss.str();
 }
 
 static int create_one_port_for_trace(struct ctf_fs_component *ctf_fs,
@@ -324,8 +264,8 @@ static int create_one_port_for_trace(struct ctf_fs_component *ctf_fs,
                                      bt_self_component_source *self_comp_src)
 {
     const ctf::LogCfg& logCfg = ctf_fs->logCfg;
-
     std::string port_name = ctf_fs_make_port_name(ds_file_group);
+
     BT_COMP_LOGI("Creating one port named `%s`", port_name.c_str());
 
     /* Create output port for this file */
@@ -373,9 +313,9 @@ static void ds_file_group_insert_ds_file_info_sorted(struct ctf_fs_ds_file_group
     auto it = ds_file_group->ds_file_infos.begin();
 
     for (; it != ds_file_group->ds_file_infos.end(); ++it) {
-        const ctf_fs_ds_file_info& other_ds_file_info = **it;
+        ctf_fs_ds_file_info *other_ds_file_info = it->get();
 
-        if (ds_file_info->begin_ns < other_ds_file_info.begin_ns) {
+        if (ds_file_info->beginNs < other_ds_file_info->beginNs) {
             break;
         }
     }
@@ -383,8 +323,8 @@ static void ds_file_group_insert_ds_file_info_sorted(struct ctf_fs_ds_file_group
     ds_file_group->ds_file_infos.insert(it, std::move(ds_file_info));
 }
 
-static bool ds_index_entries_equal(const struct ctf_fs_ds_index_entry& left,
-                                   const struct ctf_fs_ds_index_entry& right)
+static bool ds_index_entries_equal(const ctf_fs_ds_index_entry& left,
+                                   const ctf_fs_ds_index_entry& right)
 {
     if (left.packetSize != right.packetSize) {
         return false;
@@ -414,12 +354,12 @@ static bool ds_index_entries_equal(const struct ctf_fs_ds_index_entry& left,
  * the entry is not inserted, it is freed.
  */
 
-static void ds_index_insert_ds_index_entry_sorted(struct ctf_fs_ds_index *index,
+static void ds_index_insert_ds_index_entry_sorted(ctf_fs_ds_index& index,
                                                   const ctf_fs_ds_index_entry& entry)
 {
     /* Find the spot where to insert this index entry. */
-    auto otherEntry = index->entries.begin();
-    for (; otherEntry != index->entries.end(); ++otherEntry) {
+    ctf_fs_ds_index::EntriesT::const_iterator otherEntry = index.entries.begin();
+    for (; otherEntry != index.entries.end(); ++otherEntry) {
         if (entry.timestamp_begin_ns <= otherEntry->timestamp_begin_ns) {
             break;
         }
@@ -432,69 +372,51 @@ static void ds_index_insert_ds_index_entry_sorted(struct ctf_fs_ds_index *index,
      * snapshots of the same trace.  We then want the index to contain
      * a reference to only one copy of that packet.
      */
-    if (otherEntry == index->entries.end() || !ds_index_entries_equal(entry, *otherEntry)) {
-        index->entries.insert(otherEntry, std::move(entry));
+    if (otherEntry == index.entries.end() || !ds_index_entries_equal(entry, *otherEntry)) {
+        index.entries.insert(otherEntry, entry);
     }
 }
 
-static void merge_ctf_fs_ds_indexes(struct ctf_fs_ds_index *dest, ctf_fs_ds_index::UP src)
+static void merge_ctf_fs_ds_indexes(ctf_fs_ds_index& dest, ctf_fs_ds_index src)
 {
-    for (const ctf_fs_ds_index_entry& entry : src->entries) {
-        ds_index_insert_ds_index_entry_sorted(dest, entry);
+    for (auto it = src.entries.begin(); it != src.entries.end(); ++it) {
+        /*
+		* Ownership of the ctf_fs_ds_index_entry is transferred to
+		* ds_index_insert_ds_index_entry_sorted.
+		*/
+        ds_index_insert_ds_index_entry_sorted(dest, std::move(*it));
     }
 }
 
 static int add_ds_file_to_ds_file_group(struct ctf_fs_trace *ctf_fs_trace, const char *path)
 {
-    int64_t stream_instance_id = -1;
     int64_t begin_ns = -1;
-    struct ctf_fs_ds_file_group *ds_file_group = NULL;
-    ctf_fs_ds_file_group::UP new_ds_file_group;
-    ctf_fs_ds_file_info::UP ds_file_info;
-    ctf_fs_ds_index::UP index;
-    ctf_msg_iter_up msg_iter;
-    struct ctf_stream_class *sc = NULL;
-    struct ctf_msg_iter_packet_properties props;
-    const ctf::LogCfg& logCfg = ctf_fs_trace->logCfg;
+    ctf_fs_ds_file_group *ds_file_group = nullptr;
+    ;
+    int ret;
 
-    /*
-     * Create a temporary ds_file to read some properties about the data
-     * stream file.
-     */
-    ctf_fs_ds_file::UP ds_file = ctf_fs_ds_file_create(ctf_fs_trace, nonstd::nullopt, path, logCfg);
-    if (!ds_file) {
-        return -1;
-    }
+    const TraceCls& traceCls = *ctf_fs_trace->irGenerator.ctfTraceCls();
 
-    /* Create a temporary iterator to read the ds_file. */
-    msg_iter = ctf_msg_iter_create(ctf_fs_trace->metadata->tc,
-                                   bt_common_get_page_size(logCfg.logLevel) * 8,
-                                   ctf_fs_ds_file_medops, ds_file.get(), nullptr, logCfg);
-    if (!msg_iter) {
-        BT_COMP_LOGE_STR("Cannot create a CTF message iterator.");
-        return -1;
-    }
+    const LogCfg& logCfg = ctf_fs_trace->logCfg;
 
-    ctf_msg_iter_set_dry_run(msg_iter.get(), true);
+    ctf_fs_ds_file_info::UP ds_file_info =
+        bt2_common::makeUnique<ctf_fs_ds_file_info>(path, logCfg);
 
-    int ret = ctf_msg_iter_get_packet_properties(msg_iter.get(), &props);
-    if (ret) {
-        BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(
-            logCfg.selfComp, logCfg.selfCompClass,
-            "Cannot get stream file's first packet's header and context fields (`%s`).", path);
-        return ret;
-    }
+    ctf_fs_ds_index tempIndex;
+    ctf_fs_ds_index_entry tempIndexEntry {path, 0_bytes, ds_file_info->size};
+    tempIndex.entries.emplace_back(tempIndexEntry);
+    Medium::UP medium = bt2_common::makeUnique<fs::CtfFsMedium>(tempIndex, logCfg);
+    PktProps props = readPktProps(traceCls, std::move(medium), 0_bytes);
 
-    sc = ctf_trace_class_borrow_stream_class_by_id(ds_file->metadata->tc, props.stream_class_id);
+    const ctf::src::DataStreamCls *sc = props.dataStreamCls;
     BT_ASSERT(sc);
-    stream_instance_id = props.data_stream_id;
+    nonstd::optional<unsigned long long> stream_instance_id = props.dataStreamId;
 
-    if (props.snapshots.beginning_clock != UINT64_C(-1)) {
-        BT_ASSERT(sc->default_clock_class);
+    if (props.snapshots.beginDefClk) {
+        BT_ASSERT(sc->defClkCls());
         ret = bt_util_clock_cycles_to_ns_from_origin(
-            props.snapshots.beginning_clock, sc->default_clock_class->frequency,
-            sc->default_clock_class->offset_seconds, sc->default_clock_class->offset_cycles,
-            &begin_ns);
+            *props.snapshots.beginDefClk, sc->defClkCls()->freq(),
+            sc->defClkCls()->offset().seconds(), sc->defClkCls()->offset().cycles(), &begin_ns);
         if (ret) {
             BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(
                 logCfg.selfComp, logCfg.selfCompClass,
@@ -503,16 +425,11 @@ static int add_ds_file_to_ds_file_group(struct ctf_fs_trace *ctf_fs_trace, const
         }
     }
 
-    ds_file_info = ctf_fs_ds_file_info_create(path, begin_ns);
-    if (!ds_file_info) {
-        return -1;
-    }
-
-    index = ctf_fs_ds_file_build_index(ds_file.get(), ds_file_info.get(), msg_iter.get());
+    nonstd::optional<ctf_fs_ds_index> index =
+        ctf_fs_ds_file_build_index(*ds_file_info, traceCls, logCfg);
     if (!index) {
         BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(logCfg.selfComp, logCfg.selfCompClass,
-                                                "Failed to index CTF stream file \'%s\'",
-                                                ds_file->file->path.c_str());
+                                                "Failed to index CTF stream file \'%s\'", path);
         return -1;
     }
 
@@ -522,10 +439,10 @@ static int add_ds_file_to_ds_file_group(struct ctf_fs_trace *ctf_fs_trace, const
          * within a stream file group, so consider that this
          * file must be the only one within its group.
          */
-        stream_instance_id = -1;
+        stream_instance_id.reset();
     }
 
-    if (stream_instance_id == -1) {
+    if (!stream_instance_id) {
         /*
          * No stream instance ID or no beginning timestamp:
          * create a unique stream file group for this stream
@@ -533,46 +450,42 @@ static int add_ds_file_to_ds_file_group(struct ctf_fs_trace *ctf_fs_trace, const
          * there's no timestamp to order the file within its
          * group.
          */
-        new_ds_file_group =
-            ctf_fs_ds_file_group_create(ctf_fs_trace, sc, UINT64_C(-1), std::move(index));
-
-        if (!new_ds_file_group) {
-            return -1;
-        }
+        ctf_fs_ds_file_group::UP new_ds_file_group = bt2_common::makeUnique<ctf_fs_ds_file_group>(
+            *sc, UINT64_C(-1), ctf_fs_trace, std::move(*index));
 
         ds_file_group_insert_ds_file_info_sorted(new_ds_file_group.get(), std::move(ds_file_info));
         ctf_fs_trace->ds_file_groups.emplace_back(std::move(new_ds_file_group));
         return 0;
     }
 
-    BT_ASSERT(stream_instance_id != -1);
+    BT_ASSERT(stream_instance_id);
     BT_ASSERT(begin_ns != -1);
 
     /* Find an existing stream file group with this ID */
-    for (ctf_fs_ds_file_group::UP& candidate : ctf_fs_trace->ds_file_groups) {
-        if (candidate->sc == sc && candidate->stream_id == stream_instance_id) {
-            ds_file_group = candidate.get();
+    for (ctf_fs_ds_file_group::UP& group : ctf_fs_trace->ds_file_groups) {
+        if (&group->dataStreamCls == sc && group->stream_id == stream_instance_id) {
+            ds_file_group = group.get();
             break;
         }
     }
 
     if (!ds_file_group) {
-        new_ds_file_group =
-            ctf_fs_ds_file_group_create(ctf_fs_trace, sc, stream_instance_id, std::move(index));
-        if (!new_ds_file_group) {
-            return -1;
-        }
+        ctf_fs_ds_file_group::UP new_ds_file_group = bt2_common::makeUnique<ctf_fs_ds_file_group>(
+            *sc, *stream_instance_id, ctf_fs_trace, std::move(*index));
 
         ds_file_group = new_ds_file_group.get();
         ctf_fs_trace->ds_file_groups.emplace_back(std::move(new_ds_file_group));
+
     } else {
-        merge_ctf_fs_ds_indexes(ds_file_group->index.get(), std::move(index));
+        merge_ctf_fs_ds_indexes(ds_file_group->index, std::move(*index));
     }
 
     ds_file_group_insert_ds_file_info_sorted(ds_file_group, std::move(ds_file_info));
 
     return 0;
 }
+
+#define CTF_FS_METADATA_FILENAME "metadata"
 
 static int create_ds_file_groups(struct ctf_fs_trace *ctf_fs_trace)
 {
@@ -618,9 +531,8 @@ static int create_ds_file_groups(struct ctf_fs_trace *ctf_fs_trace)
 
         /* Create full path string. */
         file->path = ctf_fs_trace->path;
-        file->path += G_DIR_SEPARATOR;
+        file->path += G_DIR_SEPARATOR_S;
         file->path += basename;
-
         if (!g_file_test(file->path.c_str(), G_FILE_TEST_IS_REGULAR)) {
             BT_COMP_LOGI("Ignoring non-regular file `%s`", file->path.c_str());
             continue;
@@ -652,7 +564,7 @@ static int create_ds_file_groups(struct ctf_fs_trace *ctf_fs_trace)
     return 0;
 }
 
-static int set_trace_name(bt_trace *trace, const char *name_suffix, const ctf::LogCfg& logCfg)
+static int set_trace_name(bt2::Trace trace, const char *name_suffix, const ctf::LogCfg& logCfg)
 {
     const bt_value *val;
     std::string name;
@@ -661,7 +573,7 @@ static int set_trace_name(bt_trace *trace, const char *name_suffix, const ctf::L
      * Check if we have a trace environment string value named `hostname`.
      * If so, use it as the trace name's prefix.
      */
-    val = bt_trace_borrow_environment_entry_value_by_name_const(trace, "hostname");
+    val = bt_trace_borrow_environment_entry_value_by_name_const(trace.libObjPtr(), "hostname");
     if (val && bt_value_is_string(val)) {
         name += bt_value_string_get(val);
 
@@ -674,44 +586,45 @@ static int set_trace_name(bt_trace *trace, const char *name_suffix, const ctf::L
         name += name_suffix;
     }
 
-    return bt_trace_set_name(trace, name.c_str());
+    return bt_trace_set_name(trace.libObjPtr(), name.c_str());
 }
 
 static ctf_fs_trace::UP ctf_fs_trace_create(const char *path, const char *name,
-                                            ctf::src::ClkClsCfg clkClsCfg,
-                                            bt_self_component *selfComp, const ctf::LogCfg& logCfg)
+                                            const ClkClsCfg clkClsCfg, bt_self_component *selfComp,
+                                            const ctf::LogCfg& logCfg)
 {
-    ctf_fs_trace::UP ctf_fs_trace = bt2_common::makeUnique<struct ctf_fs_trace>(logCfg);
+    ctf_fs_trace::UP ctf_fs_trace = bt2_common::makeUnique<struct ctf_fs_trace>(logCfg, clkClsCfg);
     ctf_fs_trace->path = path;
-    ctf_fs_trace->metadata = bt2_common::makeUnique<ctf_fs_metadata>();
 
-    int ret = ctf_fs_metadata_set_trace_class(ctf_fs_trace.get(), clkClsCfg, selfComp, logCfg);
-    if (ret) {
-        return nullptr;
-    }
+    std::string metadataPath = ctf_fs_trace->path;
+    metadataPath += G_DIR_SEPARATOR;
+    metadataPath += CTF_FS_METADATA_FILENAME;
 
-    if (ctf_fs_trace->metadata->trace_class) {
-        bt_trace *trace = bt_trace_create((*ctf_fs_trace->metadata->trace_class)->libObjPtr());
-        if (!trace) {
-            return nullptr;
-        }
-        ctf_fs_trace->trace = bt2::Trace::Shared::createWithoutRef(trace);
+    std::vector<uint8_t> contents = bt2_common::dataFromFile(metadataPath.c_str());
+    ctf_fs_trace->irGenerator.appendContent(contents.data(),
+                                            bt2_common::DataLen::fromBytes(contents.size()));
+
+    BT_ASSERT(ctf_fs_trace->irGenerator.ctfTraceCls());
+
+    if (ctf_fs_trace->irGenerator.irTraceCls()) {
+        bt2::TraceClass traceCls = *ctf_fs_trace->irGenerator.irTraceCls();
+        ctf_fs_trace->trace = traceCls.instantiate();
     }
 
     if (ctf_fs_trace->trace) {
-        ret = ctf_trace_class_configure_ir_trace(ctf_fs_trace->metadata->tc,
-                                                 (*ctf_fs_trace->trace)->libObjPtr());
+        int ret = ctf_trace_class_configure_ir_trace(*ctf_fs_trace->irGenerator.ctfTraceCls(),
+                                                     **ctf_fs_trace->trace);
         if (ret) {
             return nullptr;
         }
 
-        ret = set_trace_name((*ctf_fs_trace->trace)->libObjPtr(), name, logCfg);
+        ret = set_trace_name(**ctf_fs_trace->trace, name, logCfg);
         if (ret) {
             return nullptr;
         }
     }
 
-    ret = create_ds_file_groups(ctf_fs_trace.get());
+    int ret = create_ds_file_groups(ctf_fs_trace.get());
     if (ret) {
         return nullptr;
     }
@@ -736,23 +649,21 @@ static int ctf_fs_component_create_ctf_fs_trace_one_path(struct ctf_fs_component
                                                          std::vector<ctf_fs_trace::UP>& traces,
                                                          bt_self_component *selfComp)
 {
-    ctf_fs_trace::UP ctf_fs_trace;
-    int ret;
     const ctf::LogCfg& logCfg = ctf_fs->logCfg;
 
-    bt2_common::GStringUP norm_path {bt_common_normalize_path(path_param, NULL)};
+    bt2_common::GStringUP norm_path(bt_common_normalize_path(path_param, NULL));
     if (!norm_path) {
         BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(logCfg.selfComp, logCfg.selfCompClass,
                                                 "Failed to normalize path: `%s`.", path_param);
         return -1;
     }
 
-    ret = path_is_ctf_trace(norm_path->str);
+    int ret = path_is_ctf_trace(norm_path->str);
     if (ret < 0) {
         BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(logCfg.selfComp, logCfg.selfCompClass,
                                                 "Failed to check if path is a CTF trace: path=%s",
                                                 norm_path->str);
-        return ret;
+        return -1;
     } else if (ret == 0) {
         BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(
             logCfg.selfComp, logCfg.selfCompClass,
@@ -767,7 +678,7 @@ static int ctf_fs_component_create_ctf_fs_trace_one_path(struct ctf_fs_component
         return -1;
     }
 
-    ctf_fs_trace =
+    ctf_fs_trace::UP ctf_fs_trace =
         ctf_fs_trace_create(norm_path->str, trace_name, ctf_fs->clkClsCfg, selfComp, logCfg);
     if (!ctf_fs_trace) {
         BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(logCfg.selfComp, logCfg.selfCompClass,
@@ -776,7 +687,6 @@ static int ctf_fs_component_create_ctf_fs_trace_one_path(struct ctf_fs_component
     }
 
     traces.emplace_back(std::move(ctf_fs_trace));
-
     return 0;
 }
 
@@ -791,13 +701,12 @@ static int ctf_fs_component_create_ctf_fs_trace_one_path(struct ctf_fs_component
 
 static unsigned int metadata_count_stream_and_event_classes(struct ctf_fs_trace *trace)
 {
-    unsigned int num = trace->metadata->tc->stream_classes->len;
-    guint i;
+    const TraceCls::DataStreamClsSet& dataStreamClasses =
+        trace->irGenerator.ctfTraceCls()->dataStreamClasses();
+    unsigned int num = dataStreamClasses.size();
 
-    for (i = 0; i < trace->metadata->tc->stream_classes->len; i++) {
-        struct ctf_stream_class *sc =
-            (struct ctf_stream_class *) trace->metadata->tc->stream_classes->pdata[i];
-        num += sc->event_classes->len;
+    for (const DataStreamCls::UP& dsc : dataStreamClasses) {
+        num += dsc->eventRecordClasses().size();
     }
 
     return num;
@@ -812,11 +721,12 @@ static void merge_ctf_fs_ds_file_groups(struct ctf_fs_ds_file_group *dest,
                                         ctf_fs_ds_file_group::UP src)
 {
     for (ctf_fs_ds_file_info::UP& ds_file_info : src->ds_file_infos) {
+        /* Ownership of the ds_file_info is transferred to dest. */
         ds_file_group_insert_ds_file_info_sorted(dest, std::move(ds_file_info));
     }
 
     /* Merge both indexes. */
-    merge_ctf_fs_ds_indexes(dest->index.get(), std::move(src->index));
+    merge_ctf_fs_ds_indexes(dest->index, std::move(src->index));
 }
 
 /* Merge src_trace's data stream file groups into dest_trace's. */
@@ -834,7 +744,7 @@ static int merge_matching_ctf_fs_ds_file_groups(struct ctf_fs_trace *dest_trace,
     size_t dest_len = dest.size();
 
     for (ctf_fs_ds_file_group::UP& src_group : src) {
-        struct ctf_fs_ds_file_group *dest_group = NULL;
+        ctf_fs_ds_file_group *dest_group = nullptr;
 
         /* A stream instance without ID can't match a stream in the other trace.  */
         if (src_group->stream_id != -1) {
@@ -854,7 +764,7 @@ static int merge_matching_ctf_fs_ds_file_groups(struct ctf_fs_trace *dest_trace,
                  * stream instance.
                  */
                 if (candidate_dest->stream_id != src_group->stream_id ||
-                    candidate_dest->sc->id != src_group->sc->id) {
+                    candidate_dest->dataStreamCls.id() != src_group->dataStreamCls.id()) {
                     continue;
                 }
 
@@ -870,17 +780,13 @@ static int merge_matching_ctf_fs_ds_file_groups(struct ctf_fs_trace *dest_trace,
          * trace chunk.
          */
         if (!dest_group) {
-            struct ctf_stream_class *sc;
-
-            sc = ctf_trace_class_borrow_stream_class_by_id(dest_trace->metadata->tc,
-                                                           src_group->sc->id);
+            const DataStreamCls *sc =
+                (*dest_trace->irGenerator.ctfTraceCls())[src_group->dataStreamCls.id()];
             BT_ASSERT(sc);
 
-            ctf_fs_ds_index::UP index = bt2_common::makeUnique<ctf_fs_ds_index>();
-            ctf_fs_ds_file_group::UP new_dest_group =
-                ctf_fs_ds_file_group_create(dest_trace, sc, src_group->stream_id, std::move(index));
-            /* Ownership of index is transferred. */
-            index = NULL;
+            ctf_fs_ds_index index;
+            ctf_fs_ds_file_group::UP new_dest_group = bt2_common::makeUnique<ctf_fs_ds_file_group>(
+                *sc, src_group->stream_id, dest_trace, std::move(index));
             if (!new_dest_group) {
                 return -1;
             }
@@ -920,12 +826,12 @@ static int merge_ctf_fs_traces(std::vector<ctf_fs_trace::UP> traces, ctf_fs_trac
     /* Find the trace with the largest metadata. */
     for (i = 1; i < traces.size(); i++) {
         ctf_fs_trace *candidate = traces[i].get();
-        unsigned int candidate_count;
 
         /* A bit of sanity check. */
-        BT_ASSERT(bt_uuid_compare(winner->metadata->tc->uuid, candidate->metadata->tc->uuid) == 0);
+        BT_ASSERT(winner->irGenerator.ctfTraceCls()->uuid() ==
+                  candidate->irGenerator.ctfTraceCls()->uuid());
 
-        candidate_count = metadata_count_stream_and_event_classes(candidate);
+        unsigned int candidate_count = metadata_count_stream_and_event_classes(candidate);
 
         if (candidate_count > winner_count) {
             winner_count = candidate_count;
@@ -949,7 +855,7 @@ static int merge_ctf_fs_traces(std::vector<ctf_fs_trace::UP> traces, ctf_fs_trac
     }
 
     /*
-     * Move the winner out of the array, into `*out_trace`.
+     * Move the winner out of the array, into `out_trace`.
      */
     out_trace = std::move(traces[winner_i]);
 
@@ -962,97 +868,135 @@ enum target_event
     LAST_EVENT,
 };
 
+struct ClockSnapshotAfterEventItemVisitor : public ItemVisitor
+{
+    bool done() const
+    {
+        return _mDone;
+    }
+
+    nonstd::optional<unsigned long long> result() const
+    {
+        return _mResult;
+    }
+
+protected:
+    nonstd::optional<unsigned long long> _mResult;
+    bool _mDone = false;
+};
+
+struct ClockSnapshotAfterFirstEventItemVisitor : public ClockSnapshotAfterEventItemVisitor
+{
+    void visit(const EventRecordInfoItem& item) override
+    {
+        _mResult = item.defClkVal();
+        _mDone = true;
+    }
+};
+
+/*
+ * Find the timestamp of the last event of the packet, if any, otherwise
+ * find the timestamp of the beginning of the packet.
+ */
+struct ClockSnapshotAfterLastEventItemVisitor : public ClockSnapshotAfterEventItemVisitor
+{
+    void visit(const PktInfoItem& item) override
+    {
+        _mLastSeen = item.beginDefClkVal();
+    }
+
+    void visit(const EventRecordInfoItem& item) override
+    {
+        _mLastSeen = item.defClkVal();
+    }
+
+    void visit(const PktEndItem& item) override
+    {
+        _mResult = _mLastSeen;
+        _mDone = true;
+    }
+
+private:
+    nonstd::optional<unsigned long long> _mLastSeen;
+};
+
 static int decode_clock_snapshot_after_event(struct ctf_fs_trace *ctf_fs_trace,
-                                             struct ctf_clock_class *default_cc,
-                                             const ctf_fs_ds_index_entry& index_entry,
+                                             const ClkCls& defaultCC,
+                                             const ctf_fs_ds_index_entry& indexEntry,
                                              enum target_event target_event, uint64_t *cs,
                                              int64_t *ts_ns)
 {
-    enum ctf_msg_iter_status iter_status = CTF_MSG_ITER_STATUS_OK;
-    ctf_msg_iter_up msg_iter;
-    const ctf::LogCfg& logCfg = ctf_fs_trace->logCfg;
+    int ret = 0;
+    const LogCfg& logCfg = ctf_fs_trace->logCfg;
 
     BT_ASSERT(ctf_fs_trace);
-    BT_ASSERT(index_entry.path);
+    BT_ASSERT(ctf_fs_trace->irGenerator.ctfTraceCls());
+    BT_ASSERT(indexEntry.path);
 
-    ctf_fs_ds_file::UP ds_file =
-        ctf_fs_ds_file_create(ctf_fs_trace, nonstd::nullopt, index_entry.path, logCfg);
-    if (!ds_file) {
-        BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp, "Failed to create a ctf_fs_ds_file");
-        return -1;
-    }
+    ctf_fs_ds_index tempIndex;
+    tempIndex.entries.emplace_back(indexEntry);
+    Medium::UP medium = bt2_common::makeUnique<fs::CtfFsMedium>(tempIndex, logCfg);
+    ItemSeqIter itemSeqIter(std::move(medium), *ctf_fs_trace->irGenerator.ctfTraceCls(),
+                            indexEntry.offsetInFile);
 
-    BT_ASSERT(ctf_fs_trace->metadata);
-    BT_ASSERT(ctf_fs_trace->metadata->tc);
-
-    msg_iter = ctf_msg_iter_create(ctf_fs_trace->metadata->tc,
-                                   bt_common_get_page_size(logCfg.logLevel) * 8,
-
-                                   ctf_fs_ds_file_medops, ds_file.get(), NULL, logCfg);
-    if (!msg_iter) {
-        /* ctf_msg_iter_create() logs errors. */
-        return -1;
-    }
-
-    /*
-     * Turn on dry run mode to prevent the creation and usage of Babeltrace
-     * library objects (bt_field, bt_message_*, etc.).
-     */
-    ctf_msg_iter_set_dry_run(msg_iter.get(), true);
-
-    /* Seek to the beginning of the target packet. */
-    iter_status = ctf_msg_iter_seek(msg_iter.get(), index_entry.offset.bytes());
-    if (iter_status) {
-        /* ctf_msg_iter_seek() logs errors. */
-        return -1;
-    }
-
+    std::unique_ptr<ClockSnapshotAfterEventItemVisitor> visitor;
     switch (target_event) {
     case FIRST_EVENT:
-        /*
-         * Start to decode the packet until we reach the end of
-         * the first event. To extract the first event's clock
-         * snapshot.
-         */
-        iter_status = ctf_msg_iter_curr_packet_first_event_clock_snapshot(msg_iter.get(), cs);
+        visitor = bt2_common::makeUnique<ClockSnapshotAfterFirstEventItemVisitor>();
         break;
+
     case LAST_EVENT:
-        /* Decode the packet to extract the last event's clock snapshot. */
-        iter_status = ctf_msg_iter_curr_packet_last_event_clock_snapshot(msg_iter.get(), cs);
+        visitor = bt2_common::makeUnique<ClockSnapshotAfterLastEventItemVisitor>();
         break;
+
     default:
         bt_common_abort();
     }
-    if (iter_status) {
+
+    LoggingItemVisitor loggingVisitor(logCfg);
+
+    while (!visitor->done()) {
+        if (BT_LOG_ON_TRACE) {
+            itemSeqIter->accept(loggingVisitor);
+        }
+        itemSeqIter->accept(*visitor);
+        ++itemSeqIter;
+    }
+
+    if (!visitor->result()) {
+        BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp, "Failed to get %s event clock snapshot.",
+                                  target_event == FIRST_EVENT ? "first" : "last");
         return -1;
     }
 
+    *cs = *visitor->result();
+
     /* Convert clock snapshot to timestamp. */
-    int ret = bt_util_clock_cycles_to_ns_from_origin(
-        *cs, default_cc->frequency, default_cc->offset_seconds, default_cc->offset_cycles, ts_ns);
+    ret = bt_util_clock_cycles_to_ns_from_origin(
+        *cs, defaultCC.freq(), defaultCC.offset().seconds(), defaultCC.offset().cycles(), ts_ns);
     if (ret) {
         BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp, "Failed to convert clock snapshot to timestamp");
         return ret;
     }
 
-    return 0;
+    return ret;
 }
 
 static int decode_packet_first_event_timestamp(struct ctf_fs_trace *ctf_fs_trace,
-                                               struct ctf_clock_class *default_cc,
+                                               const ClkCls& defaultCC,
                                                const ctf_fs_ds_index_entry& index_entry,
                                                uint64_t *cs, int64_t *ts_ns)
 {
-    return decode_clock_snapshot_after_event(ctf_fs_trace, default_cc, index_entry, FIRST_EVENT, cs,
+    return decode_clock_snapshot_after_event(ctf_fs_trace, defaultCC, index_entry, FIRST_EVENT, cs,
                                              ts_ns);
 }
 
 static int decode_packet_last_event_timestamp(struct ctf_fs_trace *ctf_fs_trace,
-                                              struct ctf_clock_class *default_cc,
+                                              const ClkCls& defaultCC,
                                               const ctf_fs_ds_index_entry& index_entry,
                                               uint64_t *cs, int64_t *ts_ns)
 {
-    return decode_clock_snapshot_after_event(ctf_fs_trace, default_cc, index_entry, LAST_EVENT, cs,
+    return decode_clock_snapshot_after_event(ctf_fs_trace, defaultCC, index_entry, LAST_EVENT, cs,
                                              ts_ns);
 }
 
@@ -1079,22 +1023,18 @@ static int fix_index_lttng_event_after_packet_bug(struct ctf_fs_trace *trace)
     const ctf::LogCfg& logCfg = trace->logCfg;
 
     for (ctf_fs_ds_file_group::UP& ds_file_group : trace->ds_file_groups) {
-        struct ctf_clock_class *default_cc;
-        struct ctf_fs_ds_index *index;
-
         BT_ASSERT(ds_file_group);
-        index = ds_file_group->index.get();
+        ctf_fs_ds_index& index = ds_file_group->index;
 
-        BT_ASSERT(index);
-        BT_ASSERT(!index->entries.empty());
+        BT_ASSERT(!index.entries.empty());
 
         /*
          * Iterate over all entries but the last one. The last one is
          * fixed differently after.
          */
-        for (size_t entry_i = 0; entry_i < index->entries.size() - 1; ++entry_i) {
-            ctf_fs_ds_index_entry& curr_entry = index->entries[entry_i];
-            const ctf_fs_ds_index_entry& next_entry = index->entries[entry_i + 1];
+        for (size_t entry_i = 0; entry_i < index.entries.size() - 1; ++entry_i) {
+            ctf_fs_ds_index_entry& curr_entry = index.entries[entry_i];
+            ctf_fs_ds_index_entry& next_entry = index.entries[entry_i + 1];
 
             /*
              * 1. Set the current index entry `end` timestamp to
@@ -1108,17 +1048,17 @@ static int fix_index_lttng_event_after_packet_bug(struct ctf_fs_trace *trace)
          * 2. Fix the last entry by decoding the last event of the last
          * packet.
          */
-        ctf_fs_ds_index_entry& last_entry = index->entries.back();
+        ctf_fs_ds_index_entry& last_entry = index.entries.back();
 
-        BT_ASSERT(ds_file_group->sc->default_clock_class);
-        default_cc = ds_file_group->sc->default_clock_class;
+        BT_ASSERT(ds_file_group->dataStreamCls.defClkCls());
+        const ClkCls& defaultCC = *ds_file_group->dataStreamCls.defClkCls();
 
         /*
          * Decode packet to read the timestamp of the last event of the
          * entry.
          */
         int ret = decode_packet_last_event_timestamp(
-            trace, default_cc, last_entry, &last_entry.timestamp_end, &last_entry.timestamp_end_ns);
+            trace, defaultCC, last_entry, &last_entry.timestamp_end, &last_entry.timestamp_end_ns);
         if (ret) {
             BT_COMP_LOGE_APPEND_CAUSE(
                 logCfg.selfComp,
@@ -1149,27 +1089,26 @@ static int fix_index_barectf_event_before_packet_bug(struct ctf_fs_trace *trace)
     const ctf::LogCfg& logCfg = trace->logCfg;
 
     for (ctf_fs_ds_file_group::UP& ds_file_group : trace->ds_file_groups) {
-        struct ctf_clock_class *default_cc;
-        struct ctf_fs_ds_index *index = ds_file_group->index.get();
+        ctf_fs_ds_index& index = ds_file_group->index;
 
-        BT_ASSERT(index);
-        BT_ASSERT(!index->entries.empty());
+        BT_ASSERT(!index.entries.empty());
 
-        BT_ASSERT(ds_file_group->sc->default_clock_class);
-        default_cc = ds_file_group->sc->default_clock_class;
+        BT_ASSERT(ds_file_group->dataStreamCls.defClkCls());
+        const ClkCls& defaultCC = *ds_file_group->dataStreamCls.defClkCls();
 
         /*
          * 1. Iterate over the index, starting from the second entry
          * (index = 1).
          */
-        for (size_t entry_i = 1; entry_i < index->entries.size(); ++entry_i) {
-            ctf_fs_ds_index_entry& prev_entry = index->entries[entry_i - 1];
-            ctf_fs_ds_index_entry& curr_entry = index->entries[entry_i];
+        for (size_t entry_i = 1; entry_i < index.entries.size(); ++entry_i) {
+            ctf_fs_ds_index_entry& prev_entry = index.entries[entry_i - 1];
+            ctf_fs_ds_index_entry& curr_entry = index.entries[entry_i];
+
             /*
              * 2. Set the current entry `begin` timestamp to the
              * timestamp of the first event of the current packet.
              */
-            int ret = decode_packet_first_event_timestamp(trace, default_cc, curr_entry,
+            int ret = decode_packet_first_event_timestamp(trace, defaultCC, curr_entry,
                                                           &curr_entry.timestamp_begin,
                                                           &curr_entry.timestamp_begin_ns);
             if (ret) {
@@ -1212,19 +1151,15 @@ static int fix_index_lttng_crash_quirk(struct ctf_fs_trace *trace)
     const ctf::LogCfg& logCfg = trace->logCfg;
 
     for (ctf_fs_ds_file_group::UP& ds_file_group : trace->ds_file_groups) {
-        struct ctf_clock_class *default_cc;
-        struct ctf_fs_ds_index *index;
-
         BT_ASSERT(ds_file_group);
-        index = ds_file_group->index.get();
+        ctf_fs_ds_index& index = ds_file_group->index;
 
-        BT_ASSERT(ds_file_group->sc->default_clock_class);
-        default_cc = ds_file_group->sc->default_clock_class;
+        BT_ASSERT(ds_file_group->dataStreamCls.defClkCls());
+        const ClkCls& defaultCC = *ds_file_group->dataStreamCls.defClkCls();
 
-        BT_ASSERT(index);
-        BT_ASSERT(!index->entries.empty());
+        BT_ASSERT(!index.entries.empty());
 
-        ctf_fs_ds_index_entry& last_entry = index->entries.back();
+        ctf_fs_ds_index_entry& last_entry = index.entries.back();
 
         /* 1. Fix the last entry first. */
         if (last_entry.timestamp_end == 0 && last_entry.timestamp_begin != 0) {
@@ -1232,7 +1167,7 @@ static int fix_index_lttng_crash_quirk(struct ctf_fs_trace *trace)
              * Decode packet to read the timestamp of the
              * last event of the stream file.
              */
-            int ret = decode_packet_last_event_timestamp(trace, default_cc, last_entry,
+            int ret = decode_packet_last_event_timestamp(trace, defaultCC, last_entry,
                                                          &last_entry.timestamp_end,
                                                          &last_entry.timestamp_end_ns);
             if (ret) {
@@ -1243,9 +1178,9 @@ static int fix_index_lttng_crash_quirk(struct ctf_fs_trace *trace)
         }
 
         /* Iterate over all entries but the last one. */
-        for (size_t entry_idx = 0; entry_idx < index->entries.size() - 1; ++entry_idx) {
-            ctf_fs_ds_index_entry& curr_entry = index->entries[entry_idx];
-            const ctf_fs_ds_index_entry& next_entry = index->entries[entry_idx + 1];
+        for (size_t entry_idx = 0; entry_idx < index.entries.size() - 1; ++entry_idx) {
+            ctf_fs_ds_index_entry& curr_entry = index.entries[entry_idx];
+            ctf_fs_ds_index_entry& next_entry = index.entries[entry_idx + 1];
 
             if (curr_entry.timestamp_end == 0 && curr_entry.timestamp_begin != 0) {
                 /*
@@ -1268,56 +1203,59 @@ static int fix_index_lttng_crash_quirk(struct ctf_fs_trace *trace)
  */
 static int extract_tracer_info(struct ctf_fs_trace *trace, struct tracer_info *current_tracer_info)
 {
-    struct ctf_trace_class_env_entry *entry;
+    nonstd::optional<bt2::ConstMapValue> optEnv = trace->irGenerator.ctfTraceCls()->env();
+    if (!optEnv) {
+        return -1;
+    }
+
+    bt2::ConstMapValue env = *optEnv;
 
     /* Clear the current_tracer_info struct */
     memset(current_tracer_info, 0, sizeof(*current_tracer_info));
 
     /*
-     * To compare 2 tracer versions, at least the tracer name and it's
+     * To compare 2 tracer versions, at least the tracer name and its
      * major version are needed. If one of these is missing, consider it an
      * extraction failure.
      */
-    entry = ctf_trace_class_borrow_env_entry_by_name(trace->metadata->tc, "tracer_name");
-    if (!entry || entry->type != CTF_TRACE_CLASS_ENV_ENTRY_TYPE_STR) {
+    nonstd::optional<bt2::ConstValue> tracerName = env["tracer_name"];
+    if (!tracerName || !tracerName->isString()) {
         return -1;
     }
 
     /* Set tracer name. */
-    current_tracer_info->name = entry->value.str->str;
+    current_tracer_info->name = tracerName->asString().value().c_str();
 
-    entry = ctf_trace_class_borrow_env_entry_by_name(trace->metadata->tc, "tracer_major");
-    if (!entry || entry->type != CTF_TRACE_CLASS_ENV_ENTRY_TYPE_INT) {
+    nonstd::optional<bt2::ConstValue> tracerMajor = env["tracer_major"];
+    if (!tracerMajor || !tracerMajor->isSignedInteger()) {
         return -1;
     }
 
     /* Set major version number. */
-    current_tracer_info->major = entry->value.i;
+    current_tracer_info->major = tracerMajor->asSignedInteger().value();
 
-    entry = ctf_trace_class_borrow_env_entry_by_name(trace->metadata->tc, "tracer_minor");
-    if (!entry || entry->type != CTF_TRACE_CLASS_ENV_ENTRY_TYPE_INT) {
+    nonstd::optional<bt2::ConstValue> tracerMinor = env["tracer_minor"];
+    if (!tracerMinor || !tracerMinor->isSignedInteger()) {
         return 0;
     }
 
     /* Set minor version number. */
-    current_tracer_info->minor = entry->value.i;
+    current_tracer_info->minor = tracerMinor->asSignedInteger().value();
 
-    entry = ctf_trace_class_borrow_env_entry_by_name(trace->metadata->tc, "tracer_patch");
-    if (!entry) {
-        /*
-         * If `tracer_patch` doesn't exist `tracer_patchlevel` might.
-         * For example, `lttng-modules` uses entry name
-         * `tracer_patchlevel`.
-         */
-        entry = ctf_trace_class_borrow_env_entry_by_name(trace->metadata->tc, "tracer_patchlevel");
-    }
+    /*
+     * If `tracer_patch` doesn't exist `tracer_patchlevel` might.
+     * For example, `lttng-modules` uses entry name `tracer_patchlevel`.
+     */
+    nonstd::optional<bt2::ConstValue> tracerPatch = env["tracer_patch"];
+    if (!tracerPatch)
+        tracerPatch = env["tracer_patchlevel"];
 
-    if (!entry || entry->type != CTF_TRACE_CLASS_ENV_ENTRY_TYPE_INT) {
+    if (!tracerPatch || !tracerPatch->isSignedInteger()) {
         return 0;
     }
 
     /* Set patch version number. */
-    current_tracer_info->patch = entry->value.i;
+    current_tracer_info->patch = tracerPatch->asSignedInteger().value();
 
     return 0;
 }
@@ -1427,7 +1365,7 @@ static int fix_packet_index_tracer_bugs(struct ctf_fs_component *ctf_fs)
                                                     "Failed to fix LTTng event-after-packet bug.");
             return ret;
         }
-        ctf_fs->trace->metadata->tc->quirks.lttng_event_after_packet = true;
+        ctf_fs->quirks.lttngEventAfterPacket = true;
     }
 
     if (is_tracer_affected_by_barectf_event_before_packet_bug(&current_tracer_info)) {
@@ -1439,7 +1377,7 @@ static int fix_packet_index_tracer_bugs(struct ctf_fs_component *ctf_fs)
                 "Failed to fix barectf event-before-packet bug.");
             return ret;
         }
-        ctf_fs->trace->metadata->tc->quirks.barectf_event_before_packet = true;
+        ctf_fs->quirks.barectfEventBeforePacket = true;
     }
 
     if (is_tracer_affected_by_lttng_crash_quirk(&current_tracer_info)) {
@@ -1449,7 +1387,7 @@ static int fix_packet_index_tracer_bugs(struct ctf_fs_component *ctf_fs)
                                                     "Failed to fix lttng-crash timestamp quirks.");
             return ret;
         }
-        ctf_fs->trace->metadata->tc->quirks.lttng_crash = true;
+        ctf_fs->quirks.lttngCrash = true;
     }
 
     return 0;
@@ -1461,34 +1399,30 @@ static bool compare_ds_file_groups_by_first_path(const ctf_fs_ds_file_group::UP&
     BT_ASSERT(!ds_file_group_a->ds_file_infos.empty());
     BT_ASSERT(!ds_file_group_b->ds_file_infos.empty());
 
-    const ctf_fs_ds_file_info& first_ds_file_info_a = *ds_file_group_a->ds_file_infos[0];
-    const ctf_fs_ds_file_info& first_ds_file_info_b = *ds_file_group_b->ds_file_infos[0];
+    const ctf_fs_ds_file_info *first_ds_file_info_a = ds_file_group_a->ds_file_infos[0].get();
+    const ctf_fs_ds_file_info *first_ds_file_info_b = ds_file_group_b->ds_file_infos[0].get();
 
-    return first_ds_file_info_a.path < first_ds_file_info_b.path;
+    return first_ds_file_info_a->path < first_ds_file_info_b->path;
 }
 
 int ctf_fs_component_create_ctf_fs_trace(struct ctf_fs_component *ctf_fs,
-                                         const bt_value *paths_value,
-                                         const bt_value *trace_name_value,
+                                         bt2::ConstArrayValue pathsValue,
+                                         nonstd::optional<bt2::ConstStringValue> traceNameValue,
                                          bt_self_component *selfComp)
 {
     const ctf::LogCfg& logCfg = ctf_fs->logCfg;
-    std::vector<std::string> paths;
+    BT_ASSERT(!pathsValue.isEmpty());
+
     std::vector<ctf_fs_trace::UP> traces;
-    const char *trace_name;
-
-    BT_ASSERT(bt_value_get_type(paths_value) == BT_VALUE_TYPE_ARRAY);
-    BT_ASSERT(!bt_value_array_is_empty(paths_value));
-
-    trace_name = trace_name_value ? bt_value_string_get(trace_name_value) : NULL;
+    std::vector<std::string> paths;
+    const char *trace_name = traceNameValue ? traceNameValue->value().c_str() : nullptr;
 
     /*
      * Create a sorted array of the paths, to make the execution of this
      * component deterministic.
      */
-    for (std::uint64_t i = 0; i < bt_value_array_get_length(paths_value); i++) {
-        const bt_value *path_value = bt_value_array_borrow_element_by_index_const(paths_value, i);
-        const char *input = bt_value_string_get(path_value);
+    for (bt2::ConstValue pathValue : pathsValue) {
+        const char *input = pathValue.asString().value().c_str();
         paths.emplace_back(input);
     }
 
@@ -1505,17 +1439,14 @@ int ctf_fs_component_create_ctf_fs_trace(struct ctf_fs_component *ctf_fs,
 
     if (traces.size() > 1) {
         ctf_fs_trace *first_trace = traces[0].get();
-        const uint8_t *first_trace_uuid = first_trace->metadata->tc->uuid;
+        ctf_fs_trace::UP trace;
 
         /*
          * We have more than one trace, they must all share the same
          * UUID, verify that.
          */
-        for (size_t i = 0; i < traces.size(); i++) {
-            ctf_fs_trace *this_trace = traces[i].get();
-            const uint8_t *this_trace_uuid = this_trace->metadata->tc->uuid;
-
-            if (!this_trace->metadata->tc->is_uuid_set) {
+        for (const ctf_fs_trace::UP& this_trace : traces) {
+            if (!this_trace->irGenerator.ctfTraceCls()->uuid()) {
                 BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(
                     logCfg.selfComp, logCfg.selfCompClass,
                     "Multiple traces given, but a trace does not have a UUID: path=%s",
@@ -1523,19 +1454,20 @@ int ctf_fs_component_create_ctf_fs_trace(struct ctf_fs_component *ctf_fs,
                 return -1;
             }
 
-            if (bt_uuid_compare(first_trace_uuid, this_trace_uuid) != 0) {
-                char first_trace_uuid_str[BT_UUID_STR_LEN + 1];
-                char this_trace_uuid_str[BT_UUID_STR_LEN + 1];
+            const bt2_common::Uuid first_trace_uuid =
+                *first_trace->irGenerator.ctfTraceCls()->uuid();
+            const bt2_common::Uuid this_trace_uuid = *this_trace->irGenerator.ctfTraceCls()->uuid();
 
-                bt_uuid_to_str(first_trace_uuid, first_trace_uuid_str);
-                bt_uuid_to_str(this_trace_uuid, this_trace_uuid_str);
+            if (first_trace_uuid != this_trace_uuid) {
+                std::string firstTraceUUidStr = first_trace_uuid.str();
+                std::string thisTraceUuidStr = this_trace_uuid.str();
 
                 BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(
                     logCfg.selfComp, logCfg.selfCompClass,
                     "Multiple traces given, but UUIDs don't match: "
                     "first-trace-uuid=%s, first-trace-path=%s, "
                     "trace-uuid=%s, trace-path=%s",
-                    first_trace_uuid_str, first_trace->path.c_str(), this_trace_uuid_str,
+                    firstTraceUUidStr.c_str(), first_trace->path.c_str(), thisTraceUuidStr.c_str(),
                     this_trace->path.c_str());
                 return -1;
             }
@@ -1577,16 +1509,15 @@ int ctf_fs_component_create_ctf_fs_trace(struct ctf_fs_component *ctf_fs,
     return 0;
 }
 
-static const std::string&
-get_stream_instance_unique_name(struct ctf_fs_ds_file_group *ds_file_group)
+static const char *get_stream_instance_unique_name(struct ctf_fs_ds_file_group *ds_file_group)
 {
     /*
      * The first (earliest) stream file's path is used as the stream's unique
      * name.
      */
-    BT_ASSERT(!ds_file_group->ds_file_infos.empty());
+    BT_ASSERT(!ds_file_group->ds_file_infos.empty() > 0);
     ctf_fs_ds_file_info *ds_file_info = ds_file_group->ds_file_infos[0].get();
-    return ds_file_info->path;
+    return ds_file_info->path.c_str();
 }
 
 /* Create the IR stream objects for ctf_fs_trace. */
@@ -1596,43 +1527,30 @@ static int create_streams_for_trace(struct ctf_fs_trace *ctf_fs_trace)
     const ctf::LogCfg& logCfg = ctf_fs_trace->logCfg;
 
     for (ctf_fs_ds_file_group::UP& ds_file_group : ctf_fs_trace->ds_file_groups) {
-        const std::string& name = get_stream_instance_unique_name(ds_file_group.get());
+        const char *name = get_stream_instance_unique_name(ds_file_group.get());
 
-        BT_ASSERT(ds_file_group->sc->ir_sc);
-        BT_ASSERT(ctf_fs_trace->trace);
+        if (ds_file_group->dataStreamCls.libCls()) {
+            BT_ASSERT(ctf_fs_trace->trace);
+            bt2::StreamClass streamCls = *ds_file_group->dataStreamCls.libCls();
+            bt2::Trace trace = **ctf_fs_trace->trace;
 
-        bt_stream *stream;
-
-        if (ds_file_group->stream_id == UINT64_C(-1)) {
-            /* No stream ID: use 0 */
-            stream = bt_stream_create_with_id(ds_file_group->sc->ir_sc,
-                                              (*ctf_fs_trace->trace)->libObjPtr(),
-                                              ctf_fs_trace->next_stream_id);
-            ctf_fs_trace->next_stream_id++;
-        } else {
-            /* Specific stream ID */
-            stream = bt_stream_create_with_id(ds_file_group->sc->ir_sc,
-                                              (*ctf_fs_trace->trace)->libObjPtr(),
-                                              (uint64_t) ds_file_group->stream_id);
+            if (ds_file_group->stream_id == UINT64_C(-1)) {
+                /* No stream ID: use 0 */
+                ds_file_group->stream = streamCls.instantiate(trace, ctf_fs_trace->next_stream_id);
+                ctf_fs_trace->next_stream_id++;
+            } else {
+                /* Specific stream ID */
+                ds_file_group->stream = streamCls.instantiate(trace, ds_file_group->stream_id);
+            }
         }
 
-        if (!stream) {
-            BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp,
-                                      "Cannot create stream for DS file group: "
-                                      "addr=%p, stream-name=\"%s\"",
-                                      ds_file_group.get(), name.c_str());
-            return -1;
-        }
-
-        ds_file_group->stream = bt2::Stream::Shared::createWithoutRef(stream);
-
-        int ret = bt_stream_set_name((*ds_file_group->stream)->libObjPtr(), name.c_str());
+        int ret = bt_stream_set_name((*ds_file_group->stream)->libObjPtr(), name);
         if (ret) {
             BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp,
                                       "Cannot set stream's name: "
                                       "addr=%p, stream-name=\"%s\"",
-                                      (*ds_file_group->stream)->libObjPtr(), name.c_str());
-            return ret;
+                                      (*ds_file_group->stream)->libObjPtr(), name);
+            return -1;
         }
     }
 
@@ -1656,15 +1574,16 @@ static bt_param_validation_map_value_entry_descr fs_params_entries_descr[] = {
      bt_param_validation_value_descr::makeBool()},
     BT_PARAM_VALIDATION_MAP_VALUE_ENTRY_END};
 
-bool read_src_fs_parameters(const bt_value *params, const bt_value **inputs,
-                            const bt_value **trace_name, struct ctf_fs_component *ctf_fs)
+bool read_src_fs_parameters(bt2::ConstMapValue params,
+                            nonstd::optional<bt2::ConstArrayValue>& inputs,
+                            nonstd::optional<bt2::ConstStringValue>& traceName,
+                            struct ctf_fs_component *ctf_fs)
 {
-    const bt_value *value;
-    enum bt_param_validation_status validate_value_status;
     gchar *error = NULL;
     const ctf::LogCfg& logCfg = ctf_fs->logCfg;
 
-    validate_value_status = bt_param_validation_validate(params, fs_params_entries_descr, &error);
+    bt_param_validation_status validate_value_status =
+        bt_param_validation_validate(params.libObjPtr(), fs_params_entries_descr, &error);
     if (validate_value_status != BT_PARAM_VALIDATION_STATUS_OK) {
         BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(logCfg.selfComp, logCfg.selfCompClass, "%s", error);
         g_free(error);
@@ -1672,47 +1591,50 @@ bool read_src_fs_parameters(const bt_value *params, const bt_value **inputs,
     }
 
     /* inputs parameter */
-    *inputs = bt_value_map_borrow_entry_value_const(params, "inputs");
+    inputs = params["inputs"]->asArray();
 
     /* clock-class-offset-s parameter */
-    value = bt_value_map_borrow_entry_value_const(params, "clock-class-offset-s");
-    if (value) {
-        ctf_fs->clkClsCfg.offsetSec = bt_value_integer_signed_get(value);
+    nonstd::optional<bt2::ConstValue> clockClassOffsetS = params["clock-class-offset-s"];
+    if (clockClassOffsetS) {
+        ctf_fs->clkClsCfg.offsetSec = clockClassOffsetS->asSignedInteger().value();
     }
 
     /* clock-class-offset-ns parameter */
-    value = bt_value_map_borrow_entry_value_const(params, "clock-class-offset-ns");
-    if (value) {
-        ctf_fs->clkClsCfg.offsetNanoSec = bt_value_integer_signed_get(value);
+    nonstd::optional<bt2::ConstValue> clockClassOffsetNs = params["clock-class-offset-ns"];
+    if (clockClassOffsetNs) {
+        ctf_fs->clkClsCfg.offsetNanoSec = clockClassOffsetNs->asSignedInteger().value();
     }
 
     /* force-clock-class-origin-unix-epoch parameter */
-    value = bt_value_map_borrow_entry_value_const(params, "force-clock-class-origin-unix-epoch");
-    if (value) {
-        ctf_fs->clkClsCfg.forceOriginUnixEpoch = bt_value_bool_get(value);
+    nonstd::optional<bt2::ConstValue> forceClockClassOriginUnixEpoch =
+        params["force-clock-class-origin-unix-epoch"];
+    if (forceClockClassOriginUnixEpoch) {
+        ctf_fs->clkClsCfg.forceOriginUnixEpoch = forceClockClassOriginUnixEpoch->asBool().value();
     }
 
     /* trace-name parameter */
-    *trace_name = bt_value_map_borrow_entry_value_const(params, "trace-name");
+    nonstd::optional<bt2::ConstValue> traceNameLocal = params["trace-name"];
+    if (traceNameLocal) {
+        traceName = traceNameLocal->asString();
+    }
 
     return true;
 }
 
-static ctf_fs_component::UP ctf_fs_create(const bt_value *params,
+static ctf_fs_component::UP ctf_fs_create(bt2::ConstMapValue params,
                                           bt_self_component_source *self_comp_src,
                                           const ctf::LogCfg& logCfg)
 {
-    const bt_value *inputs_value;
-    const bt_value *trace_name_value;
     bt_self_component *self_comp = bt_self_component_source_as_self_component(self_comp_src);
-
     ctf_fs_component::UP ctf_fs = bt2_common::makeUnique<ctf_fs_component>(logCfg);
 
-    if (!read_src_fs_parameters(params, &inputs_value, &trace_name_value, ctf_fs.get())) {
+    nonstd::optional<bt2::ConstArrayValue> inputsValue;
+    nonstd::optional<bt2::ConstStringValue> traceNameValue;
+    if (!read_src_fs_parameters(params, inputsValue, traceNameValue, ctf_fs.get())) {
         return nullptr;
     }
 
-    if (ctf_fs_component_create_ctf_fs_trace(ctf_fs.get(), inputs_value, trace_name_value,
+    if (ctf_fs_component_create_ctf_fs_trace(ctf_fs.get(), *inputsValue, traceNameValue,
                                              self_comp)) {
         return nullptr;
     }
@@ -1739,13 +1661,13 @@ ctf_fs_init(bt_self_component_source *self_comp_src, bt_self_component_source_co
     ctf::LogCfg logCfg(logLevel, selfComp);
 
     try {
-        ctf_fs_component::UP ctf_fs = ctf_fs_create(params, self_comp_src, logCfg);
+        ctf_fs_component::UP ctf_fs =
+            ctf_fs_create(bt2::ConstMapValue(params), self_comp_src, logCfg);
         if (!ctf_fs) {
             return BT_COMPONENT_CLASS_INITIALIZE_METHOD_STATUS_ERROR;
         }
 
         bt_self_component_set_data(selfComp, ctf_fs.release());
-
         return BT_COMPONENT_CLASS_INITIALIZE_METHOD_STATUS_OK;
     } catch (const std::bad_alloc&) {
         return BT_COMPONENT_CLASS_INITIALIZE_METHOD_STATUS_MEMORY_ERROR;

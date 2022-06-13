@@ -20,7 +20,6 @@
 #include <babeltrace2/babeltrace.h>
 
 #include "metadata.hpp"
-#include "../common/src/metadata/tsdl/decoder.hpp"
 #include "../common/src/metadata/tsdl/ctf-meta-configure-ir-trace.hpp"
 
 #define TSDL_MAGIC 0x75d11d57
@@ -39,71 +38,40 @@ struct packet_header
     uint8_t minor;
 } __attribute__((__packed__));
 
-static bool stream_classes_all_have_default_clock_class(bt_trace_class *tc,
+static bool stream_classes_all_have_default_clock_class(bt2::ConstTraceClass tc,
                                                         const ctf::LogCfg& logCfg)
 {
-    uint64_t i, sc_count;
-    const bt_clock_class *cc = NULL;
-    const bt_stream_class *sc;
-    bool ret = true;
+    for (std::uint64_t i = 0; i < tc.size(); ++i) {
+        bt2::ConstStreamClass sc = tc[i];
+        nonstd::optional<bt2::ConstClockClass> cc = sc.defaultClockClass();
 
-    sc_count = bt_trace_class_get_stream_class_count(tc);
-    for (i = 0; i < sc_count; i++) {
-        sc = bt_trace_class_borrow_stream_class_by_index_const(tc, i);
-
-        BT_ASSERT(sc);
-
-        cc = bt_stream_class_borrow_default_clock_class_const(sc);
         if (!cc) {
-            ret = false;
             BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp,
                                       "Stream class doesn't have a default clock class: "
                                       "sc-id=%" PRIu64 ", sc-name=\"%s\"",
-                                      bt_stream_class_get_id(sc), bt_stream_class_get_name(sc));
-            goto end;
+                                      sc.id(), sc.name()->c_str());
+            return false;
         }
     }
 
-end:
-    return ret;
+    return true;
 }
 /*
  * Iterate over the stream classes and returns the first clock class
  * encountered. This is useful to create message iterator inactivity message as
  * we don't need a particular clock class.
  */
-static const bt_clock_class *borrow_any_clock_class(bt_trace_class *tc)
+static bt2::ConstClockClass borrow_any_clock_class(bt2::ConstTraceClass tc)
 {
-    uint64_t i, sc_count;
-    const bt_clock_class *cc = NULL;
-    const bt_stream_class *sc;
-
-    sc_count = bt_trace_class_get_stream_class_count(tc);
-    for (i = 0; i < sc_count; i++) {
-        sc = bt_trace_class_borrow_stream_class_by_index_const(tc, i);
-        BT_ASSERT_DBG(sc);
-
-        cc = bt_stream_class_borrow_default_clock_class_const(sc);
-        if (cc) {
-            goto end;
-        }
-    }
-end:
-    BT_ASSERT_DBG(cc);
-    return cc;
+    return *tc[0].defaultClockClass();
 }
 
 BT_HIDDEN
 enum lttng_live_iterator_status lttng_live_metadata_update(struct lttng_live_trace *trace)
 {
     struct lttng_live_session *session = trace->session;
-    struct lttng_live_metadata *metadata = trace->metadata;
-    size_t size, len_read = 0;
-    char *metadata_buf = NULL;
+    struct lttng_live_metadata *metadata = trace->metadata.get();
     bool keep_receiving;
-    FILE *fp = NULL;
-    enum ctf_metadata_decoder_status decoder_status;
-    enum lttng_live_iterator_status status = LTTNG_LIVE_ITERATOR_STATUS_OK;
     const ctf::LogCfg& logCfg = trace->logCfg;
     enum lttng_live_get_one_metadata_status metadata_status;
 
@@ -118,40 +86,24 @@ enum lttng_live_iterator_status lttng_live_metadata_update(struct lttng_live_tra
              * metadata this indicates that we will never receive
              * any metadata.
              */
-            status = LTTNG_LIVE_ITERATOR_STATUS_END;
+            return LTTNG_LIVE_ITERATOR_STATUS_END;
         } else if (session->new_streams_needed) {
-            status = LTTNG_LIVE_ITERATOR_STATUS_AGAIN;
+            return LTTNG_LIVE_ITERATOR_STATUS_AGAIN;
         } else {
             session->new_streams_needed = true;
-            status = LTTNG_LIVE_ITERATOR_STATUS_CONTINUE;
+            return LTTNG_LIVE_ITERATOR_STATUS_CONTINUE;
         }
-        goto end;
     }
 
     if (trace->metadata_stream_state != LTTNG_LIVE_METADATA_STREAM_STATE_NEEDED) {
-        goto end;
+        return LTTNG_LIVE_ITERATOR_STATUS_OK;
     }
 
-    /*
-     * Open a new write only file handle to populate the `metadata_buf`
-     * memory buffer so we can write in loop in it easily.
-     */
-    fp = bt_open_memstream(&metadata_buf, &size);
-    if (!fp) {
-        if (errno == EINTR && lttng_live_graph_is_canceled(session->lttng_live_msg_iter)) {
-            session->lttng_live_msg_iter->was_interrupted = true;
-            status = LTTNG_LIVE_ITERATOR_STATUS_AGAIN;
-        } else {
-            BT_COMP_LOGE_APPEND_CAUSE_ERRNO(logCfg.selfComp, "Metadata open_memstream", ".");
-            status = LTTNG_LIVE_ITERATOR_STATUS_ERROR;
-        }
-        goto end;
-    }
+    std::vector<uint8_t> metadataBuf;
 
     keep_receiving = true;
     /* Grab all available metadata. */
     while (keep_receiving) {
-        size_t reply_len = 0;
         /*
          * lttng_live_get_one_metadata_packet() asks the Relay Daemon
          * for new metadata. If new metadata is received, the function
@@ -164,15 +116,16 @@ enum lttng_live_iterator_status lttng_live_metadata_update(struct lttng_live_tra
          * If we receive an _ERROR status, it means there was a
          * networking, allocating, or some other unrecoverable error.
          */
-        metadata_status = lttng_live_get_one_metadata_packet(trace, fp, &reply_len);
+        metadata_status = lttng_live_get_one_metadata_packet(trace, metadataBuf);
 
         switch (metadata_status) {
         case LTTNG_LIVE_GET_ONE_METADATA_STATUS_OK:
-            len_read += reply_len;
             break;
+
         case LTTNG_LIVE_GET_ONE_METADATA_STATUS_END:
             keep_receiving = false;
             break;
+
         case LTTNG_LIVE_GET_ONE_METADATA_STATUS_CLOSED:
             BT_COMP_LOGD("Metadata stream was closed by the Relay, the trace is no longer active: "
                          "trace-id=%" PRIu64 ", metadata-stream-id=%" PRIu64,
@@ -186,50 +139,27 @@ enum lttng_live_iterator_status lttng_live_metadata_update(struct lttng_live_tra
             keep_receiving = false;
             trace->metadata_stream_state = LTTNG_LIVE_METADATA_STREAM_STATE_CLOSED;
             break;
+
         case LTTNG_LIVE_GET_ONE_METADATA_STATUS_ERROR:
             BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp,
                                       "Error getting one trace metadata packet: "
                                       "trace-id=%" PRIu64,
                                       trace->id);
-            goto error;
+            return LTTNG_LIVE_ITERATOR_STATUS_ERROR;
+
         default:
             bt_common_abort();
         }
     }
 
-    /* The memory buffer `metadata_buf` contains all the metadata. */
-    if (bt_close_memstream(&metadata_buf, &size, fp)) {
-        BT_COMP_LOGW_ERRNO("Metadata bt_close_memstream", ".");
-    }
-
-    fp = NULL;
-
-    if (len_read == 0) {
+    if (metadataBuf.empty()) {
         if (!trace->trace) {
-            status = LTTNG_LIVE_ITERATOR_STATUS_AGAIN;
-            goto end;
+            return LTTNG_LIVE_ITERATOR_STATUS_AGAIN;
         }
 
         /* The relay sent zero bytes of metdata. */
         trace->metadata_stream_state = LTTNG_LIVE_METADATA_STREAM_STATE_NOT_NEEDED;
-        goto end;
-    }
-
-    /*
-     * Open a new reading file handle on the `metadata_buf` and pass it to
-     * the metadata decoder.
-     */
-    fp = bt_fmemopen(metadata_buf, len_read, "rb");
-    if (!fp) {
-        if (errno == EINTR && lttng_live_graph_is_canceled(session->lttng_live_msg_iter)) {
-            session->lttng_live_msg_iter->was_interrupted = true;
-            status = LTTNG_LIVE_ITERATOR_STATUS_AGAIN;
-        } else {
-            BT_COMP_LOGE_APPEND_CAUSE_ERRNO(logCfg.selfComp, "Cannot memory-open metadata buffer",
-                                            ".");
-            status = LTTNG_LIVE_ITERATOR_STATUS_ERROR;
-        }
-        goto end;
+        return LTTNG_LIVE_ITERATOR_STATUS_OK;
     }
 
     /*
@@ -237,55 +167,35 @@ enum lttng_live_iterator_status lttng_live_metadata_update(struct lttng_live_tra
      * new metadata to our current trace class.
      */
     BT_COMP_LOGD("Appending new metadata to the ctf_trace class");
-    decoder_status = ctf_metadata_decoder_append_content(metadata->decoder.get(), fp);
-    switch (decoder_status) {
-    case CTF_METADATA_DECODER_STATUS_OK:
-        if (!trace->trace_class) {
-            struct ctf_trace_class *tc =
-                ctf_metadata_decoder_borrow_ctf_trace_class(metadata->decoder.get());
+    metadata->irGenerator.appendContent(metadataBuf.data(),
+                                        bt2_common::DataLen::fromBytes(metadataBuf.size()));
+    if (!trace->trace) {
+        nonstd::optional<bt2::TraceClass> irTraceCls = metadata->irGenerator.irTraceCls();
 
-            trace->trace_class = ctf_metadata_decoder_get_ir_trace_class(metadata->decoder.get())
-                                     ->release()
-                                     .libObjPtr();
-            trace->trace = bt_trace_create(trace->trace_class);
-            if (!trace->trace) {
-                BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp, "Failed to create bt_trace");
-                goto error;
-            }
-            if (ctf_trace_class_configure_ir_trace(tc, trace->trace)) {
+        if (irTraceCls) {
+            trace->trace = irTraceCls->instantiate();
+
+            ctf::src::TraceCls *ctfTraceCls = metadata->irGenerator.ctfTraceCls();
+            BT_ASSERT(ctfTraceCls);
+
+            if (ctf_trace_class_configure_ir_trace(*ctfTraceCls, **trace->trace)) {
                 BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp, "Failed to configure ctf trace class");
-                goto error;
+                return LTTNG_LIVE_ITERATOR_STATUS_ERROR;
             }
-            if (!stream_classes_all_have_default_clock_class(trace->trace_class, logCfg)) {
+
+            if (!stream_classes_all_have_default_clock_class((*trace->trace)->cls(), logCfg)) {
                 /* Error logged in function. */
-                goto error;
+                return LTTNG_LIVE_ITERATOR_STATUS_ERROR;
             }
-            trace->clock_class = borrow_any_clock_class(trace->trace_class);
-        }
 
-        /* The metadata was updated succesfully. */
-        trace->metadata_stream_state = LTTNG_LIVE_METADATA_STREAM_STATE_NOT_NEEDED;
-
-        break;
-    default:
-        goto error;
-    }
-
-    goto end;
-
-error:
-    status = LTTNG_LIVE_ITERATOR_STATUS_ERROR;
-end:
-    if (fp) {
-        int closeret;
-
-        closeret = fclose(fp);
-        if (closeret) {
-            BT_COMP_LOGW_ERRNO("Error on fclose", ".");
+            trace->clockClass = borrow_any_clock_class((*trace->trace)->cls());
         }
     }
-    free(metadata_buf);
-    return status;
+
+    /* The metadata was updated succesfully. */
+    trace->metadata_stream_state = LTTNG_LIVE_METADATA_STREAM_STATE_NOT_NEEDED;
+
+    return LTTNG_LIVE_ITERATOR_STATUS_OK;
 }
 
 BT_HIDDEN
@@ -294,40 +204,16 @@ int lttng_live_metadata_create_stream(struct lttng_live_session *session, uint64
 {
     const ctf::LogCfg& logCfg = session->logCfg;
     struct lttng_live_trace *trace;
+    lttng_live_metadata::UP metadata = bt2_common::makeUnique<lttng_live_metadata>(logCfg);
 
-    ctf_metadata_decoder_config cfg(logCfg);
-    cfg.self_comp = session->self_comp;
-    cfg.create_trace_class = true;
-
-    lttng_live_metadata *metadata = new lttng_live_metadata {logCfg};
     metadata->stream_id = stream_id;
 
-    metadata->decoder = ctf_metadata_decoder_create(&cfg);
-    if (!metadata->decoder) {
-        BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp, "Failed to create CTF metadata decoder");
-        goto error;
-    }
     trace = lttng_live_session_borrow_or_create_trace_by_id(session, ctf_trace_id);
     if (!trace) {
         BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp, "Failed to borrow trace");
-        goto error;
+        return -1;
     }
-    trace->metadata = metadata;
+
+    trace->metadata = std::move(metadata);
     return 0;
-
-error:
-    delete metadata;
-    return -1;
-}
-
-BT_HIDDEN
-void lttng_live_metadata_fini(struct lttng_live_trace *trace)
-{
-    struct lttng_live_metadata *metadata = trace->metadata;
-
-    if (!metadata) {
-        return;
-    }
-    trace->metadata = NULL;
-    delete metadata;
 }

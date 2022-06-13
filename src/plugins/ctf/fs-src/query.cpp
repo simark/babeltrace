@@ -18,7 +18,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include "common/assert.h"
-#include "metadata.hpp"
 #include "plugins/ctf/common/src/metadata/tsdl/metadata-stream-decoder.hpp"
 #include "plugins/ctf/common/src/metadata/ctf-ir-generator.hpp"
 #include "common/common.h"
@@ -93,20 +92,20 @@ bt2::Value::Shared metadata_info_query(bt2::ConstMapValue params, const ctf::Log
     }
 }
 
-static void add_range(bt2::MapValue info, struct range *range, const char *range_name)
+static void add_range(bt2::MapValue info, const range& range, const char *range_name)
 {
-    if (!range->set) {
+    if (!range.set) {
         /* Not an error. */
         return;
     }
 
     bt2::MapValue rangeMap = info.insertEmptyMap(range_name);
-    rangeMap.insert("begin", range->begin_ns);
-    rangeMap.insert("end", range->end_ns);
+    rangeMap.insert("begin", range.begin_ns);
+    rangeMap.insert("end", range.end_ns);
 }
 
 static void populate_stream_info(struct ctf_fs_ds_file_group *group, bt2::MapValue groupInfo,
-                                 struct range *stream_range, const ctf::LogCfg& logCfg)
+                                 const ctf::LogCfg& logCfg)
 {
     /*
      * Since each `struct ctf_fs_ds_file_group` has a sorted array of
@@ -114,30 +113,29 @@ static void populate_stream_info(struct ctf_fs_ds_file_group *group, bt2::MapVal
      * the timestamp_begin of the first index entry and the timestamp_end
      * of the last index entry.
      */
-    BT_ASSERT(group->index);
-    BT_ASSERT(!group->index->entries.empty());
+    BT_ASSERT(!group->index.entries.empty());
 
     /* First entry. */
-    const ctf_fs_ds_index_entry& first_ds_index_entry = group->index->entries.front();
+    ctf_fs_ds_index_entry& first_ds_index_entry = group->index.entries.front();
 
     /* Last entry. */
-    const ctf_fs_ds_index_entry& last_ds_index_entry = group->index->entries.back();
+    ctf_fs_ds_index_entry& last_ds_index_entry = group->index.entries.back();
 
-    stream_range->begin_ns = first_ds_index_entry.timestamp_begin_ns;
-    stream_range->end_ns = last_ds_index_entry.timestamp_end_ns;
+    range stream_range;
+    stream_range.begin_ns = first_ds_index_entry.timestamp_begin_ns;
+    stream_range.end_ns = last_ds_index_entry.timestamp_end_ns;
 
     /*
      * If any of the begin and end timestamps is not set it means that
      * packets don't include `timestamp_begin` _and_ `timestamp_end` fields
      * in their packet context so we can't set the range.
      */
-    stream_range->set =
-        stream_range->begin_ns != UINT64_C(-1) && stream_range->end_ns != UINT64_C(-1);
+    stream_range.set = stream_range.begin_ns != UINT64_C(-1) && stream_range.end_ns != UINT64_C(-1);
 
     add_range(groupInfo, stream_range, "range-ns");
 
     std::string portName = ctf_fs_make_port_name(group);
-    groupInfo.insert("port-name", portName.c_str());
+    groupInfo.insert("port-name", portName);
 }
 
 static void populate_trace_info(const struct ctf_fs_trace *trace, bt2::MapValue traceInfo,
@@ -154,9 +152,9 @@ static void populate_trace_info(const struct ctf_fs_trace *trace, bt2::MapValue 
 
     /* Find range of all stream groups, and of the trace. */
     for (const ctf_fs_ds_file_group::UP& group : trace->ds_file_groups) {
-        range group_range;
         bt2::MapValue groupInfo = fileGroups.appendEmptyMap();
-        populate_stream_info(group.get(), groupInfo, &group_range, logCfg);
+
+        populate_stream_info(group.get(), groupInfo, logCfg);
     }
 }
 
@@ -169,16 +167,14 @@ bt2::Value::Shared trace_infos_query(bt2::ConstMapValue params, const ctf::LogCf
                                                   "Cannot create ctf_fs_component");
     }
 
-    const bt_value *inputs_value = NULL;
-    const bt_value *trace_name_value;
-    if (!read_src_fs_parameters(params.libObjPtr(), &inputs_value, &trace_name_value,
-                                ctf_fs.get())) {
+    nonstd::optional<bt2::ConstArrayValue> inputsValue;
+    nonstd::optional<bt2::ConstStringValue> traceNameValue;
+    if (!read_src_fs_parameters(params, inputsValue, traceNameValue, ctf_fs.get())) {
         BT_COMP_CLASS_LOGE_APPEND_CAUSE_AND_THROW(bt2_common::Error, logCfg.selfCompClass,
                                                   "Failed to read parameters");
     }
 
-    if (ctf_fs_component_create_ctf_fs_trace(ctf_fs.get(), inputs_value, trace_name_value,
-                                             nullptr)) {
+    if (ctf_fs_component_create_ctf_fs_trace(ctf_fs.get(), *inputsValue, traceNameValue, nullptr)) {
         BT_COMP_CLASS_LOGE_APPEND_CAUSE_AND_THROW(bt2_common::Error, logCfg.selfCompClass,
                                                   "Failed to create trace");
     }

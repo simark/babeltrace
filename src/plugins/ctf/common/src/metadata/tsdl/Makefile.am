@@ -29,12 +29,8 @@ libctf_ast_la_SOURCES = \
 	parser-wrap.hpp \
 	scanner.hpp \
 	scanner-symbols.hpp \
-	decoder.cpp \
-	decoder.hpp \
 	metadata-stream-decoder.cpp \
 	metadata-stream-decoder.hpp \
-	decoder-packetized-file-stream-to-buf.cpp \
-	decoder-packetized-file-stream-to-buf.hpp \
 	logging.cpp \
 	logging.hpp \
 	ctf-meta.hpp \

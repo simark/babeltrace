@@ -9,6 +9,9 @@
 #include "common/assert.h"
 #include "item.hpp"
 #include "item-seq-iter.hpp"
+#include "plugins/ctf/common/metadata/ctf-ir.hpp"
+#include "plugins/ctf/common/src/item-seq/item-visitor.hpp"
+#include "plugins/ctf/common/src/metadata/ctf-ir.hpp"
 
 namespace ctf {
 namespace src {
@@ -915,11 +918,12 @@ ItemSeqIter::_handleCommonBeginReadStrBlobFieldState(const unsigned long long le
 
 ItemSeqIter::_StateHandlingReaction ItemSeqIter::_handleBeginReadStaticLenStrFieldState()
 {
-    /* Update for user */
-    this->_setFieldItemFcAndUpdateForUser(_mItems.staticLenStrFieldBegin, *this->_stackTop().fc);
-
     /* Static-length string field class */
     auto& strFc = this->_stackTop().fc->asStaticLenStr();
+
+    /* Update for user */
+    this->_setFieldItemFcAndUpdateForUser(_mItems.staticLenStrFieldBegin, *this->_stackTop().fc);
+    _mItems.staticLenStrFieldBegin._mLen = bt2_common::DataLen::fromBytes(strFc.len());
 
     /* Begin reading static-length string field */
     return this->_handleCommonBeginReadStrBlobFieldState(strFc.len(), _State::READ_SUBSTR, strFc);
@@ -932,15 +936,16 @@ ItemSeqIter::_StateHandlingReaction ItemSeqIter::_handleEndReadStaticLenStrField
 
 ItemSeqIter::_StateHandlingReaction ItemSeqIter::_handleBeginReadDynLenStrFieldState()
 {
-    /* Update for user */
-    this->_setFieldItemFcAndUpdateForUser(_mItems.dynLenStrFieldBegin, *this->_stackTop().fc);
-
     /* Dynamic-length string field class */
     auto& strFc = this->_stackTop().fc->asDynLenStr();
 
+    /* Update for user */
+    this->_setFieldItemFcAndUpdateForUser(_mItems.dynLenStrFieldBegin, *this->_stackTop().fc);
+    unsigned long long len = this->_savedUIntVal(strFc);
+    _mItems.dynLenStrFieldBegin._mLen = bt2_common::DataLen::fromBytes(len);
+
     /* Begin reading dynamic-length string field */
-    return this->_handleCommonBeginReadStrBlobFieldState(this->_savedUIntVal(strFc),
-                                                         _State::READ_SUBSTR, strFc);
+    return this->_handleCommonBeginReadStrBlobFieldState(len, _State::READ_SUBSTR, strFc);
 }
 
 ItemSeqIter::_StateHandlingReaction ItemSeqIter::_handleEndReadDynLenStrFieldState()

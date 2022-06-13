@@ -9,40 +9,54 @@
 #include "ctf-meta-configure-ir-trace.hpp"
 
 BT_HIDDEN
-int ctf_trace_class_configure_ir_trace(struct ctf_trace_class *tc, bt_trace *ir_trace)
+int ctf_trace_class_configure_ir_trace(const ctf::src::TraceCls& tc, bt2::Trace irTrace)
 {
-    int ret = 0;
-    uint64_t i;
-
-    BT_ASSERT(tc);
-    BT_ASSERT(ir_trace);
-
-    if (tc->is_uuid_set) {
-        bt_trace_set_uuid(ir_trace, tc->uuid);
+    if (tc.uuid()) {
+        irTrace.uuid(*tc.uuid());
     }
 
-    for (i = 0; i < tc->env_entries->len; i++) {
-        struct ctf_trace_class_env_entry *env_entry =
-            ctf_trace_class_borrow_env_entry_by_index(tc, i);
+    nonstd::optional<bt2::ConstMapValue> optEnv = tc.env();
 
-        switch (env_entry->type) {
-        case CTF_TRACE_CLASS_ENV_ENTRY_TYPE_INT:
-            ret = bt_trace_set_environment_entry_integer(ir_trace, env_entry->name->str,
-                                                         env_entry->value.i);
-            break;
-        case CTF_TRACE_CLASS_ENV_ENTRY_TYPE_STR:
-            ret = bt_trace_set_environment_entry_string(ir_trace, env_entry->name->str,
-                                                        env_entry->value.str->str);
-            break;
-        default:
-            bt_common_abort();
-        }
+    if (optEnv) {
+        bt2::ConstMapValue env = *optEnv;
 
-        if (ret) {
-            goto end;
+        struct Oops : std::runtime_error
+        {
+            Oops(bt_trace_set_environment_entry_status retParam) :
+                std::runtime_error("Failed to set environment entry."), ret(retParam)
+            {
+            }
+
+            bt_trace_set_environment_entry_status ret;
+        };
+
+        try {
+            env.forEach([irTrace](const bpstd::string_view name, bt2::ConstValue val) {
+                bt_trace_set_environment_entry_status ret;
+
+                switch (val.type()) {
+                case bt2::ValueType::SIGNED_INTEGER:
+                    ret = bt_trace_set_environment_entry_integer(irTrace.libObjPtr(), name.c_str(),
+                                                                 val.asSignedInteger().value());
+                    break;
+
+                case bt2::ValueType::STRING:
+                    ret = bt_trace_set_environment_entry_string(irTrace.libObjPtr(), name.c_str(),
+                                                                val.asString().value().c_str());
+                    break;
+
+                default:
+                    bt_common_abort();
+                }
+
+                if (ret != BT_TRACE_SET_ENVIRONMENT_ENTRY_STATUS_OK) {
+                    throw Oops(ret);
+                }
+            });
+        } catch (const Oops& oops) {
+            return oops.ret;
         }
     }
 
-end:
-    return ret;
+    return 0;
 }

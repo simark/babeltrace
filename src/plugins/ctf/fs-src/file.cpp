@@ -4,8 +4,8 @@
  * Copyright 2016 Philippe Proulx <pproulx@efficios.com>
  */
 
-#define BT_COMP_LOG_SELF_COMP (file->logCfg.selfComp)
-#define BT_LOG_OUTPUT_LEVEL   (file->logCfg.logLevel)
+#define BT_COMP_LOG_SELF_COMP (logCfg.selfComp)
+#define BT_LOG_OUTPUT_LEVEL   (logCfg.logLevel)
 #define BT_LOG_TAG            "PLUGIN/SRC.CTF.FS/FILE"
 #include "logging/comp-logging.h"
 
@@ -21,6 +21,7 @@ int ctf_fs_file_open(struct ctf_fs_file *file, const char *mode)
 {
     int ret = 0;
     struct stat stat;
+    const ctf::LogCfg& logCfg = file->logCfg;
 
     BT_COMP_LOGI("Opening file \"%s\" with mode \"%s\"", file->path.c_str(), mode);
     file->fp.reset(fopen(file->path.c_str(), mode));

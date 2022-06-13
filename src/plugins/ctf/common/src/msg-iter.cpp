@@ -7,8 +7,8 @@
  * Babeltrace - CTF message iterator
  */
 
-#define BT_COMP_LOG_SELF_COMP (logCfg.selfComp)
-#define BT_LOG_OUTPUT_LEVEL   (logCfg.logLevel)
+#define BT_COMP_LOG_SELF_COMP (_mLogCfg.selfComp)
+#define BT_LOG_OUTPUT_LEVEL   (_mLogCfg.logLevel)
 #define BT_LOG_TAG            "PLUGIN/CTF/MSG-ITER"
 #include "logging/comp-logging.h"
 
@@ -48,7 +48,6 @@ void MsgIterItemVisitor::visit(const Item& item)
      * useful for development, but it can eventually be removed (along with
      * empty visit methods).
      */
-    const LogCfg& logCfg = _mLogCfg;
     BT_COMP_LOGD("MsgIterItemVisitor unhandled item: item-type=%s", ItemTypeStr(item.type()));
     abort();
 }
@@ -69,7 +68,7 @@ void MsgIterItemVisitor::visit(const PktContentBeginItem& item)
 
 void MsgIterItemVisitor::visit(const PktInfoItem& item)
 {
-    /* 
+    /*
      * Record the packet begin and end times. Save the previous packet's end,
      * we might need it if there are discarded events.
      */
@@ -299,10 +298,17 @@ void MsgIterItemVisitor::visit(const EventRecordEndItem& item)
 void MsgIterItemVisitor::_skipScope()
 {
     ++_mIterSeqIter;
-    _mIterSeqIter->accept(_mLoggingVisitor);
+
+    if (BT_LOG_ON_TRACE) {
+        _mIterSeqIter->accept(_mLoggingVisitor);
+    }
+
     while (!_mIterSeqIter->isScopeEndItem()) {
         ++_mIterSeqIter;
-        _mIterSeqIter->accept(_mLoggingVisitor);
+
+        if (BT_LOG_ON_TRACE) {
+            _mIterSeqIter->accept(_mLoggingVisitor);
+        }
     }
 }
 
@@ -317,7 +323,10 @@ void MsgIterItemVisitor::visit(const ScopeBeginItem& item)
      * frame for the root.
      */
     ++_mIterSeqIter;
-    _mIterSeqIter->accept(_mLoggingVisitor);
+    if (BT_LOG_ON_TRACE) {
+        _mIterSeqIter->accept(_mLoggingVisitor);
+    }
+
     BT_ASSERT_DBG(_mIterSeqIter->isStructFieldBeginItem());
 
     switch (item.scope()) {
@@ -411,8 +420,6 @@ void MsgIterItemVisitor::visit(const StructFieldEndItem& item)
 
 void MsgIterItemVisitor::visit(const VariantFieldBeginItem& item)
 {
-    const LogCfg& logCfg = this->_mLogCfg;
-
     if (BT_LOG_ON_DEBUG) {
         std::stringstream ss;
         ss << "selected-option-index=" << item.selectedOptIndex();
@@ -563,36 +570,23 @@ bt2::Field MsgIterItemVisitor::_currentFieldAndAdvance()
 }
 
 } /* namespace internal */
-} /* namespace src */
-} /* namespace ctf */
 
-namespace ctf {
-namespace src {
-
-MsgIter::MsgIter(bt_self_message_iterator *selfMsgIterParam, const ctf::src::TraceCls& tc,
-                 bt2::Stream streamParam, std::unique_ptr<ctf::src::Medium> medium,
-                 const Quirks quirks, const ctf::LogCfg& logCfgParam) :
-    selfMsgIter {selfMsgIterParam},
-    logCfg {logCfgParam},
-    stream(streamParam), itemSeqIter {std::move(medium), tc}, loggingVisitor {logCfg},
-    itemVisitor {selfMsgIter, itemSeqIter, loggingVisitor, stream, quirks, logCfg}
+MsgIter::MsgIter(bt_self_message_iterator *selfMsgIter, const ctf::src::TraceCls& tc,
+                 bt2::Stream stream, std::unique_ptr<ctf::src::Medium> medium, const Quirks quirks,
+                 const ctf::LogCfg logCfg) :
+    _mSelfMsgIter {selfMsgIter},
+    _mLogCfg {logCfg}, _mStream {stream}, _mItemSeqIter {std::move(medium), tc},
+    _mLoggingVisitor {logCfg}, _mItemVisitor {selfMsgIter, _mItemSeqIter, _mLoggingVisitor,
+                                              stream,      quirks,        logCfg}
 {
     BT_COMP_LOGD("Created CTF plugin message iterator: "
                  "trace-addr=%p, msg-it-addr=%p, log-level=%s",
                  &tc, this, bt_common_logging_level_string(logCfg.logLevel));
 }
 
-}
-}
-
-ctf_msg_iter_status
-ctf_msg_iter_get_next_message(ctf::src::MsgIter *msgIter,
-                              nonstd::optional<bt2::ConstMessage::Shared>& message)
+bt2::ConstMessage::Shared MsgIter::next()
 {
-    const ctf::LogCfg& logCfg = msgIter->logCfg;
-
-    BT_ASSERT_DBG(msgIter);
-    BT_COMP_LOGD("Getting next message: msg-it-addr=%p", msgIter);
+    BT_COMP_LOGD("Getting next message: msg-it-addr=%p", this);
 
     try {
         /*
@@ -600,43 +594,34 @@ ctf_msg_iter_get_next_message(ctf::src::MsgIter *msgIter,
          * iterator can yield more than one message, but we return one at a time).
          */
         if (nonstd::optional<bt2::ConstMessage::Shared> msg =
-                msgIter->itemVisitor.releaseMessageIfReady()) {
-            message = std::move(msg);
-            return CTF_MSG_ITER_STATUS_OK;
+                _mItemVisitor.releaseMessageIfReady()) {
+            return *msg;
         }
 
-        while (!msgIter->itemSeqIter.isEnded()) {
-            if (BT_LOG_ON_DEBUG) {
-                msgIter->itemSeqIter->accept(msgIter->loggingVisitor);
+        while (!_mItemSeqIter.isEnded()) {
+            if (BT_LOG_ON_TRACE) {
+                _mItemSeqIter->accept(_mLoggingVisitor);
             }
 
-            msgIter->itemSeqIter->accept(msgIter->itemVisitor);
-            ++msgIter->itemSeqIter;
+            _mItemSeqIter->accept(_mItemVisitor);
+            ++_mItemSeqIter;
             if (nonstd::optional<bt2::ConstMessage::Shared> msg =
-                    msgIter->itemVisitor.releaseMessageIfReady()) {
-                message = msg;
-                return CTF_MSG_ITER_STATUS_OK;
+                    _mItemVisitor.releaseMessageIfReady()) {
+                return *msg;
             }
         }
 
-        if (!msgIter->sentStreamEnd) {
-            message = bt2::Message::Shared::createWithoutRef(
-                bt_message_stream_end_create(msgIter->selfMsgIter, msgIter->stream.libObjPtr()));
-            msgIter->sentStreamEnd = true;
-            return CTF_MSG_ITER_STATUS_OK;
+        if (!_mSentStreamEnd) {
+            _mSentStreamEnd = true;
+            return bt2::Message::Shared::createWithoutRef(
+                bt_message_stream_end_create(_mSelfMsgIter, _mStream.libObjPtr()));
         }
 
-        return CTF_MSG_ITER_STATUS_EOF;
+        throw MsgIterEnded {};
     } catch (const ctf::src::DecodingError& ex) {
-        BT_MSG_ITER_LOGE_APPEND_CAUSE_AND_RETHROW(msgIter->selfMsgIter, "%s", ex.what());
-    } catch (const std::exception&) {
-        BT_MSG_ITER_LOGE_APPEND_CAUSE(msgIter->selfMsgIter, "Failed to get one message.");
-        return CTF_MSG_ITER_STATUS_ERROR;
+        BT_MSG_ITER_LOGE_APPEND_CAUSE_AND_RETHROW(_mSelfMsgIter, "%s", ex.what());
     }
 }
 
-BT_HIDDEN
-enum ctf_msg_iter_status ctf_msg_iter_seek(ctf::src::MsgIter *msgIter, off_t offset)
-{
-    return CTF_MSG_ITER_STATUS_OK;
-}
+} /* namespace src */
+} /* namespace ctf */

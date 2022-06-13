@@ -572,6 +572,9 @@ static inline const char *translateLogLevel(const bt_event_class_log_level level
         return "notice";
     case BT_EVENT_CLASS_LOG_LEVEL_INFO:
         return "info";
+
+    // Changed these to match the string constants in finalize-trace-cls.cpp.
+    // Maybe they should be extracted to constants in some header file.
     case BT_EVENT_CLASS_LOG_LEVEL_DEBUG_SYSTEM:
         return "debug:system";
     case BT_EVENT_CLASS_LOG_LEVEL_DEBUG_PROGRAM:
@@ -644,12 +647,9 @@ void CtfIrGenerator::_translateEventCls(Ctx& ctx)
 
 CtfIrGenerator::CtfIrGenerator(const LogCfg logCfg, ClkClsCfg clkClsCfg) :
 
-    _mLogCfg {logCfg}, _mScanner {ctf_scanner_alloc(), this->_destroyCtfScanner},
-    _mTsdlMetadataStreamDecoder {logCfg}
+    _mLogCfg {logCfg}, _mOldCtfGenerator {ctf_visitor_generate_ir_create(clkClsCfg, logCfg)},
+    _mScanner {ctf_scanner_alloc(), this->_destroyCtfScanner}, _mTsdlMetadataStreamDecoder {logCfg}
 {
-    ctf_metadata_decoder_config metadataCfg {logCfg};
-    metadataCfg.clkClsCfg = clkClsCfg;
-    _mOldCtfGenerator = ctf_visitor_generate_ir_create(&metadataCfg);
 }
 
 } /* namespace src */

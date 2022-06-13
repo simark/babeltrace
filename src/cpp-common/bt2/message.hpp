@@ -79,6 +79,11 @@ enum class MessageType
     MESSAGE_ITERATOR_INACTIVITY = BT_MESSAGE_TYPE_MESSAGE_ITERATOR_INACTIVITY,
 };
 
+static inline const char *MessageTypeStr(MessageType type)
+{
+    return bt_common_message_type_string((bt_message_type) type);
+}
+
 template <typename LibObjT>
 class CommonMessage : public internal::BorrowedObj<LibObjT>
 {

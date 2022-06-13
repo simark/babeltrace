@@ -15,25 +15,47 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <glib.h>
 #include <inttypes.h>
+#include <new>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <babeltrace2/babeltrace.h>
+
 #include "compat/mman.h"
 #include "compat/endian.h"
-#include <babeltrace2/babeltrace.h>
-#include "common/common.h"
-#include "file.hpp"
-#include "metadata.hpp"
-#include "../common/src/msg-iter/msg-iter.hpp"
 #include "common/assert.h"
-#include "data-stream-file.hpp"
-#include <string.h>
-#include "cpp-common/make-unique.hpp"
-#include "fs.hpp"
+#include "common/common.h"
+#include "cpp-common/comp-logging.hpp"
+#include "cpp-common/glib-up.hpp"
 
-static inline size_t remaining_mmap_bytes(struct ctf_fs_ds_file *ds_file)
+#include "../common/logging/log-cfg.hpp"
+#include "../common/src/msg-iter/msg-iter.hpp"
+#include "../common/src/pkt-props.hpp"
+
+#include "data-stream-file.hpp"
+#include "file.hpp"
+
+using namespace bt2_common::literals::datalen;
+
+static bt2_common::DataLen getFileSize(const char * const path, const ctf::LogCfg logCfg)
 {
-    BT_ASSERT_DBG(ds_file->mmap_len >= ds_file->request_offset_in_mapping);
-    return ds_file->mmap_len - ds_file->request_offset_in_mapping;
+    struct stat st;
+    if (stat(path, &st) != 0) {
+        BT_COMP_LOGE_APPEND_CAUSE_ERRNO(logCfg.selfComp, "Failed to stat stream file", "path=%s",
+                                        path);
+        throw bt2::Error {};
+    }
+
+    return bt2_common::DataLen::fromBytes(st.st_size);
+}
+
+ctf_fs_ds_file_info::ctf_fs_ds_file_info(std::string pathParam, ctf::LogCfg logCfg) :
+    path(std::move(pathParam)), size(getFileSize(path.c_str(), logCfg))
+{
 }
 
 /*
@@ -109,16 +131,18 @@ static ds_file_status ds_file_mmap(struct ctf_fs_ds_file *ds_file, off_t request
     }
 
     /*
-     * Compute a mapping that has the required alignment properties and
-     * contains `requested_offset_in_file`.
+     * Use an offset that has the required alignment properties and contains
+     * `requested_offset_in_file`.
      */
-    ds_file->request_offset_in_mapping =
-        requested_offset_in_file % bt_mmap_get_offset_align_size(logCfg.logLevel);
-    ds_file->mmap_offset_in_file = requested_offset_in_file - ds_file->request_offset_in_mapping;
+    size_t alignment = bt_mmap_get_offset_align_size(logCfg.logLevel);
+    ds_file->mmap_offset_in_file =
+        requested_offset_in_file - (requested_offset_in_file % alignment);
     ds_file->mmap_len =
-        MIN(ds_file->file->size - ds_file->mmap_offset_in_file, ds_file->mmap_max_len);
+        MIN(ds_file->file->size - ds_file->mmap_offset_in_file, ds_file->mmapMaxLen);
 
     BT_ASSERT(ds_file->mmap_len > 0);
+    BT_ASSERT(requested_offset_in_file >= ds_file->mmap_offset_in_file);
+    BT_ASSERT(requested_offset_in_file < (ds_file->mmap_offset_in_file + ds_file->mmap_len));
 
     ds_file->mmap_addr =
         bt_mmap((void *) 0, ds_file->mmap_len, PROT_READ, MAP_PRIVATE,
@@ -133,81 +157,51 @@ static ds_file_status ds_file_mmap(struct ctf_fs_ds_file *ds_file, off_t request
     return DS_FILE_STATUS_OK;
 }
 
-static ctf_fs_ds_index_entry::UP ctf_fs_ds_index_entry_create(const bt2_common::DataLen offset,
-                                                              const bt2_common::DataLen packetSize)
+void ctf_fs_ds_index::updateOffsetsInStream()
 {
-    ctf_fs_ds_index_entry::UP entry =
-        bt2_common::makeUnique<ctf_fs_ds_index_entry>(offset, packetSize);
+    bt2_common::DataLen offsetInStream = 0_bytes;
 
-    entry->packet_seq_num = UINT64_MAX;
-
-    return entry;
+    for (ctf_fs_ds_index_entry& entry : this->entries) {
+        entry.offsetInStream = offsetInStream;
+        offsetInStream += entry.packetSize;
+    }
 }
 
-static int convert_cycles_to_ns(struct ctf_clock_class *clock_class, uint64_t cycles, int64_t *ns)
+static int convert_cycles_to_ns(const ctf::src::ClkCls& clockClass, uint64_t cycles, int64_t *ns)
 {
-    return bt_util_clock_cycles_to_ns_from_origin(cycles, clock_class->frequency,
-                                                  clock_class->offset_seconds,
-                                                  clock_class->offset_cycles, ns);
+    return bt_util_clock_cycles_to_ns_from_origin(
+        cycles, clockClass.freq(), clockClass.offset().seconds(), clockClass.offset().cycles(), ns);
 }
 
-static ctf_fs_ds_index::UP build_index_from_idx_file(struct ctf_fs_ds_file *ds_file,
-                                                     struct ctf_fs_ds_file_info *file_info,
-                                                     struct ctf_msg_iter *msg_iter)
+static nonstd::optional<ctf_fs_ds_index>
+build_index_from_idx_file(const ctf_fs_ds_file_info& fileInfo, const ctf::src::TraceCls& traceCls,
+                          const ctf::LogCfg& logCfg)
 {
-    bt2_common::GCharUP directory;
-    bt2_common::GCharUP basename;
-    std::string index_basename;
-    bt2_common::GCharUP index_file_path;
-    bt2_common::GMappedFileUP mapped_file;
-    gsize filesize;
-    const char *mmap_begin = NULL, *file_pos = NULL;
-    const struct ctf_packet_index_file_hdr *header = NULL;
-    ctf_fs_ds_index::UP index;
-    bt2_common::DataLen totalPacketsSize = bt2_common::DataLen::fromBytes(0);
-    size_t file_index_entry_size;
-    size_t file_entry_count;
-    size_t i;
-    struct ctf_stream_class *sc;
-    struct ctf_msg_iter_packet_properties props;
-    uint32_t version_major, version_minor;
-    const ctf::LogCfg& logCfg = ds_file->logCfg;
-
-    BT_COMP_LOGI("Building index from .idx file of stream file %s", ds_file->file->path.c_str());
-    int ret = ctf_msg_iter_get_packet_properties(msg_iter, &props);
-    if (ret) {
-        BT_COMP_LOGI_STR("Cannot read first packet's header and context fields.");
-        return nullptr;
-    }
-
-    sc = ctf_trace_class_borrow_stream_class_by_id(ds_file->metadata->tc, props.stream_class_id);
-    BT_ASSERT(sc);
-    if (!sc->default_clock_class) {
-        BT_COMP_LOGI_STR("Cannot find stream class's default clock class.");
-        return nullptr;
-    }
+    const char *path = fileInfo.path.c_str();
+    BT_COMP_LOGI("Building index from .idx file of stream file %s", path);
 
     /* Look for index file in relative path index/name.idx. */
-    basename.reset(g_path_get_basename(ds_file->file->path.c_str()));
+    bt2_common::GCharUP basename(g_path_get_basename(path));
     if (!basename) {
-        BT_COMP_LOGE("Cannot get the basename of datastream file %s", ds_file->file->path.c_str());
-        return nullptr;
+        BT_COMP_LOGE("Cannot get the basename of datastream file %s", path);
+        return nonstd::nullopt;
     }
 
-    directory.reset(g_path_get_dirname(ds_file->file->path.c_str()));
+    bt2_common::GCharUP directory(g_path_get_dirname(path));
     if (!directory) {
-        BT_COMP_LOGE("Cannot get dirname of datastream file %s", ds_file->file->path.c_str());
-        return nullptr;
+        BT_COMP_LOGE("Cannot get dirname of datastream file %s", path);
+        return nonstd::nullopt;
     }
 
-    index_basename = basename.get();
+    std::string index_basename = basename.get();
     index_basename += ".idx";
 
-    index_file_path.reset(g_build_filename(directory.get(), "index", index_basename.c_str(), NULL));
-    mapped_file.reset(g_mapped_file_new(index_file_path.get(), FALSE, NULL));
+    bt2_common::GCharUP index_file_path(
+        g_build_filename(directory.get(), "index", index_basename.c_str(), NULL));
+    bt2_common::GMappedFileUP mapped_file(g_mapped_file_new(index_file_path.get(), FALSE, NULL));
     if (!mapped_file) {
         BT_COMP_LOGD("Cannot create new mapped file %s", index_file_path.get());
-        return nullptr;
+        return nonstd::nullopt;
     }
 
     /*
@@ -215,140 +209,157 @@ static ctf_fs_ds_index::UP build_index_from_idx_file(struct ctf_fs_ds_file *ds_f
      * Traces with such large indexes have never been seen in the wild,
      * but this would need to be adjusted to support them.
      */
-    filesize = g_mapped_file_get_length(mapped_file.get());
-    if (filesize < sizeof(*header)) {
+    gsize filesize = g_mapped_file_get_length(mapped_file.get());
+    if (filesize < sizeof(ctf_packet_index_file_hdr)) {
         BT_COMP_LOGW("Invalid LTTng trace index file: "
                      "file size (%zu bytes) < header size (%zu bytes)",
-                     filesize, sizeof(*header));
-        return nullptr;
+                     filesize, sizeof(ctf_packet_index_file_hdr));
+        return nonstd::nullopt;
     }
 
-    mmap_begin = g_mapped_file_get_contents(mapped_file.get());
-    header = (struct ctf_packet_index_file_hdr *) mmap_begin;
+    const char *mmap_begin = g_mapped_file_get_contents(mapped_file.get());
+    const ctf_packet_index_file_hdr *header = (ctf_packet_index_file_hdr *) mmap_begin;
 
-    file_pos = g_mapped_file_get_contents(mapped_file.get()) + sizeof(*header);
+    const char *file_pos = g_mapped_file_get_contents(mapped_file.get()) + sizeof(*header);
     if (be32toh(header->magic) != CTF_INDEX_MAGIC) {
         BT_COMP_LOGW_STR("Invalid LTTng trace index: \"magic\" field validation failed");
-        return nullptr;
+        return nonstd::nullopt;
     }
 
-    version_major = be32toh(header->index_major);
-    version_minor = be32toh(header->index_minor);
+    uint32_t version_major = be32toh(header->index_major);
+    uint32_t version_minor = be32toh(header->index_minor);
     if (version_major != 1) {
         BT_COMP_LOGW("Unknown LTTng trace index version: "
                      "major=%" PRIu32 ", minor=%" PRIu32,
                      version_major, version_minor);
-        return nullptr;
+        return nonstd::nullopt;
     }
 
-    file_index_entry_size = be32toh(header->packet_index_len);
+    size_t file_index_entry_size = be32toh(header->packet_index_len);
     if (file_index_entry_size < CTF_INDEX_1_0_SIZE) {
         BT_COMP_LOGW(
             "Invalid `packet_index_len` in LTTng trace index file (`packet_index_len` < CTF index 1.0 index entry size): "
             "packet_index_len=%zu, CTF_INDEX_1_0_SIZE=%zu",
             file_index_entry_size, CTF_INDEX_1_0_SIZE);
-        return nullptr;
+        return nonstd::nullopt;
     }
 
-    file_entry_count = (filesize - sizeof(*header)) / file_index_entry_size;
+    size_t file_entry_count = (filesize - sizeof(*header)) / file_index_entry_size;
     if ((filesize - sizeof(*header)) % file_index_entry_size) {
         BT_COMP_LOGW("Invalid LTTng trace index: the index's size after the header "
                      "(%zu bytes) is not a multiple of the index entry size "
                      "(%zu bytes)",
                      (filesize - sizeof(*header)), sizeof(*header));
-        return nullptr;
+        return nonstd::nullopt;
     }
 
-    index = bt2_common::makeUnique<ctf_fs_ds_index>();
+    /*
+     * We need the clock class to convert cycles to ns.  For that, we need the
+     * stream class.  Read the stream class id from the first packet's header.
+     * We don't know the size of that packet yet, so pretend that it spans the
+     * whole file (the reader will only read the header anyway).
+     */
+    ctf_fs_ds_index_entry tempIndexEntry {path, 0_bits, fileInfo.size};
+    ctf_fs_ds_index tempIndex;
+    tempIndex.entries.emplace_back(tempIndexEntry);
 
-    for (i = 0; i < file_entry_count; i++) {
+    ctf::src::fs::CtfFsMedium::UP medium =
+        bt2_common::makeUnique<ctf::src::fs::CtfFsMedium>(tempIndex, logCfg);
+    ctf::src::PktProps props = ctf::src::readPktProps(traceCls, std::move(medium), 0_bytes);
+
+    const ctf::src::DataStreamCls *sc = props.dataStreamCls;
+    BT_ASSERT(sc);
+    if (!sc->defClkCls()) {
+        BT_COMP_LOGI_STR("Cannot find stream class's default clock class.");
+        return nonstd::nullopt;
+    }
+
+    ctf_fs_ds_index_entry *prev_index_entry = nullptr;
+    bt2_common::DataLen totalPacketsSize = 0_bytes;
+    ctf_fs_ds_index index;
+
+    for (size_t i = 0; i < file_entry_count; i++) {
         struct ctf_packet_index *file_index = (struct ctf_packet_index *) file_pos;
         bt2_common::DataLen packetSize =
             bt2_common::DataLen::fromBits(be64toh(file_index->packet_size));
 
         if (packetSize.hasExtraBits()) {
             BT_COMP_LOGW("Invalid packet size encountered in LTTng trace index file");
-            return nullptr;
+            return nonstd::nullopt;
         }
 
         bt2_common::DataLen offset = bt2_common::DataLen::fromBytes(be64toh(file_index->offset));
-        if (i != 0 && offset < prev_index_entry->offset) {
+        if (i != 0 && offset < prev_index_entry->offsetInFile) {
             BT_COMP_LOGW(
                 "Invalid, non-monotonic, packet offset encountered in LTTng trace index file: "
                 "previous offset=%llu bytes, current offset=%llu bytes",
-                prev_index_entry->offset.bytes(), offset.bytes());
-            return nullptr;
+                prev_index_entry->offsetInFile.bytes(), offset.bytes());
+            return nonstd::nullopt;
         }
 
-        ctf_fs_ds_index_entry index_entry {offset, packetSize};
+        ctf_fs_ds_index_entry indexEntry {path, offset, packetSize};
 
-        /* Set path to stream file. */
-        index_entry.path = file_info->path.c_str();
-
-        index_entry.timestamp_begin = be64toh(file_index->timestamp_begin);
-        index_entry.timestamp_end = be64toh(file_index->timestamp_end);
-        if (index_entry.timestamp_end < index_entry.timestamp_begin) {
+        indexEntry.timestamp_begin = be64toh(file_index->timestamp_begin);
+        indexEntry.timestamp_end = be64toh(file_index->timestamp_end);
+        if (indexEntry.timestamp_end < indexEntry.timestamp_begin) {
             BT_COMP_LOGW(
                 "Invalid packet time bounds encountered in LTTng trace index file (begin > end): "
                 "timestamp_begin=%" PRIu64 "timestamp_end=%" PRIu64,
-                index_entry.timestamp_begin, index_entry.timestamp_end);
-            return nullptr;
+                indexEntry.timestamp_begin, indexEntry.timestamp_end);
+            return nonstd::nullopt;
         }
 
         /* Convert the packet's bound to nanoseconds since Epoch. */
-        ret = convert_cycles_to_ns(sc->default_clock_class, index_entry.timestamp_begin,
-                                   &index_entry.timestamp_begin_ns);
+        int ret = convert_cycles_to_ns(*sc->defClkCls(), indexEntry.timestamp_begin,
+                                       &indexEntry.timestamp_begin_ns);
         if (ret) {
             BT_COMP_LOGI_STR(
                 "Failed to convert raw timestamp to nanoseconds since Epoch during index parsing");
-            return nullptr;
+            return nonstd::nullopt;
         }
-        ret = convert_cycles_to_ns(sc->default_clock_class, index_entry.timestamp_end,
-                                   &index_entry.timestamp_end_ns);
+        ret = convert_cycles_to_ns(*sc->defClkCls(), indexEntry.timestamp_end,
+                                   &indexEntry.timestamp_end_ns);
         if (ret) {
             BT_COMP_LOGI_STR(
                 "Failed to convert raw timestamp to nanoseconds since Epoch during LTTng trace index parsing");
-            return nullptr;
+            return nonstd::nullopt;
         }
 
         if (version_minor >= 1) {
-            index_entry.packet_seq_num = be64toh(file_index->packet_seq_num);
+            indexEntry.packet_seq_num = be64toh(file_index->packet_seq_num);
         }
 
         totalPacketsSize += packetSize;
         file_pos += file_index_entry_size;
 
-        prev_index_entry = index_entry.get();
+        /* Give ownership of `index_entry` to `index->entries`. */
+        index.entries.emplace_back(indexEntry);
 
-        index->entries.emplace_back(index_entry);
+        prev_index_entry = &index.entries.back();
     }
 
     /* Validate that the index addresses the complete stream. */
-    if (ds_file->file->size != totalPacketsSize.bytes()) {
+    if (fileInfo.size != totalPacketsSize) {
         BT_COMP_LOGW("Invalid LTTng trace index file; indexed size != stream file size: "
-                     "file-size=%" PRIu64 " bytes, total-packets-size=%llu bytes",
-                     ds_file->file->size, totalPacketsSize.bytes());
-        return nullptr;
+                     "stream-file-size-bytes=%llu, total-packets-size-bytes=%llu",
+                     fileInfo.size.bytes(), totalPacketsSize.bytes());
+        return nonstd::nullopt;
     }
 
     return index;
 }
 
-static int init_index_entry(struct ctf_fs_ds_index_entry *entry, struct ctf_fs_ds_file *ds_file,
-                            struct ctf_msg_iter_packet_properties *props)
+static int init_index_entry(struct ctf_fs_ds_index_entry *entry, ctf::src::PktProps *props,
+                            const ctf::src::DataStreamCls& dataStreamCls, const ctf::LogCfg& logCfg)
 {
-    struct ctf_stream_class *sc;
+    int ret = 0;
 
-    sc = ctf_trace_class_borrow_stream_class_by_id(ds_file->metadata->tc, props->stream_class_id);
-    BT_ASSERT(sc);
-    const ctf::LogCfg& logCfg = ds_file->logCfg;
-
-    if (props->snapshots.beginning_clock != UINT64_C(-1)) {
-        entry->timestamp_begin = props->snapshots.beginning_clock;
+    if (props->snapshots.beginDefClk) {
+        entry->timestamp_begin = *props->snapshots.beginDefClk;
 
         /* Convert the packet's bound to nanoseconds since Epoch. */
-        int ret = convert_cycles_to_ns(sc->default_clock_class, props->snapshots.beginning_clock,
-                                       &entry->timestamp_begin_ns);
+        ret = convert_cycles_to_ns(*dataStreamCls.defClkCls(), *props->snapshots.beginDefClk,
+                                   &entry->timestamp_begin_ns);
         if (ret) {
             BT_COMP_LOGI_STR("Failed to convert raw timestamp to nanoseconds since Epoch.");
             return ret;
@@ -358,12 +369,12 @@ static int init_index_entry(struct ctf_fs_ds_index_entry *entry, struct ctf_fs_d
         entry->timestamp_begin_ns = UINT64_C(-1);
     }
 
-    if (props->snapshots.end_clock != UINT64_C(-1)) {
-        entry->timestamp_end = props->snapshots.end_clock;
+    if (props->snapshots.endDefClk) {
+        entry->timestamp_end = *props->snapshots.endDefClk;
 
         /* Convert the packet's bound to nanoseconds since Epoch. */
-        int ret = convert_cycles_to_ns(sc->default_clock_class, props->snapshots.end_clock,
-                                       &entry->timestamp_end_ns);
+        ret = convert_cycles_to_ns(*dataStreamCls.defClkCls(), *props->snapshots.endDefClk,
+                                   &entry->timestamp_end_ns);
         if (ret) {
             BT_COMP_LOGI_STR("Failed to convert raw timestamp to nanoseconds since Epoch.");
             return ret;
@@ -376,40 +387,39 @@ static int init_index_entry(struct ctf_fs_ds_index_entry *entry, struct ctf_fs_d
     return 0;
 }
 
-static ctf_fs_ds_index::UP build_index_from_stream_file(struct ctf_fs_ds_file *ds_file,
-                                                        struct ctf_fs_ds_file_info *file_info,
-                                                        struct ctf_msg_iter *msg_iter)
+static nonstd::optional<ctf_fs_ds_index>
+build_index_from_stream_file(const ctf_fs_ds_file_info& fileInfo,
+                             const ctf::src::TraceCls& traceCls, const ctf::LogCfg& logCfg)
 {
-    int ret;
-    enum ctf_msg_iter_status iter_status = CTF_MSG_ITER_STATUS_OK;
-    bt2_common::DataLen currentPacketOffset = bt2_common::DataLen::fromBytes(0);
-    const ctf::LogCfg& logCfg = ds_file->logCfg;
+    bt2_common::DataLen currentPacketOffset = 0_bytes;
+    ctf_fs_ds_index index;
+    const char *path = fileInfo.path.c_str();
 
-    BT_COMP_LOGI("Indexing stream file %s", ds_file->file->path.c_str());
-
-    ctf_fs_ds_index::UP index = bt2_common::makeUnique<ctf_fs_ds_index>();
+    BT_COMP_LOGI("Indexing stream file %s", path);
 
     while (true) {
-        ctf_fs_ds_index_entry::UP index_entry;
-        struct ctf_msg_iter_packet_properties props;
-
-        if (currentPacketOffset.bytes() > ds_file->file->size) {
+        if (currentPacketOffset > fileInfo.size) {
             BT_COMP_LOGE_STR("Unexpected current packet's offset (larger than file).");
-            return nullptr;
-        } else if (currentPacketOffset.bytes() == ds_file->file->size) {
+            return nonstd::nullopt;
+        } else if (currentPacketOffset == fileInfo.size) {
             /* No more data */
             break;
         }
 
-        iter_status = ctf_msg_iter_seek(msg_iter, currentPacketOffset.bytes());
-        if (iter_status != CTF_MSG_ITER_STATUS_OK) {
-            return nullptr;
-        }
-
-        iter_status = ctf_msg_iter_get_packet_properties(msg_iter, &props);
-        if (iter_status != CTF_MSG_ITER_STATUS_OK) {
-            return nullptr;
-        }
+        /*
+         * Create a temporary index and medium to read the properties of the
+         * current packet.  We don't know yet the size of the packet (that's
+         * one of the things we want to find out), so pretend it spans the rest
+         * of the file.
+         */
+        ctf_fs_ds_index_entry tempIndexEntry {path, currentPacketOffset,
+                                              fileInfo.size - currentPacketOffset};
+        ctf_fs_ds_index tempIndex;
+        tempIndex.entries.emplace_back(tempIndexEntry);
+        ctf::src::fs::CtfFsMedium::UP medium =
+            bt2_common::makeUnique<ctf::src::fs::CtfFsMedium>(tempIndex, logCfg);
+        ctf::src::PktProps props =
+            ctf::src::readPktProps(traceCls, std::move(medium), currentPacketOffset);
 
         /*
          * Get the current packet size from the packet header, if set.  Else,
@@ -417,35 +427,30 @@ static ctf_fs_ds_index::UP build_index_from_stream_file(struct ctf_fs_ds_file *d
          * as the packet size.
          */
         bt2_common::DataLen currentPacketSize =
-            props.exp_packet_total_size >= 0 ?
-                bt2_common::DataLen::fromBits(props.exp_packet_total_size) :
-                bt2_common::DataLen::fromBytes(ds_file->file->size);
+            props.expectedTotalLen ? *props.expectedTotalLen : fileInfo.size;
 
-        if ((currentPacketOffset + currentPacketSize).bytes() > ds_file->file->size) {
+        BT_COMP_LOGI("Packet: offset-bytes=%llu, len-bytes=%llu, begin-clk=%lld, end-clk=%lld",
+                     currentPacketOffset.bytes(), currentPacketSize.bytes(),
+                     props.snapshots.beginDefClk ? *props.snapshots.beginDefClk : -1,
+                     props.snapshots.endDefClk ? *props.snapshots.endDefClk : -1);
+
+        if (currentPacketOffset + currentPacketSize > fileInfo.size) {
             BT_COMP_LOGW("Invalid packet size reported in file: stream=\"%s\", "
                          "packet-offset-bytes=%llu, packet-size-bytes=%llu, "
-                         "file-size-bytes=%jd",
-                         ds_file->file->path.c_str(), currentPacketOffset.bytes(),
-                         currentPacketSize.bytes(), (intmax_t) ds_file->file->size);
-            return nullptr;
+                         "file-size-bytes=%llu",
+                         path, currentPacketOffset.bytes(), currentPacketSize.bytes(),
+                         fileInfo.size.bytes());
+            return nonstd::nullopt;
         }
 
-        index_entry =
-            bt2_common::makeUnique<ctf_fs_ds_index_entry>(currentPacketOffset, currentPacketSize);
-        if (!index_entry) {
-            BT_COMP_LOGE_APPEND_CAUSE(logCfg.selfComp, "Failed to create a ctf_fs_ds_index_entry.");
-            return nullptr;
-        }
+        ctf_fs_ds_index_entry indexEntry {path, currentPacketOffset, currentPacketSize};
 
-        /* Set path to stream file. */
-        index_entry->path = file_info->path.c_str();
-
-        ret = init_index_entry(index_entry.get(), ds_file, &props);
+        int ret = init_index_entry(&indexEntry, &props, *props.dataStreamCls, logCfg);
         if (ret) {
-            return nullptr;
+            return nonstd::nullopt;
         }
 
-        index->entries.emplace_back(std::move(index_entry));
+        index.entries.emplace_back(indexEntry);
 
         currentPacketOffset += currentPacketSize;
         BT_COMP_LOGD("Seeking to next packet: current-packet-offset-bytes=%llu, "
@@ -458,44 +463,127 @@ static ctf_fs_ds_index::UP build_index_from_stream_file(struct ctf_fs_ds_file *d
 }
 
 BT_HIDDEN
-ctf_fs_ds_file::UP ctf_fs_ds_file_create(struct ctf_fs_trace *ctf_fs_trace,
-                                         nonstd::optional<bt2::Stream::Shared> stream,
-                                         const char *path, const ctf::LogCfg& logCfg)
+ctf_fs_ds_file::UP ctf_fs_ds_file_create(const char *path, const ctf::LogCfg& logCfg)
 {
     int ret;
     const size_t offset_align = bt_mmap_get_offset_align_size(logCfg.logLevel);
-    ctf_fs_ds_file::UP ds_file = bt2_common::makeUnique<ctf_fs_ds_file>(logCfg);
+    ctf_fs_ds_file::UP ds_file =
+        bt2_common::makeUnique<ctf_fs_ds_file>(logCfg, offset_align * 2048);
 
     ds_file->file = bt2_common::makeUnique<ctf_fs_file>(logCfg);
-    ds_file->stream = std::move(stream);
-    ds_file->metadata = ctf_fs_trace->metadata.get();
     ds_file->file->path = path;
     ret = ctf_fs_file_open(ds_file->file.get(), "rb");
     if (ret) {
         return nullptr;
     }
 
-    ds_file->mmap_max_len = offset_align * 2048;
-
     return ds_file;
 }
 
-BT_HIDDEN
-ctf_fs_ds_index::UP ctf_fs_ds_file_build_index(struct ctf_fs_ds_file *ds_file,
-                                               struct ctf_fs_ds_file_info *file_info,
-                                               struct ctf_msg_iter *msg_iter)
+namespace ctf {
+namespace src {
+namespace fs {
+struct CtfFsMediumError : public bt2::Error
 {
-    ctf_fs_ds_index::UP index;
-    const ctf::LogCfg& logCfg = ds_file->logCfg;
+    CtfFsMediumError(std::string msg) : bt2::Error {std::move(msg)}
+    {
+    }
+};
 
-    index = build_index_from_idx_file(ds_file, file_info, msg_iter);
+CtfFsMedium::CtfFsMedium(const ctf_fs_ds_index& index, const LogCfg& logCfg) :
+    _mIndex {index}, _mLogCfg {logCfg}
+
+{
+    BT_ASSERT(!_mIndex.entries.empty());
+}
+
+ctf_fs_ds_index::EntriesT::const_iterator
+CtfFsMedium::_mFindIndexEntryForOffset(bt2_common::DataLen offsetInStream) const noexcept
+{
+    return std::lower_bound(
+        _mIndex.entries.begin(), _mIndex.entries.end(), offsetInStream,
+        [](const ctf_fs_ds_index_entry& entry, bt2_common::DataLen offsetInStreamLambda) {
+            return (entry.offsetInStream + entry.packetSize - 1_bytes) < offsetInStreamLambda;
+        });
+}
+
+ctf::src::Buf CtfFsMedium::buf(const bt2_common::DataLen requestedOffsetInStream,
+                               const bt2_common::DataLen minSize)
+{
+    const LogCfg& logCfg = _mLogCfg;
+    BT_COMP_OR_COMP_CLASS_LOGD(logCfg.selfComp, logCfg.selfCompClass,
+                               "buf called: offset-bytes=%llu, min-size-bytes=%llu",
+                               requestedOffsetInStream.bytes(), minSize.bytes());
+
+    /* The medium only gets asked about whole byte offsets and min sizes. */
+    BT_ASSERT_DBG(requestedOffsetInStream.extraBitCount() == 0);
+    BT_ASSERT_DBG(minSize.extraBitCount() == 0);
+
+    /*
+     *  +-file 1-----+  +-file 2-----+------------+------------+
+     *  |            |  |            |            |            |
+     *  | packet 1   |  | packet 2   | packet 3   | packet 4   |
+     *  |            |  |            |            |            |
+     *  +------------+  +------------+------------+------------+
+     *  ^----------------------------^              _mCurrentPacketBeginOffsetInStream
+     *  ^-----------------------------------------^ _mCurrentPacketBeginOffsetInStream
+     *  ^--------------------------------^          requestedOffsetInStream
+     *                  ^----------------^          requestedOffsetInFile
+     *                               ^---^          requestedOffsetInPacket
+     */
+    ctf_fs_ds_index::EntriesT::const_iterator indexEntryIt =
+        this->_mFindIndexEntryForOffset(requestedOffsetInStream);
+    if (indexEntryIt == _mIndex.entries.end()) {
+        BT_COMP_OR_COMP_CLASS_LOGD(logCfg.selfComp, logCfg.selfCompClass, "no data");
+        throw NoData();
+    }
+
+    const ctf_fs_ds_index_entry& indexEntry = *indexEntryIt;
+
+    _mCurrentDsFile.reset();
+    _mCurrentDsFile = ctf_fs_ds_file_create(indexEntry.path, _mLogCfg);
+    if (!_mCurrentDsFile) {
+        BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE_AND_THROW(
+            bt2::Error, logCfg.selfComp, logCfg.selfCompClass, "Failed to create ctf_fs_ds_file");
+    }
+
+    ds_file_status status = ds_file_mmap(_mCurrentDsFile.get(), indexEntry.offsetInFile.bytes());
+    if (status != DS_FILE_STATUS_OK) {
+        throw CtfFsMediumError("Failed to mmap file");
+    }
+
+    size_t requestedOffsetInMapping =
+        indexEntry.offsetInFile.bytes() - _mCurrentDsFile->mmap_offset_in_file;
+    size_t lenUntilEndOfMapping = _mCurrentDsFile->mmap_len - requestedOffsetInMapping;
+
+    // FIXME: here, we're potentially returning some data that is not in the packet "playlsit"
+    ctf::src::Buf buf {((const uint8_t *) _mCurrentDsFile->mmap_addr) + requestedOffsetInMapping,
+                       bt2_common::DataLen::fromBytes(lenUntilEndOfMapping)};
+
+    BT_COMP_OR_COMP_CLASS_LOGD(logCfg.selfComp, logCfg.selfCompClass,
+                               "CtfFsMedium::buf returns: buf-addr=%p, buf-size=%llu bits\n",
+                               buf.addr(), buf.size().bits());
+
+    return buf;
+}
+
+} /* namespace fs */
+} /* namespace src */
+} /* namespace ctf */
+
+BT_HIDDEN
+nonstd::optional<ctf_fs_ds_index> ctf_fs_ds_file_build_index(const ctf_fs_ds_file_info& fileInfo,
+                                                             const ctf::src::TraceCls& traceCls,
+                                                             const ctf::LogCfg& logCfg)
+{
+    nonstd::optional<ctf_fs_ds_index> index = build_index_from_idx_file(fileInfo, traceCls, logCfg);
     if (index) {
         return index;
     }
 
     BT_COMP_LOGI("Failed to build index from .index file; "
                  "falling back to stream indexing.");
-    return build_index_from_stream_file(ds_file, file_info, msg_iter);
+    return build_index_from_stream_file(fileInfo, traceCls, logCfg);
 }
 
 ctf_fs_ds_file::~ctf_fs_ds_file()
@@ -503,29 +591,12 @@ ctf_fs_ds_file::~ctf_fs_ds_file()
     (void) ds_file_munmap(this);
 }
 
-BT_HIDDEN ctf_fs_ds_file_info::UP ctf_fs_ds_file_info_create(const char *path, int64_t begin_ns)
+ctf_fs_ds_file_group::ctf_fs_ds_file_group(const ctf::src::DataStreamCls& dataStreamClsParam,
+                                           uint64_t streamInstanceIdParam,
+                                           struct ctf_fs_trace *ctfFsTraceParam,
+                                           ctf_fs_ds_index indexParam) :
+
+    dataStreamCls(dataStreamClsParam),
+    stream_id(streamInstanceIdParam), ctf_fs_trace(ctfFsTraceParam), index(std::move(indexParam))
 {
-    ctf_fs_ds_file_info::UP ds_file_info = bt2_common::makeUnique<ctf_fs_ds_file_info>();
-
-    ds_file_info->path = path;
-    ds_file_info->begin_ns = begin_ns;
-
-    return ds_file_info;
-}
-
-BT_HIDDEN ctf_fs_ds_file_group::UP ctf_fs_ds_file_group_create(struct ctf_fs_trace *ctf_fs_trace,
-                                                               struct ctf_stream_class *sc,
-                                                               uint64_t stream_instance_id,
-                                                               ctf_fs_ds_index::UP index)
-{
-    ctf_fs_ds_file_group::UP ds_file_group {new ctf_fs_ds_file_group};
-
-    ds_file_group->index = std::move(index);
-
-    ds_file_group->stream_id = stream_instance_id;
-    BT_ASSERT(sc);
-    ds_file_group->sc = sc;
-    ds_file_group->ctf_fs_trace = ctf_fs_trace;
-
-    return ds_file_group;
 }

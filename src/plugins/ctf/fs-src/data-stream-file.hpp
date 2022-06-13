@@ -17,25 +17,29 @@
 #include <vector>
 
 #include "../common/src/msg-iter/msg-iter.hpp"
-#include "cpp-common/data-len.hpp"
+#include "../common/src/item-seq/medium.hpp"
 #include "lttng-index.hpp"
 #include "plugins/ctf/common/logging/log-cfg.hpp"
-#include "cpp-common/bt2/trace-ir.hpp"
 #include "file.hpp"
+#include "../common/src/metadata/ctf-ir.hpp"
 
 struct ctf_fs_component;
 struct ctf_fs_file;
 struct ctf_fs_trace;
 struct ctf_fs_ds_group_medops_data;
+struct ctf_fs_ds_file_info;
 
 struct ctf_fs_ds_file_info
 {
     using UP = std::unique_ptr<ctf_fs_ds_file_info>;
 
+    ctf_fs_ds_file_info(std::string pathParam, ctf::LogCfg logCfg);
+
     std::string path;
+    bt2_common::DataLen size;
 
     /* Guaranteed to be set, as opposed to the index. */
-    int64_t begin_ns = 0;
+    int64_t beginNs = 0;
 };
 
 struct ctf_fs_metadata;
@@ -44,7 +48,8 @@ struct ctf_fs_ds_file
 {
     using UP = std::unique_ptr<ctf_fs_ds_file>;
 
-    explicit ctf_fs_ds_file(const ctf::LogCfg& logCfgParam) noexcept : logCfg {logCfgParam}
+    explicit ctf_fs_ds_file(const ctf::LogCfg& logCfgParam, const size_t mmapMaxLenParam) noexcept :
+        logCfg {logCfgParam}, mmapMaxLen {mmapMaxLenParam}
     {
     }
 
@@ -52,13 +57,7 @@ struct ctf_fs_ds_file
 
     const ctf::LogCfg logCfg;
 
-    /* Weak */
-    struct ctf_fs_metadata *metadata = nullptr;
-
     ctf_fs_file::UP file;
-
-    /* Owned by this */
-    nonstd::optional<bt2::Stream::Shared> stream;
 
     void *mmap_addr = nullptr;
 
@@ -66,7 +65,7 @@ struct ctf_fs_ds_file
      * Max length of chunk to mmap() when updating the current mapping.
      * This value must be page-aligned.
      */
-    size_t mmap_max_len = 0;
+    const size_t mmapMaxLen;
 
     /* Length of the current mapping. Never exceeds the file's length. */
     size_t mmap_len = 0;
@@ -77,19 +76,30 @@ struct ctf_fs_ds_file
 
 struct ctf_fs_ds_index_entry
 {
-    ctf_fs_ds_index_entry(bt2_common::DataLen offsetParam, bt2_common::DataLen packetSizeParam) :
-        offset(offsetParam), packetSize(packetSizeParam)
+    ctf_fs_ds_index_entry(const char *pathParam, bt2_common::DataLen offsetInFileParam,
+                          bt2_common::DataLen packetSizeParam) :
+        path(pathParam),
+        offsetInFile(offsetInFileParam), offsetInStream {offsetInFileParam},
+        packetSize(packetSizeParam)
     {
+        BT_ASSERT(path);
     }
 
     /* Weak, belongs to ctf_fs_ds_file_info. */
-    const char *path = nullptr;
+    const char *path;
 
     /* Position of the packet from the beginning of the file. */
-    const bt2_common::DataLen offset;
+    bt2_common::DataLen offsetInFile;
+
+    /*
+     * Position of the packet from the beginning of the stream.  Starts equal
+     * to `offsetInFile`, but can change when multiple data stream files
+     * belonging to the same stream are merged.
+     */
+    bt2_common::DataLen offsetInStream;
 
     /* Size of the packet. */
-    const bt2_common::DataLen packetSize;
+    bt2_common::DataLen packetSize;
 
     /*
      * Extracted from the packet context, relative to the respective fields'
@@ -111,16 +121,24 @@ struct ctf_fs_ds_index_entry
 
 struct ctf_fs_ds_index
 {
-    using UP = std::unique_ptr<ctf_fs_ds_index>;
+    using EntriesT = std::vector<ctf_fs_ds_index_entry>;
 
-    std::vector<ctf_fs_ds_index_entry> entries;
+    EntriesT entries;
+
+    void updateOffsetsInStream();
 };
 
 struct ctf_fs_ds_file_group
 {
     using UP = std::unique_ptr<ctf_fs_ds_file_group>;
 
+    ctf_fs_ds_file_group(const ctf::src::DataStreamCls& dataStreamClsParam,
+                         uint64_t streamInstanceIdParam, struct ctf_fs_trace *ctfFsTraceParam,
+                         ctf_fs_ds_index indexParam);
+
     /*
+     * Array of struct ctf_fs_ds_file_info, owned by this.
+     *
      * This is an _ordered_ array of data stream file infos which
      * belong to this group (a single stream instance).
      *
@@ -129,10 +147,8 @@ struct ctf_fs_ds_file_group
      */
     std::vector<ctf_fs_ds_file_info::UP> ds_file_infos;
 
-    /* Owned by this */
-    struct ctf_stream_class *sc = nullptr;
+    const ctf::src::DataStreamCls& dataStreamCls;
 
-    /* Owned by this */
     nonstd::optional<bt2::Stream::Shared> stream;
 
     /* Stream (instance) ID; -1ULL means none */
@@ -141,59 +157,39 @@ struct ctf_fs_ds_file_group
     /* Weak, belongs to component */
     struct ctf_fs_trace *ctf_fs_trace = nullptr;
 
-    ctf_fs_ds_index::UP index;
+    ctf_fs_ds_index index;
 };
 
 BT_HIDDEN
-ctf_fs_ds_file::UP ctf_fs_ds_file_create(struct ctf_fs_trace *ctf_fs_trace,
-                                         nonstd::optional<bt2::Stream::Shared> stream,
-                                         const char *path, const ctf::LogCfg& logCfg);
+ctf_fs_ds_file::UP ctf_fs_ds_file_create(const char *path, const ctf::LogCfg& logCfg);
 
 BT_HIDDEN
-ctf_fs_ds_index::UP ctf_fs_ds_file_build_index(struct ctf_fs_ds_file *ds_file,
-                                               struct ctf_fs_ds_file_info *ds_file_info,
-                                               struct ctf_msg_iter *msg_iter);
+nonstd::optional<ctf_fs_ds_index> ctf_fs_ds_file_build_index(const ctf_fs_ds_file_info& file_info,
+                                                             const ctf::src::TraceCls& traceCls,
+                                                             const ctf::LogCfg& logCfg);
 
-BT_HIDDEN ctf_fs_ds_file_info::UP ctf_fs_ds_file_info_create(const char *path, int64_t begin_ns);
+namespace ctf {
+namespace src {
+namespace fs {
 
-BT_HIDDEN ctf_fs_ds_file_group::UP ctf_fs_ds_file_group_create(struct ctf_fs_trace *ctf_fs_trace,
-                                                               struct ctf_stream_class *sc,
-                                                               uint64_t stream_instance_id,
-                                                               ctf_fs_ds_index::UP index);
-
-/*
- * Medium operations to iterate on a single ctf_fs_ds_file.
- *
- * The data pointer when using this must be a pointer to the ctf_fs_ds_file.
- */
-extern struct ctf_msg_iter_medium_ops ctf_fs_ds_file_medops;
-
-/*
- * Medium operations to iterate on the packet of a ctf_fs_ds_group.
- *
- * The iteration is done based on the index of the group.
- *
- * The data pointer when using these medops must be a pointer to a ctf_fs_ds
- * group_medops_data structure.
- */
-BT_HIDDEN
-extern struct ctf_msg_iter_medium_ops ctf_fs_ds_group_medops;
-
-struct ctf_fs_ds_group_medops_data_deleter
+struct CtfFsMedium : public ctf::src::Medium
 {
-    void operator()(ctf_fs_ds_group_medops_data *data);
+    CtfFsMedium(const ctf_fs_ds_index& index, const LogCfg& logCfg);
+
+    ctf::src::Buf buf(bt2_common::DataLen offset, bt2_common::DataLen minSize) override;
+
+private:
+    ctf_fs_ds_index::EntriesT::const_iterator
+    _mFindIndexEntryForOffset(bt2_common::DataLen offsetInStream) const noexcept;
+
+    const ctf_fs_ds_index& _mIndex;
+    const LogCfg _mLogCfg;
+
+    ctf_fs_ds_file::UP _mCurrentDsFile;
 };
 
-using ctf_fs_ds_group_medops_data_up =
-    std::unique_ptr<ctf_fs_ds_group_medops_data, ctf_fs_ds_group_medops_data_deleter>;
-
-BT_HIDDEN
-enum ctf_msg_iter_medium_status
-ctf_fs_ds_group_medops_data_create(struct ctf_fs_ds_file_group *ds_file_group,
-                                   bt_self_message_iterator *self_msg_iter,
-                                   const ctf::LogCfg& logCfg, ctf_fs_ds_group_medops_data_up& out);
-
-BT_HIDDEN
-void ctf_fs_ds_group_medops_data_reset(struct ctf_fs_ds_group_medops_data *data);
+} /* namespace fs */
+} /* namespace src */
+} /* namespace ctf */
 
 #endif /* CTF_FS_DS_FILE_H */
