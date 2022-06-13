@@ -2389,16 +2389,16 @@ void destroy_dynamic_array_field_class(struct bt_object *obj)
 		switch (fc->length_field.xref_kind) {
 		case FIELD_XREF_KIND_PATH:
 			BT_LOGD_STR("Putting length field class.");
-			bt_object_put_ref_no_null_check(fc->length_field.path.class);
+			BT_OBJECT_PUT_REF_AND_RESET(fc->length_field.path.class);
 			fc->length_field.path.class = NULL;
 
 			BT_LOGD_STR("Putting length field path.");
-			bt_object_put_ref_no_null_check(fc->length_field.path.path);
+			BT_OBJECT_PUT_REF_AND_RESET(fc->length_field.path.path);
 			fc->length_field.path.path = NULL;
 			break;
 		case FIELD_XREF_KIND_LOCATION:
 			BT_LOGD_STR("Putting length field location.");
-			bt_object_put_ref_no_null_check(fc->length_field.location);
+			BT_OBJECT_PUT_REF_AND_RESET(fc->length_field.location);
 			fc->length_field.location = NULL;
 			break;
 		};
