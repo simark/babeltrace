@@ -123,6 +123,8 @@ struct lttng_live_stream_iterator
 
 struct lttng_live_metadata
 {
+    using UP = std::unique_ptr<lttng_live_metadata>;
+
     explicit lttng_live_metadata(const ctf::LogCfg& logCfgParam) noexcept : logCfg {logCfgParam}
     {
     }
@@ -176,7 +178,7 @@ struct lttng_live_trace
 
     nonstd::optional<bt2::TraceClass::Shared> trace_class;
 
-    struct lttng_live_metadata *metadata = nullptr;
+    lttng_live_metadata::UP metadata;
 
     const bt_clock_class *clock_class = nullptr;
 
