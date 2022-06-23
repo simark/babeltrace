@@ -198,6 +198,8 @@ struct lttng_live_session
     {
     }
 
+    ~lttng_live_session();
+
     const ctf::LogCfg logCfg;
 
     bt_self_component *self_comp = nullptr;
