@@ -55,6 +55,8 @@ struct lttng_live_component;
 
 struct live_viewer_connection
 {
+    using UP = std::unique_ptr<live_viewer_connection>;
+
     explicit live_viewer_connection(const ctf::LogCfg& logCfgParam) noexcept : logCfg {logCfgParam}
     {
     }
@@ -104,7 +106,7 @@ struct packet_index
 enum lttng_live_viewer_status
 live_viewer_connection_create(const char *url, bool in_query,
                               struct lttng_live_msg_iter *lttng_live_msg_iter,
-                              const ctf::LogCfg& logCfg, struct live_viewer_connection **viewer);
+                              const ctf::LogCfg& logCfg, live_viewer_connection::UP& viewer);
 
 enum lttng_live_viewer_status
 lttng_live_create_viewer_session(struct lttng_live_msg_iter *lttng_live_msg_iter);
