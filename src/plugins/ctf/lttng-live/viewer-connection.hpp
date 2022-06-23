@@ -18,6 +18,7 @@
 
 #include "common/macros.h"
 #include "compat/socket.h"
+#include "cpp-common/glib-up.hpp"
 #include "plugins/ctf/common/logging/log-cfg.hpp"
 
 #define LTTNG_DEFAULT_NETWORK_VIEWER_PORT 5344
@@ -62,10 +63,10 @@ struct live_viewer_connection
 
     std::string url;
 
-    GString *relay_hostname = nullptr;
-    GString *target_hostname = nullptr;
-    GString *session_name = nullptr;
-    GString *proto = nullptr;
+    bt2_common::GStringUP relay_hostname;
+    bt2_common::GStringUP target_hostname;
+    bt2_common::GStringUP session_name;
+    bt2_common::GStringUP proto;
 
     BT_SOCKET control_sock {};
     int port = 0;
