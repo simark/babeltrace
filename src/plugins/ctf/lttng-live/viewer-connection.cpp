@@ -1749,33 +1749,20 @@ live_viewer_connection_create(const char *url, bool in_query,
     goto end;
 
 error:
-    if (viewer_connection) {
-        live_viewer_connection_destroy(viewer_connection);
-    }
+    delete viewer_connection;
+
 end:
     return status;
 }
 
-BT_HIDDEN
-void live_viewer_connection_destroy(struct live_viewer_connection *viewer_connection)
+live_viewer_connection::~live_viewer_connection()
 {
-    const ctf::LogCfg& logCfg = viewer_connection->logCfg;
-
-    if (!viewer_connection) {
-        goto end;
-    }
-
     BT_COMP_OR_COMP_CLASS_LOGD(logCfg.selfComp, logCfg.selfCompClass,
                                "Closing connection to relay:"
                                "relay-url=\"%s\"",
-                               viewer_connection->url.c_str());
+                               this->url.c_str());
 
-    lttng_live_disconnect_viewer(viewer_connection);
-
-    delete viewer_connection;
+    lttng_live_disconnect_viewer(this);
 
     bt_socket_fini();
-
-end:
-    return;
 }
