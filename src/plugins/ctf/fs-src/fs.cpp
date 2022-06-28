@@ -25,6 +25,7 @@
 #include "../common/src/metadata/tsdl/ctf-meta-configure-ir-trace.hpp"
 #include "../common/src/msg-iter.hpp"
 #include "../common/src/metadata/ctf-ir.hpp"
+#include "../common/src/metadata/metadata-stream-parser-utils.hpp"
 #include "../common/src/pkt-props.hpp"
 #include "query.hpp"
 #include "plugins/common/param-validation/param-validation.h"
@@ -352,9 +353,9 @@ static void merge_ctf_fs_ds_indexes(ctf_fs_ds_index& dest, ctf_fs_ds_index src)
     }
 }
 
-static int add_ds_file_to_ds_file_group(struct ctf_fs_trace *ctf_fs_trace, const char *path)
+static int add_ds_file_to_ds_file_group(struct ctf_fs_trace *ctf_fs_trace, const char *path,
+                                        const LogCfg& logCfg)
 {
-    const LogCfg& logCfg = ctf_fs_trace->logCfg;
     ctf_fs_ds_file_info::UP ds_file_info =
         bt2_common::makeUnique<ctf_fs_ds_file_info>(path, logCfg);
     const TraceCls& traceCls = *ctf_fs_trace->cls();
@@ -441,10 +442,8 @@ static int add_ds_file_to_ds_file_group(struct ctf_fs_trace *ctf_fs_trace, const
     return 0;
 }
 
-static int create_ds_file_groups(struct ctf_fs_trace *ctf_fs_trace)
+static int create_ds_file_groups(struct ctf_fs_trace *ctf_fs_trace, const LogCfg& logCfg)
 {
-    const ctf::LogCfg& logCfg = ctf_fs_trace->logCfg;
-
     /* Check each file in the path directory, except specific ones */
     GError *error = NULL;
     bt2_common::GDirUP dir {g_dir_open(ctf_fs_trace->path.c_str(), 0, &error)};
@@ -499,7 +498,7 @@ static int create_ds_file_groups(struct ctf_fs_trace *ctf_fs_trace)
             continue;
         }
 
-        ret = add_ds_file_to_ds_file_group(ctf_fs_trace, file->path.c_str());
+        ret = add_ds_file_to_ds_file_group(ctf_fs_trace, file->path.c_str(), logCfg);
         if (ret) {
             BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(
                 logCfg.selfComp, logCfg.selfCompClass,
@@ -551,7 +550,6 @@ static ctf_fs_trace::UP ctf_fs_trace_create(const char *path,
 
     std::vector<uint8_t> contents = bt2_common::dataFromFile(metadataPath.c_str());
     ctf_fs_trace->parseSection(contents.data(), contents.data() + contents.size());
-
     BT_ASSERT(ctf_fs_trace->cls());
 
     if (ctf_fs_trace->cls()->libCls()) {
@@ -561,7 +559,7 @@ static ctf_fs_trace::UP ctf_fs_trace_create(const char *path,
         set_trace_name(**ctf_fs_trace->trace, name, logCfg);
     }
 
-    int ret = create_ds_file_groups(ctf_fs_trace.get());
+    int ret = create_ds_file_groups(ctf_fs_trace.get(), logCfg);
     if (ret) {
         return nullptr;
     }
@@ -848,11 +846,9 @@ private:
 static int decode_clock_snapshot_after_event(struct ctf_fs_trace *ctf_fs_trace,
                                              const ClkCls& default_cc,
                                              const ctf_fs_ds_index_entry& index_entry,
-                                             enum target_event target_event, uint64_t *cs,
-                                             int64_t *ts_ns)
+                                             enum target_event target_event, const LogCfg& logCfg,
+                                             uint64_t *cs, int64_t *ts_ns)
 {
-    const ctf::LogCfg& logCfg = ctf_fs_trace->logCfg;
-
     BT_ASSERT(ctf_fs_trace);
     BT_ASSERT(ctf_fs_trace->cls());
     BT_ASSERT(index_entry.path);
@@ -906,19 +902,19 @@ static int decode_clock_snapshot_after_event(struct ctf_fs_trace *ctf_fs_trace,
 static int decode_packet_first_event_timestamp(struct ctf_fs_trace *ctf_fs_trace,
                                                const ClkCls& default_cc,
                                                const ctf_fs_ds_index_entry& index_entry,
-                                               uint64_t *cs, int64_t *ts_ns)
+                                               const LogCfg& logCfg, uint64_t *cs, int64_t *ts_ns)
 {
-    return decode_clock_snapshot_after_event(ctf_fs_trace, default_cc, index_entry, FIRST_EVENT, cs,
-                                             ts_ns);
+    return decode_clock_snapshot_after_event(ctf_fs_trace, default_cc, index_entry, FIRST_EVENT,
+                                             logCfg, cs, ts_ns);
 }
 
 static int decode_packet_last_event_timestamp(struct ctf_fs_trace *ctf_fs_trace,
                                               const ClkCls& default_cc,
                                               const ctf_fs_ds_index_entry& index_entry,
-                                              uint64_t *cs, int64_t *ts_ns)
+                                              const LogCfg& logCfg, uint64_t *cs, int64_t *ts_ns)
 {
-    return decode_clock_snapshot_after_event(ctf_fs_trace, default_cc, index_entry, LAST_EVENT, cs,
-                                             ts_ns);
+    return decode_clock_snapshot_after_event(ctf_fs_trace, default_cc, index_entry, LAST_EVENT,
+                                             logCfg, cs, ts_ns);
 }
 
 /*
@@ -939,10 +935,8 @@ static int decode_packet_last_event_timestamp(struct ctf_fs_trace *ctf_fs_trace,
  *  - before lttng-module 2.10.10
  *  - before lttng-module 2.9.13
  */
-static int fix_index_lttng_event_after_packet_bug(struct ctf_fs_trace *trace)
+static int fix_index_lttng_event_after_packet_bug(struct ctf_fs_trace *trace, const LogCfg& logCfg)
 {
-    const ctf::LogCfg& logCfg = trace->logCfg;
-
     for (ctf_fs_ds_file_group::UP& ds_file_group : trace->ds_file_groups) {
         BT_ASSERT(ds_file_group);
         ctf_fs_ds_index& index = ds_file_group->index;
@@ -978,8 +972,9 @@ static int fix_index_lttng_event_after_packet_bug(struct ctf_fs_trace *trace)
          * Decode packet to read the timestamp of the last event of the
          * entry.
          */
-        int ret = decode_packet_last_event_timestamp(
-            trace, default_cc, last_entry, &last_entry.timestamp_end, &last_entry.timestamp_end_ns);
+        int ret = decode_packet_last_event_timestamp(trace, default_cc, last_entry, logCfg,
+                                                     &last_entry.timestamp_end,
+                                                     &last_entry.timestamp_end_ns);
         if (ret) {
             BT_COMP_LOGE_APPEND_CAUSE(
                 logCfg.selfComp,
@@ -1005,10 +1000,9 @@ static int fix_index_lttng_event_after_packet_bug(struct ctf_fs_trace *trace)
  * Known buggy tracer versions:
  *  - before barectf 2.3.1
  */
-static int fix_index_barectf_event_before_packet_bug(struct ctf_fs_trace *trace)
+static int fix_index_barectf_event_before_packet_bug(struct ctf_fs_trace *trace,
+                                                     const LogCfg& logCfg)
 {
-    const ctf::LogCfg& logCfg = trace->logCfg;
-
     for (ctf_fs_ds_file_group::UP& ds_file_group : trace->ds_file_groups) {
         ctf_fs_ds_index& index = ds_file_group->index;
 
@@ -1028,7 +1022,7 @@ static int fix_index_barectf_event_before_packet_bug(struct ctf_fs_trace *trace)
              * 2. Set the current entry `begin` timestamp to the
              * timestamp of the first event of the current packet.
              */
-            int ret = decode_packet_first_event_timestamp(trace, default_cc, curr_entry,
+            int ret = decode_packet_first_event_timestamp(trace, default_cc, curr_entry, logCfg,
                                                           &curr_entry.timestamp_begin,
                                                           &curr_entry.timestamp_begin_ns);
             if (ret) {
@@ -1066,10 +1060,8 @@ static int fix_index_barectf_event_before_packet_bug(struct ctf_fs_trace *trace)
  * Affected versions:
  * - All current and future lttng-ust and lttng-modules versions.
  */
-static int fix_index_lttng_crash_quirk(struct ctf_fs_trace *trace)
+static int fix_index_lttng_crash_quirk(struct ctf_fs_trace *trace, const LogCfg& logCfg)
 {
-    const ctf::LogCfg& logCfg = trace->logCfg;
-
     for (ctf_fs_ds_file_group::UP& ds_file_group : trace->ds_file_groups) {
         BT_ASSERT(ds_file_group);
         ctf_fs_ds_index& index = ds_file_group->index;
@@ -1087,7 +1079,7 @@ static int fix_index_lttng_crash_quirk(struct ctf_fs_trace *trace)
              * Decode packet to read the timestamp of the
              * last event of the stream file.
              */
-            int ret = decode_packet_last_event_timestamp(trace, default_cc, last_entry,
+            int ret = decode_packet_last_event_timestamp(trace, default_cc, last_entry, logCfg,
                                                          &last_entry.timestamp_end,
                                                          &last_entry.timestamp_end_ns);
             if (ret) {
@@ -1279,7 +1271,7 @@ static int fix_packet_index_tracer_bugs(struct ctf_fs_component *ctf_fs)
     /* Check if the trace may be affected by old tracer bugs. */
     if (is_tracer_affected_by_lttng_event_after_packet_bug(&current_tracer_info)) {
         BT_LOGI_STR("Trace may be affected by LTTng tracer packet timestamp bug. Fixing up.");
-        ret = fix_index_lttng_event_after_packet_bug(ctf_fs->trace.get());
+        ret = fix_index_lttng_event_after_packet_bug(ctf_fs->trace.get(), logCfg);
         if (ret) {
             BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(logCfg.selfComp, logCfg.selfCompClass,
                                                     "Failed to fix LTTng event-after-packet bug.");
@@ -1290,7 +1282,7 @@ static int fix_packet_index_tracer_bugs(struct ctf_fs_component *ctf_fs)
 
     if (is_tracer_affected_by_barectf_event_before_packet_bug(&current_tracer_info)) {
         BT_LOGI_STR("Trace may be affected by barectf tracer packet timestamp bug. Fixing up.");
-        ret = fix_index_barectf_event_before_packet_bug(ctf_fs->trace.get());
+        ret = fix_index_barectf_event_before_packet_bug(ctf_fs->trace.get(), logCfg);
         if (ret) {
             BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(
                 logCfg.selfComp, logCfg.selfCompClass,
@@ -1301,7 +1293,7 @@ static int fix_packet_index_tracer_bugs(struct ctf_fs_component *ctf_fs)
     }
 
     if (is_tracer_affected_by_lttng_crash_quirk(&current_tracer_info)) {
-        ret = fix_index_lttng_crash_quirk(ctf_fs->trace.get());
+        ret = fix_index_lttng_crash_quirk(ctf_fs->trace.get(), logCfg);
         if (ret) {
             BT_COMP_OR_COMP_CLASS_LOGE_APPEND_CAUSE(logCfg.selfComp, logCfg.selfCompClass,
                                                     "Failed to fix lttng-crash timestamp quirks.");
@@ -1573,7 +1565,6 @@ ctf_fs_init(bt_self_component_source *self_comp_src, bt_self_component_source_co
         }
 
         bt_self_component_set_data(selfComp, ctf_fs.release());
-
         return BT_COMPONENT_CLASS_INITIALIZE_METHOD_STATUS_OK;
     } catch (const std::bad_alloc&) {
         return BT_COMPONENT_CLASS_INITIALIZE_METHOD_STATUS_MEMORY_ERROR;
