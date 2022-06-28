@@ -12,7 +12,8 @@ libcppcommon_la_SOURCES = \
 	bt2-value-from-json-val.hpp bt2-value-from-json-val.cpp \
 	val-req.hpp \
 	json-val-req.hpp \
-	uuid-view.hpp uuid-view.cpp
+	uuid-view.hpp uuid-view.cpp \
+	vector.hpp
 
 EXTRA_DIST = \
 	bt2 \
