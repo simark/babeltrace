@@ -704,6 +704,8 @@ plugins_ctf_babeltrace_plugin_ctf_la_SOURCES = \
 	plugins/ctf/common/src/metadata/tsdl/metadata-stream-decoder.hpp \
 	plugins/ctf/common/src/msg-iter/msg-iter.cpp \
 	plugins/ctf/common/src/msg-iter/msg-iter.hpp \
+	plugins/ctf/common/src/msg-iter.cpp \
+	plugins/ctf/common/src/msg-iter.hpp \
 	plugins/ctf/common/src/null-cp-finder.hpp \
 	plugins/ctf/common/src/pkt-props.cpp \
 	plugins/ctf/common/src/pkt-props.hpp \
