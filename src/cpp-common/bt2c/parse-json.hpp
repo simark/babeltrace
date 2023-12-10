@@ -221,7 +221,7 @@ void JsonParser<ListenerT>::_expectVal()
         Error,
         "[{}] Expecting a JSON value: `null`, `true`, `false`, a supported number "
         "(for an integer: -9,223,372,036,854,775,808 to 18,446,744,073,709,551,615), "
-        "`\"` (a string), `[` (an array), or `{` (an object).",
+        "`\"` (a string), `[` (an array), or `{{` (an object).",
         this->_locStr());
 }
 
