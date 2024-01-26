@@ -23,7 +23,7 @@ def cli_run(build_root_dir):
 # command output.
 #
 # Returns the plugin header line plus `num_lines_after` lines.
-def _extract_plugin_section(stdout, plugin_name, num_lines_after=11):
+def _extract_plugin_section(stdout, plugin_name, num_lines_after=12):
     lines = stdout.split("\n")
 
     for i, line in enumerate(lines):
@@ -50,6 +50,7 @@ def test_plugin_entry_content(cli_run):
           Description: A plugin
           Author: Jorge Mario Bergoglio
           License: The license
+          Provider: python
           Source component classes:
             'source.this-is-a-plugin.ThisIsASource'
           Filter component classes:
