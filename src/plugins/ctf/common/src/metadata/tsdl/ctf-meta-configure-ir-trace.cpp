@@ -4,6 +4,8 @@
  * Copyright 2019 Philippe Proulx <pproulx@efficios.com>
  */
 
+#include <cstdint>
+
 #include <babeltrace2/babeltrace.h>
 
 #include "cpp-common/bt2c/logging.hpp"
@@ -40,11 +42,22 @@ void ctf_trace_class_configure_ir_trace(struct ctf_trace_class *tc, const bt2::T
 }
 
 void ctf_trace_class_configure_ir_trace(const ctf::src::TraceCls& tc, bt2::Trace irTrace,
+                                        const std::uint64_t mipVersion,
                                         const bt2c::Logger& parentLogger)
 {
     bt2c::Logger logger {parentLogger, "PLUGIN/CTF/META/CONFIG-IR-TRACE"};
-    if (tc.uuid()) {
-        irTrace.uuid(*tc.uuid());
+
+    if (tc.uid()) {
+        if (mipVersion == 0) {
+            /*
+             * CTF 2 isn't supported under MIP 0, therefore we expect
+             * `tc.uid()` to be a UUID string.
+             */
+            irTrace.uuid(bt2c::Uuid {*tc.uid()});
+        } else {
+            /* MIP ≥ 1: always a UID */
+            irTrace.uid(*tc.uid());
+        }
     }
 
     if (tc.env()) {

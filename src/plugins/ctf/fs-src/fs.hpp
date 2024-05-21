@@ -14,6 +14,7 @@
 
 #include <babeltrace2/babeltrace.h>
 
+#include "cpp-common/bt2c/aliases.hpp"
 #include "cpp-common/bt2c/logging.hpp"
 
 #include "data-stream-file.hpp"
@@ -49,9 +50,9 @@ struct ctf_fs_trace
         return _mParseRet->uuid;
     }
 
-    void parseMetadata(bt2s::span<const uint8_t> data)
+    void parseMetadata(const bt2c::ConstBytes buffer)
     {
-        _mParseRet = ctf::src::parseMetadataStream(_mClkClsCfg, _mSelfComp, data, this->logger);
+        _mParseRet = ctf::src::parseMetadataStream(_mClkClsCfg, _mSelfComp, buffer, this->logger);
     }
 
     bt2c::Logger logger;
