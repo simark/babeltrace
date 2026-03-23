@@ -288,22 +288,6 @@ the connected terminal, if any, doesn't support text formatting.
 #include "common/common.h"
 @endcode
 
-@defgroup glib-c GLib helpers (C)
-@brief
-    GLib compatibility functions and utilities (C).
-
-@code{.c}
-#include "compat/glib.h"
-#include "common/common.h"
-@endcode
-
-This topic offers both compatibility and helper C&nbsp;functions to work
-with GLib.
-
-\bt_name currently supports GLib&nbsp;&ge;&nbsp;2.28. This version is
-missing a few useful functions which were introduced in subsequent
-releases.
-
 @defgroup common-cpp-bt2c Common C++ utilities
 @brief
     Common utilities for C++.

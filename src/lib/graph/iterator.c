@@ -9,7 +9,7 @@
 #include "lib/logging.h"
 
 #include "compat/compiler.h"
-#include "compat/glib.h"
+#include <glib.h>
 #include "lib/trace-ir/clock-class.h"
 #include "lib/trace-ir/clock-snapshot.h"
 #include <babeltrace2/trace-ir/field.h>
@@ -1917,7 +1917,7 @@ skip_msg:
 			stream_state->seen_clock_snapshot = true;
 		}
 
-		BT_ASSERT_DBG(!bt_g_hash_table_contains(stream_states, stream_msg->stream));
+		BT_ASSERT_DBG(!g_hash_table_contains(stream_states, stream_msg->stream));
 		g_hash_table_insert(stream_states, stream_msg->stream, stream_state);
 		break;
 	}

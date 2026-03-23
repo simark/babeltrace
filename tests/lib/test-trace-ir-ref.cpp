@@ -25,7 +25,6 @@
 extern "C" {
 
 #include "common.h"
-#include "compat/stdlib.h"
 #include "lib/object-struct.h"
 
 }
@@ -305,7 +304,7 @@ TEST_CASE("CTF writer user")
 {
     const auto tracePath = g_build_filename(g_get_tmp_dir(), "ctfwriter_XXXXXX", NULL);
 
-    REQUIRE(bt_mkdtemp(tracePath));
+    REQUIRE(g_mkdtemp(tracePath));
 
     auto writer = bt_ctf_writer_create(tracePath);
 

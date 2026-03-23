@@ -7,9 +7,9 @@
 #ifndef BABELTRACE_BINDINGS_PYTHON_BT2_BT2_NATIVE_BT_COMPONENT_CLASS_I_HPP
 #define BABELTRACE_BINDINGS_PYTHON_BT2_BT2_NATIVE_BT_COMPONENT_CLASS_I_HPP
 
-#include "logging/comp-logging.h"
+#include <glib.h>
 
-#include "compat/glib.h"
+#include "logging/comp-logging.h"
 
 /*
  * This hash table associates a BT component class object address to a
@@ -155,7 +155,7 @@ static int py_exc_to_status_message_iterator_clear(bt_self_message_iterator *sel
 
 static bool bt_bt2_is_python_component_class(const bt_component_class *comp_cls)
 {
-    return bt_g_hash_table_contains(bt_cc_ptr_to_py_cls, comp_cls);
+    return g_hash_table_contains(bt_cc_ptr_to_py_cls, comp_cls);
 }
 
 /* Component class proxy methods (delegate to the attached Python object) */

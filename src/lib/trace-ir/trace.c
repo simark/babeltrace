@@ -17,7 +17,7 @@
 #include <babeltrace2/types.h>
 #include "compat/endian.h"
 #include "common/assert.h"
-#include "compat/glib.h"
+#include <glib.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <string.h>
@@ -564,7 +564,7 @@ void bt_trace_add_stream(struct bt_trace *trace, struct bt_stream *stream)
 	g_ptr_array_add(trace->streams, stream);
 	bt_trace_freeze(trace);
 
-	if (bt_g_hash_table_contains(trace->stream_classes_stream_count,
+	if (g_hash_table_contains(trace->stream_classes_stream_count,
 			stream->class)) {
 		count = GPOINTER_TO_UINT(g_hash_table_lookup(
 			trace->stream_classes_stream_count, stream->class));

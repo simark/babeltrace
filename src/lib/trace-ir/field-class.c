@@ -17,7 +17,7 @@
 #include "compat/endian.h"
 #include "common/assert.h"
 #include "common/common.h"
-#include "compat/glib.h"
+#include <glib.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -1302,7 +1302,7 @@ int append_named_field_class_to_container_field_class(
 		&container_fc->common, named_fc->fc);
 	BT_ASSERT_PRE_FROM_FUNC(api_func, unique_entry_precond_id,
 		!named_fc->name ||
-			!bt_g_hash_table_contains(container_fc->name_to_index,
+			!g_hash_table_contains(container_fc->name_to_index,
 				named_fc->name->str),
 		"Duplicate member/option name in structure/variant field class: "
 		"%![container-fc-]+F, name=\"%s\"", container_fc,

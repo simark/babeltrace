@@ -101,7 +101,7 @@ Libraries::
       https://www.gnu.org/software/libc/[GNU{nbsp}C Library],
       https://www.musl-libc.org/[musl libc])
 
-    * https://developer.gnome.org/glib/[GLib]{nbsp}≥{nbsp}2.28
+    * https://developer.gnome.org/glib/[GLib]{nbsp}≥{nbsp}2.56
       (Debian/Ubuntu: `libglib2.0-dev`; Fedora: `glib2-devel`)
 
     * https://fmt.dev/[pass:[{fmt}]]{nbsp}≥{nbsp}10.1.1
@@ -345,7 +345,7 @@ Libraries:: {empty}
   https://www.gnu.org/software/libc/[GNU{nbsp}C Library] or
   https://www.musl-libc.org/[musl libc])
 
-* https://developer.gnome.org/glib/[GLib]{nbsp}≥{nbsp}2.28
+* https://developer.gnome.org/glib/[GLib]{nbsp}≥{nbsp}2.56
   (Debian/Ubuntu: `libglib2.0-0`; Fedora: `glib2`)
 
 _**If you need the `bt2` Python bindings**_:: {empty}

@@ -30,8 +30,6 @@
 
 extern "C" {
 
-#include "compat/stdlib.h"
-
 #include "common.h"
 }
 
@@ -1275,7 +1273,7 @@ TEST_CASE("CTF writer: full")
         free_trace_path = false;
     } else {
         trace_path = g_build_filename(g_get_tmp_dir(), "ctfwriter_XXXXXX", NULL);
-        REQUIRE(bt_mkdtemp(trace_path));
+        REQUIRE(g_mkdtemp(trace_path));
         free_trace_path = true;
     }
 

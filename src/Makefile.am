@@ -139,14 +139,12 @@ compat_libcompat_la_SOURCES = \
 	compat/compiler.h \
 	compat/endian.h \
 	compat/fcntl.h \
-	compat/glib.h \
 	compat/limits.h \
 	compat/memstream.h \
 	compat/mman.c \
 	compat/mman.h \
 	compat/socket.hpp \
 	compat/stdio.h \
-	compat/stdlib.h \
 	compat/time.h \
 	compat/unistd.h \
 	compat/utc.h

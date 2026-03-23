@@ -18,7 +18,6 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <glib.h>
-#include "compat/glib.h"
 #include "plugins/common/param-validation/param-validation.h"
 
 #include "trimmer.h"
@@ -1275,7 +1274,7 @@ create_stream_state_entry(
 	struct trimmer_iterator_stream_state *sstate;
 	const bt_stream_class *sc;
 
-	BT_ASSERT(!bt_g_hash_table_contains(trimmer_it->stream_states, stream));
+	BT_ASSERT(!g_hash_table_contains(trimmer_it->stream_states, stream));
 
 	/*
 	 * Validate right now that the stream's class

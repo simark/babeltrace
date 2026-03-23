@@ -10,7 +10,7 @@
 
 #include "common/common.h"
 #include "common/assert.h"
-#include "compat/glib.h"
+#include <glib.h>
 
 #include "details.h"
 #include "write.h"
@@ -173,7 +173,7 @@ int details_trace_unique_id(struct details_write_ctx *ctx,
 
 	BT_ASSERT_DBG(unique_id);
 	BT_ASSERT_DBG(ctx->details_comp->traces);
-	if (!bt_g_hash_table_contains(ctx->details_comp->traces,
+	if (!g_hash_table_contains(ctx->details_comp->traces,
 			trace)) {
 		/* Not found: create one */
 		*unique_id = ctx->details_comp->next_unique_trace_id;

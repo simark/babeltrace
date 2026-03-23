@@ -17,7 +17,7 @@
 #include "common/assert.h"
 #include "common/common.h"
 #include "compat/compiler.h"
-#include "compat/glib.h"
+#include <glib.h>
 
 #include "assert-pre.h"
 #include "object.h"
@@ -706,7 +706,7 @@ struct bt_ctf_private_value *bt_ctf_private_value_array_create(void)
 	}
 
 	array_obj->base = bt_ctf_value_create_base(BT_CTF_VALUE_TYPE_ARRAY);
-	array_obj->garray = bt_g_ptr_array_new_full(0,
+	array_obj->garray = g_ptr_array_new_full(0,
 		(GDestroyNotify) bt_ctf_object_put_ref);
 	if (!array_obj->garray) {
 		BT_LOGE_STR("Failed to allocate a GPtrArray.");
@@ -997,7 +997,7 @@ bt_ctf_bool bt_ctf_value_map_has_entry(const struct bt_ctf_value *map_obj, const
 	BT_CTF_ASSERT_PRE_NON_NULL(map_obj, "Value object");
 	BT_CTF_ASSERT_PRE_NON_NULL(key, "Key");
 	BT_CTF_ASSERT_PRE_VALUE_IS_TYPE(map_obj, BT_CTF_VALUE_TYPE_MAP);
-	return bt_g_hash_table_contains(BT_CTF_VALUE_TO_MAP(map_obj)->ght,
+	return g_hash_table_contains(BT_CTF_VALUE_TO_MAP(map_obj)->ght,
 		GUINT_TO_POINTER(g_quark_from_string(key)));
 }
 

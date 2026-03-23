@@ -110,13 +110,11 @@ INPUT                   = "@srcdir@/all.dox" \
                           "@abs_top_srcdir@/src/compat/compiler.h" \
                           "@abs_top_srcdir@/src/compat/endian.h" \
                           "@abs_top_srcdir@/src/compat/fcntl.h" \
-                          "@abs_top_srcdir@/src/compat/glib.h" \
                           "@abs_top_srcdir@/src/compat/limits.h" \
                           "@abs_top_srcdir@/src/compat/memstream.h" \
                           "@abs_top_srcdir@/src/compat/mman.h" \
                           "@abs_top_srcdir@/src/compat/socket.hpp" \
                           "@abs_top_srcdir@/src/compat/stdio.h" \
-                          "@abs_top_srcdir@/src/compat/stdlib.h" \
                           "@abs_top_srcdir@/src/compat/time.h" \
                           "@abs_top_srcdir@/src/compat/unistd.h" \
                           "@abs_top_srcdir@/src/compat/utc.h" \

@@ -296,9 +296,9 @@ LT_INIT([win32-dll])
 # Check what libraries are required on this platform to link sockets programs.
 AX_LIB_SOCKET_NSL
 
-# Check for glib >= 2.28 with gmodule support
-AM_PATH_GLIB_2_0([2.28.0], [],
-  AC_MSG_ERROR([glib >= 2.28 is required - download it from ‘ftp://ftp.gtk.org/pub/gtk’]),
+# Check for glib >= 2.56 with gmodule support
+AM_PATH_GLIB_2_0([2.56.0], [],
+  AC_MSG_ERROR([glib >= 2.56 is required - download it from ‘ftp://ftp.gtk.org/pub/gtk’]),
   [gmodule-no-export]
 )
 
@@ -319,7 +319,6 @@ AC_CHECK_FUNCS([ \
   memchr \
   memset \
   mkdir \
-  mkdtemp \
   munmap \
   rmdir \
   setenv \
