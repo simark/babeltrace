@@ -337,14 +337,12 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 		goto end;
 	}
 
-	/* Set mandatory attributes */
-	spec->descriptor = descriptor;
-	bt_plugin_set_name(plugin, descriptor->name);
-
 	/*
 	 * Find and set optional attributes attached to this plugin
 	 * descriptor.
 	 */
+	spec->descriptor = descriptor;
+
 	for (cur_attr_ptr = attrs_begin; cur_attr_ptr != attrs_end; cur_attr_ptr++) {
 		const struct __bt_plugin_descriptor_attribute *cur_attr =
 			*cur_attr_ptr;
@@ -1207,13 +1205,13 @@ end:
 }
 
 static
-struct bt_plugin *bt_plugin_so_create_empty(
+struct bt_plugin *bt_plugin_so_create_empty(const char *name,
 		struct bt_plugin_so_shared_lib_handle *shared_lib_handle)
 {
 	struct bt_plugin *plugin;
 	struct bt_plugin_so_spec_data *spec;
 
-	plugin = bt_plugin_create_empty(BT_PLUGIN_TYPE_SO);
+	plugin = bt_plugin_create_empty(name, BT_PLUGIN_TYPE_SO);
 	if (!plugin) {
 		goto error;
 	}
@@ -1316,7 +1314,7 @@ int bt_plugin_so_create_all_from_sections(
 
 		BT_LOGI("Creating plugin object for plugin: name=\"%s\"",
 			descriptor->name);
-		plugin = bt_plugin_so_create_empty(shared_lib_handle);
+		plugin = bt_plugin_so_create_empty(descriptor->name, shared_lib_handle);
 		if (!plugin) {
 			BT_LIB_LOGE_APPEND_CAUSE(
 				"Cannot create empty shared library handle.");

@@ -53,7 +53,6 @@ struct bt_plugin {
 			bool extra_set;
 		} version;
 		bool path_set;
-		bool name_set;
 		bool author_set;
 		bool license_set;
 		bool description_set;
@@ -150,12 +149,13 @@ void bt_plugin_destroy(struct bt_object *obj)
 }
 
 static inline
-struct bt_plugin *bt_plugin_create_empty(enum bt_plugin_type type)
+struct bt_plugin *bt_plugin_create_empty(const char *name, enum bt_plugin_type type)
 {
 	struct bt_plugin *plugin = NULL;
 
-	BT_LOGD("Creating empty plugin object: type=%s",
-		bt_plugin_type_string(type));
+	BT_ASSERT(name);
+	BT_LOGD("Creating empty plugin object: type=%s, name=\"%s\"",
+		bt_plugin_type_string(type), name);
 
 	plugin = g_new0(struct bt_plugin, 1);
 	if (!plugin) {
@@ -191,13 +191,13 @@ struct bt_plugin *bt_plugin_create_empty(enum bt_plugin_type type)
 		goto error;
 	}
 
-	/* Create empty info */
-	plugin->info.name = g_string_new(NULL);
+	plugin->info.name = g_string_new(name);
 	if (!plugin->info.name) {
 		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GString.");
 		goto error;
 	}
 
+	/* Create empty info */
 	plugin->info.path = g_string_new(NULL);
 	if (!plugin->info.path) {
 		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GString.");
@@ -247,17 +247,6 @@ void bt_plugin_set_path(struct bt_plugin *plugin, const char *path)
 	plugin->info.path_set = BT_TRUE;
 	BT_LIB_LOGD("Set plugin's path: %![plugin-]+l, path=\"%s\"",
 		plugin, path);
-}
-
-static inline
-void bt_plugin_set_name(struct bt_plugin *plugin, const char *name)
-{
-	BT_ASSERT(plugin);
-	BT_ASSERT(name);
-	g_string_assign(plugin->info.name, name);
-	plugin->info.name_set = BT_TRUE;
-	BT_LIB_LOGD("Set plugin's name: %![plugin-]+l, name=\"%s\"",
-		plugin, name);
 }
 
 static inline
