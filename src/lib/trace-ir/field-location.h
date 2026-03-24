@@ -11,7 +11,6 @@
 #define BABELTRACE_LIB_TRACE_IR_FIELD_LOCATION_H
 
 #include "lib/object.h"
-#include <babeltrace2/trace-ir/field-location.h>
 #include <glib.h>
 
 struct bt_field_location

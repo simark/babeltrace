@@ -9,7 +9,6 @@
 #define BABELTRACE_LIB_GRAPH_MESSAGE_PACKET_H
 
 #include "compat/compiler.h"
-#include <babeltrace2/trace-ir/packet.h>
 #include "lib/trace-ir/clock-snapshot.h"
 
 #include "message.h"

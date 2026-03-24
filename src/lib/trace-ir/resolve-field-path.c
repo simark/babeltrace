@@ -9,7 +9,6 @@
 
 #include "lib/assert-cond.h"
 #include "common/assert.h"
-#include <babeltrace2/trace-ir/field-path.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <glib.h>

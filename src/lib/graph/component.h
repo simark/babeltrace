@@ -8,11 +8,7 @@
 #ifndef BABELTRACE_LIB_GRAPH_COMPONENT_H
 #define BABELTRACE_LIB_GRAPH_COMPONENT_H
 
-#include <babeltrace2/graph/component.h>
-#include <babeltrace2/graph/component-class.h>
 #include "lib/object.h"
-#include <babeltrace2/types.h>
-#include <babeltrace2/logging.h>
 #include "common/assert.h"
 #include <glib.h>
 #include <stdbool.h>

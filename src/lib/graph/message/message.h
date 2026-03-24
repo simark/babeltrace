@@ -15,11 +15,7 @@
 
 #include "lib/object.h"
 #include "common/assert.h"
-#include <babeltrace2/graph/graph.h>
-#include <babeltrace2/graph/message.h>
-#include <babeltrace2/trace-ir/stream.h>
 #include "lib/object-pool.h"
-#include <babeltrace2/types.h>
 
 /* Protection: this file uses BT_LIB_LOG*() macros directly */
 #ifndef BT_LIB_LOG_SUPPORTED

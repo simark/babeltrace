@@ -9,4 +9,3 @@
 #include "lib/logging.h"
 
 #include <glib.h>
-#include <babeltrace2/trace-ir/clock-class.h>

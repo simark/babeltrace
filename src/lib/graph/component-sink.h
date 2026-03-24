@@ -11,7 +11,6 @@
 #include <stdbool.h>
 
 #include "compat/compiler.h"
-#include <babeltrace2/graph/component.h>
 
 #include "component.h"
 

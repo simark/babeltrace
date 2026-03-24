@@ -10,8 +10,6 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_RESOLVE_FIELD_PATH_H
 #define BABELTRACE_LIB_TRACE_IR_RESOLVE_FIELD_PATH_H
 
-#include <babeltrace2/trace-ir/field-class.h>
-#include <babeltrace2/trace-ir/field-path.h>
 #include <glib.h>
 #include "resolve-field-xref.h"
 

@@ -13,8 +13,6 @@
 #include "lib/func-status.h"
 #include "compat/compiler.h"
 #include "common/common.h"
-#include <babeltrace2/types.h>
-#include <babeltrace2/value.h>
 #include <unistd.h>
 #include <glib.h>
 

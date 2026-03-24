@@ -8,12 +8,7 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_TRACE_H
 #define BABELTRACE_LIB_TRACE_IR_TRACE_H
 
-#include <babeltrace2/trace-ir/trace.h>
-#include <babeltrace2/trace-ir/field-class.h>
-#include <babeltrace2/trace-ir/field.h>
 #include "lib/object.h"
-#include <babeltrace2/value.h>
-#include <babeltrace2/types.h>
 #include <glib.h>
 #include <stdbool.h>
 #include <sys/types.h>

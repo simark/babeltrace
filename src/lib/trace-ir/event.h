@@ -14,11 +14,6 @@
 #endif
 
 #include "lib/assert-cond.h"
-#include <babeltrace2/value.h>
-#include <babeltrace2/trace-ir/stream-class.h>
-#include <babeltrace2/trace-ir/stream.h>
-#include <babeltrace2/trace-ir/packet.h>
-#include <babeltrace2/trace-ir/field.h>
 #include "lib/object.h"
 #include "common/assert.h"
 #include <glib.h>

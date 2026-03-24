@@ -8,8 +8,6 @@
 #ifndef BABELTRACE_LIB_GRAPH_COMPONENT_DESCRIPTOR_SET_H
 #define BABELTRACE_LIB_GRAPH_COMPONENT_DESCRIPTOR_SET_H
 
-#include <babeltrace2/graph/graph.h>
-#include <babeltrace2/graph/component-descriptor-set.h>
 #include "lib/object.h"
 #include <glib.h>
 

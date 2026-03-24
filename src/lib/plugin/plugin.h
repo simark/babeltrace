@@ -10,10 +10,7 @@
 
 #include "common/common.h"
 #include "lib/graph/component-class.h"
-#include <babeltrace2/plugin/plugin-loading.h>
-#include <babeltrace2/plugin/plugin-dev.h>
 #include "lib/object.h"
-#include <babeltrace2/types.h>
 #include "common/assert.h"
 #include <glib.h>
 #include <stdbool.h>

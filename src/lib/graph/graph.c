@@ -10,14 +10,9 @@
 
 #include "common/assert.h"
 #include "lib/assert-cond.h"
-#include <babeltrace2/graph/graph.h>
-#include <babeltrace2/graph/component.h>
-#include <babeltrace2/graph/port.h>
 #include "lib/graph/message/message.h"
 #include "compat/compiler.h"
 #include "common/common.h"
-#include <babeltrace2/types.h>
-#include <babeltrace2/value.h>
 #include "lib/value.h"
 #include <unistd.h>
 #include <stdbool.h>

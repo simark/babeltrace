@@ -9,7 +9,6 @@
 #include "lib/logging.h"
 
 #include "lib/assert-cond.h"
-#include <babeltrace2/graph/connection.h>
 #include "lib/object.h"
 #include "compat/compiler.h"
 #include <stdbool.h>

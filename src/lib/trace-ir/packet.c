@@ -8,10 +8,6 @@
 #include "lib/logging.h"
 
 #include "lib/assert-cond.h"
-#include <babeltrace2/trace-ir/packet.h>
-#include <babeltrace2/trace-ir/trace.h>
-#include <babeltrace2/trace-ir/stream-class.h>
-#include <babeltrace2/trace-ir/stream.h>
 #include "lib/object.h"
 #include "common/assert.h"
 #include <stdbool.h>

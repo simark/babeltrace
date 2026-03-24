@@ -8,11 +8,8 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_FIELD_CLASS_H
 #define BABELTRACE_LIB_TRACE_IR_FIELD_CLASS_H
 
-#include <babeltrace2/trace-ir/clock-class.h>
-#include <babeltrace2/trace-ir/field-class.h>
 #include "common/macros.h"
 #include "lib/object.h"
-#include <babeltrace2/types.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <glib.h>

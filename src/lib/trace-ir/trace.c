@@ -9,12 +9,8 @@
 #include "lib/logging.h"
 
 #include "lib/assert-cond.h"
-#include <babeltrace2/trace-ir/trace.h>
-#include <babeltrace2/trace-ir/event-class.h>
 #include "compat/compiler.h"
-#include <babeltrace2/value.h>
 #include "lib/value.h"
-#include <babeltrace2/types.h>
 #include "compat/endian.h"
 #include "common/assert.h"
 #include <glib.h>

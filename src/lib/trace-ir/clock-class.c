@@ -10,12 +10,10 @@
 
 #include "lib/assert-cond.h"
 #include "common/uuid.h"
-#include <babeltrace2/trace-ir/clock-class.h>
 #include "clock-class.h"
 #include "clock-snapshot.h"
 #include "utils.h"
 #include "compat/compiler.h"
-#include <babeltrace2/types.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include "lib/object.h"

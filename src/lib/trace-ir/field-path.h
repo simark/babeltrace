@@ -11,7 +11,6 @@
 #define BABELTRACE_LIB_TRACE_IR_FIELD_PATH_H
 
 #include "lib/object.h"
-#include <babeltrace2/trace-ir/field-path.h>
 #include "common/assert.h"
 #include "common/macros.h"
 #include <glib.h>

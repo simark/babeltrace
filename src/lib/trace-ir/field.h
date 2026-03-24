@@ -9,7 +9,6 @@
 #define BABELTRACE_LIB_TRACE_IR_FIELD_H
 
 #include "lib/object.h"
-#include <babeltrace2/types.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <glib.h>

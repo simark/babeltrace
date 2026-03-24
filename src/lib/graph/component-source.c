@@ -11,10 +11,6 @@
 #include "common/assert.h"
 #include "lib/assert-cond.h"
 #include "compat/compiler.h"
-#include <babeltrace2/graph/self-component.h>
-#include <babeltrace2/graph/component.h>
-#include <babeltrace2/graph/graph.h>
-
 #include "component-source.h"
 #include "component.h"
 #include "port.h"

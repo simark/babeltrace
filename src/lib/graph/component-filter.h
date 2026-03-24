@@ -8,8 +8,6 @@
 #ifndef BABELTRACE_LIB_GRAPH_COMPONENT_FILTER_H
 #define BABELTRACE_LIB_GRAPH_COMPONENT_FILTER_H
 
-#include <babeltrace2/graph/component.h>
-
 #include "component.h"
 
 struct bt_component_filter {

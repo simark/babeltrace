@@ -9,10 +9,6 @@
 
 #include <glib.h>
 
-#include <babeltrace2/types.h>
-#include <babeltrace2/graph/query-executor.h>
-#include <babeltrace2/graph/component-class.h>
-
 #include "lib/object.h"
 #include "lib/value.h"
 

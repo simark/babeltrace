@@ -8,8 +8,6 @@
 #ifndef BABELTRACE_LIB_GRAPH_MESSAGE_ITERATOR_CLASS_H
 #define BABELTRACE_LIB_GRAPH_MESSAGE_ITERATOR_CLASS_H
 
-#include <babeltrace2/graph/message-iterator-class.h>
-#include <babeltrace2/types.h>
 #include "lib/object.h"
 #include <stdbool.h>
 #include <glib.h>

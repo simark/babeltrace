@@ -7,9 +7,6 @@
 #ifndef BABELTRACE_LIB_GRAPH_COMPONENT_CLASS_SINK_SIMPLE_H
 #define BABELTRACE_LIB_GRAPH_COMPONENT_CLASS_SINK_SIMPLE_H
 
-#include <babeltrace2/types.h>
-#include <babeltrace2/graph/message.h>
-
 struct simple_sink_init_method_data {
 	bt_graph_simple_sink_component_initialize_func init_func;
 	bt_graph_simple_sink_component_consume_func consume_func;

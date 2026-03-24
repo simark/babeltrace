@@ -9,11 +9,6 @@
 #include "lib/logging.h"
 
 #include "lib/assert-cond.h"
-#include <babeltrace2/trace-ir/event.h>
-#include <babeltrace2/trace-ir/event-class.h>
-#include <babeltrace2/trace-ir/stream-class.h>
-#include <babeltrace2/trace-ir/packet.h>
-#include <babeltrace2/trace-ir/trace.h>
 #include "common/assert.h"
 #include "compat/compiler.h"
 #include <stdbool.h>

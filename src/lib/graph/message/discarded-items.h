@@ -11,7 +11,6 @@
 #include "lib/trace-ir/clock-snapshot.h"
 #include "lib/trace-ir/stream.h"
 #include "lib/property.h"
-#include <babeltrace2/graph/message.h>
 
 #include "message.h"
 

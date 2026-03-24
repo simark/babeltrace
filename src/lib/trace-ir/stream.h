@@ -8,7 +8,6 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_STREAM_H
 #define BABELTRACE_LIB_TRACE_IR_STREAM_H
 
-#include <babeltrace2/trace-ir/stream.h>
 #include "lib/object.h"
 #include "lib/object-pool.h"
 #include <glib.h>

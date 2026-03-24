@@ -9,8 +9,6 @@
 #define BABELTRACE_LIB_GRAPH_MESSAGE_EVENT_H
 
 #include "compat/compiler.h"
-#include <babeltrace2/trace-ir/event-class.h>
-#include <babeltrace2/trace-ir/event.h>
 
 #include "message.h"
 

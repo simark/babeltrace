@@ -9,9 +9,6 @@
 #include "lib/logging.h"
 
 #include "lib/assert-cond.h"
-#include <babeltrace2/trace-ir/stream.h>
-#include <babeltrace2/trace-ir/stream-class.h>
-#include <babeltrace2/trace-ir/trace.h>
 #include "compat/compiler.h"
 #include "common/assert.h"
 #include <inttypes.h>

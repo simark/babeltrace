@@ -8,12 +8,6 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_EVENT_CLASS_H
 #define BABELTRACE_LIB_TRACE_IR_EVENT_CLASS_H
 
-#include <babeltrace2/trace-ir/field-class.h>
-#include <babeltrace2/trace-ir/field.h>
-#include <babeltrace2/value.h>
-#include <babeltrace2/trace-ir/stream-class.h>
-#include <babeltrace2/trace-ir/stream.h>
-#include <babeltrace2/trace-ir/event-class.h>
 #include "lib/object.h"
 #include "common/assert.h"
 #include "lib/object-pool.h"

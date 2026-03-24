@@ -9,9 +9,6 @@
 #include "lib/logging.h"
 
 #include "lib/assert-cond.h"
-#include <babeltrace2/trace-ir/field-class.h>
-#include <babeltrace2/trace-ir/field.h>
-#include <babeltrace2/trace-ir/clock-class.h>
 #include "lib/object.h"
 #include "compat/compiler.h"
 #include "compat/endian.h"

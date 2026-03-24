@@ -8,10 +8,6 @@
 #define BABELTRACE_LIB_TRACE_IR_PACKET_H
 
 #include <stdbool.h>
-#include <babeltrace2/trace-ir/clock-snapshot.h>
-#include <babeltrace2/trace-ir/packet.h>
-#include <babeltrace2/trace-ir/field.h>
-#include <babeltrace2/trace-ir/stream.h>
 #include "lib/object.h"
 
 #include "field-wrapper.h"

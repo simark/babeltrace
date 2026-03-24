@@ -9,8 +9,6 @@
 #include "lib/logging.h"
 
 #include "lib/assert-cond.h"
-#include <babeltrace2/trace-ir/field-class.h>
-#include <babeltrace2/trace-ir/field-path.h>
 #include <stdint.h>
 #include "common/assert.h"
 #include <glib.h>

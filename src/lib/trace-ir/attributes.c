@@ -8,9 +8,7 @@
 #define BT_LOG_TAG "LIB/ATTRS"
 #include "lib/logging.h"
 
-#include <babeltrace2/value.h>
 #include "lib/object.h"
-#include <babeltrace2/value.h>
 #include "lib/value.h"
 #include "attributes.h"
 #include <inttypes.h>

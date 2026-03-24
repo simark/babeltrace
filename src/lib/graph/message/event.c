@@ -12,15 +12,11 @@
 #include "lib/assert-cond.h"
 #include "compat/compiler.h"
 #include "lib/object.h"
-#include <babeltrace2/trace-ir/event.h>
 #include "lib/trace-ir/event.h"
 #include "lib/trace-ir/event-class.h"
 #include "lib/trace-ir/stream-class.h"
-#include <babeltrace2/trace-ir/trace.h>
 #include "lib/trace-ir/clock-snapshot.h"
 #include "lib/graph/graph.h"
-#include <babeltrace2/graph/message.h>
-#include <babeltrace2/types.h>
 #include <stdbool.h>
 
 #include "event.h"
