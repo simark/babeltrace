@@ -54,9 +54,9 @@ object plugin.
 
 Behind the scenes, the <code>BT_PLUGIN_*()</code> macros of this
 API create and fill global tables which are located in
-sections of the shared object with specific names. The \ref api-plugin
-functions can load the resulting shared object file and create
-corresponding \bt_plugin objects.
+sections of the shared object with specific names. The
+\ref api-plugin-loading functions can load the resulting shared object
+file and create corresponding \bt_plugin objects.
 
 See \ref guide-comp-link-plugin-so.
 
@@ -105,7 +105,7 @@ The structure of a \bt_name plugin definition C file is as such:
     - BT_PLUGIN_FINALIZE_FUNC()
 
     The initialization function of a plugin is executed when the shared
-    object is loaded (see \ref api-plugin).
+    object is loaded (see \ref api-plugin-loading).
 
     The finalization function of a plugin is executed when the
     \bt_plugin object is destroyed, if the initialization function (if

@@ -73,6 +73,8 @@
 #include <babeltrace2/logging.h>
 #include <babeltrace2/plugin/plugin-dev.h>
 #include <babeltrace2/plugin/plugin-loading.h>
+#include <babeltrace2/plugin/plugin-set.h>
+#include <babeltrace2/plugin/plugin.h>
 #include <babeltrace2/trace-ir/clock-class.h>
 #include <babeltrace2/trace-ir/clock-snapshot.h>
 #include <babeltrace2/trace-ir/event-class.h>
