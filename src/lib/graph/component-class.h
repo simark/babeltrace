@@ -38,6 +38,7 @@ struct bt_component_class {
 	bool frozen;
 	struct bt_list_head node;
 	struct bt_plugin_so_shared_lib_handle *so_handle;
+	bool part_of_plugin;
 };
 
 struct bt_component_class_with_iterator_class {

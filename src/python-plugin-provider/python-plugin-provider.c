@@ -15,7 +15,10 @@
 
 #include "python-plugin-provider.h"
 
+#include "common/common.h"
+#include "common/func-status.h"
 #include "common/macros.h"
+#include "common/object.h"
 #include <babeltrace2/plugin/plugin-loading.h>
 #include "lib/plugin/plugin.h"
 #include <babeltrace2/graph/component-class.h>
@@ -52,6 +55,14 @@ static enum python_state {
 
 static PyObject *py_try_load_plugin_module_func = NULL;
 static bool python_was_initialized_by_us;
+
+/*
+ * Hash table of `bt_plugin_set` objects created for Python plugins. They key
+ * is the address of the `_PluginInfo` Python object.
+ *
+ * Both the key and value are strong references.
+ */
+static GHashTable *python_plugin_sets = NULL;
 
 static
 void append_python_traceback_error_cause(void)
@@ -240,6 +251,11 @@ end:
 __attribute__((destructor)) static
 void fini_python(void) {
 	if (Py_IsInitialized() && python_was_initialized_by_us) {
+		if (python_plugin_sets) {
+			g_hash_table_destroy(python_plugin_sets);
+			python_plugin_sets = NULL;
+		}
+
 		if (py_try_load_plugin_module_func) {
 			Py_DECREF(py_try_load_plugin_module_func);
 			py_try_load_plugin_module_func = NULL;
@@ -547,26 +563,52 @@ int bt_plugin_from_python_plugin_info(PyObject *plugin_info,
 		}
 	}
 
-	*plugin_out = bt_plugin_create_empty(name, BT_PLUGIN_TYPE_PYTHON);
+	*plugin_out = bt_plugin_create(name);
 	if (!*plugin_out) {
 		BT_LIB_LOGE_APPEND_CAUSE("Cannot create empty plugin object.");
 		status = BT_FUNC_STATUS_MEMORY_ERROR;
 		goto error;
 	}
 
+	(*plugin_out)->type = BT_PLUGIN_TYPE_PYTHON;
+
 	if (description) {
-		bt_plugin_set_description(*plugin_out, description);
+		status = bt_plugin_set_description(*plugin_out, description);
+		if (status) {
+			BT_LIB_LOGE_APPEND_CAUSE(
+				"Cannot set plugin description: %!+l",
+				*plugin_out);
+			goto error;
+		}
 	}
 
 	if (author) {
-		bt_plugin_set_author(*plugin_out, author);
+		status = bt_plugin_set_author(*plugin_out, author);
+		if (status) {
+			BT_LIB_LOGE_APPEND_CAUSE(
+				"Cannot set plugin author: %!+l",
+				*plugin_out);
+			goto error;
+		}
 	}
 
 	if (license) {
-		bt_plugin_set_license(*plugin_out, license);
+		status = bt_plugin_set_license(*plugin_out, license);
+		if (status) {
+			BT_LIB_LOGE_APPEND_CAUSE(
+				"Cannot set plugin license: %!+l",
+				*plugin_out);
+			goto error;
+		}
 	}
 
-	bt_plugin_set_version(*plugin_out, major, minor, patch, version_extra);
+	status = bt_plugin_set_version(*plugin_out, major, minor, patch,
+		version_extra);
+	if (status) {
+		BT_LIB_LOGE_APPEND_CAUSE(
+			"Cannot set plugin version: %!+l", *plugin_out);
+		goto error;
+	}
 
 	if (PyList_Check(py_comp_class_addrs)) {
 		size_t i;
@@ -647,6 +689,7 @@ int bt_plugin_python_create_all_from_file(const char *path,
 	gchar *basename = NULL;
 	size_t path_len;
 	int status = BT_FUNC_STATUS_OK;
+	bt_plugin_set *plugin_set;
 
 	BT_ASSERT(path);
 
@@ -741,6 +784,35 @@ int bt_plugin_python_create_all_from_file(const char *path,
 		goto error;
 	}
 
+	/* Ensure the plugin set hash table exists.  */
+	if (!python_plugin_sets) {
+		python_plugin_sets = g_hash_table_new_full(g_direct_hash,
+			g_direct_equal,
+			(GDestroyNotify) _Py_DecRef,
+			(GDestroyNotify) bt_plugin_set_put_ref);
+		if (!python_plugin_sets) {
+			BT_LIB_LOGE_APPEND_CAUSE(
+				"Cannot create Python plugin set hash table.");
+			status = BT_FUNC_STATUS_MEMORY_ERROR;
+			goto error;
+		}
+	}
+
+	/*
+	 * If we already have a plugin (set) for this Python module, return
+	 * it.
+	 */
+	plugin_set = (bt_plugin_set *) g_hash_table_lookup(python_plugin_sets,
+		py_plugin_info);
+	if (plugin_set) {
+		*plugin_set_out = plugin_set;
+		bt_plugin_set_get_ref(*plugin_set_out);
+		BT_LOGD("Reusing previously created Python plugin set for file: "
+			"path=\"%s\", plugin-set-addr=%p",
+			path, plugin_set);
+		goto end;
+	}
+
 	/*
 	 * Get bt_plugin from plugin info object.
 	 */
@@ -765,7 +837,13 @@ int bt_plugin_python_create_all_from_file(const char *path,
 
 	BT_ASSERT(status == BT_FUNC_STATUS_OK);
 	BT_ASSERT(plugin);
-	bt_plugin_set_path(plugin, path);
+	status = bt_plugin_set_path(plugin, path);
+	if (status) {
+		BT_LIB_LOGE_APPEND_CAUSE(
+			"Cannot set plugin path: %!+l", plugin);
+		goto error;
+	}
+
 	*plugin_set_out = bt_plugin_set_create();
 	if (!*plugin_set_out) {
 		BT_LIB_LOGE_APPEND_CAUSE("Cannot create empty plugin set.");
@@ -773,10 +851,28 @@ int bt_plugin_python_create_all_from_file(const char *path,
 		goto error;
 	}
 
-	bt_plugin_set_add_plugin_if_not_exist(*plugin_set_out, plugin);
+	status = bt_plugin_set_add_plugin_if_not_exist(*plugin_set_out, plugin);
+	if (status) {
+		BT_LIB_LOGE_APPEND_CAUSE(
+			"Cannot add plugin to plugin set: "
+			"plugin-set-addr=%p, %![plugin-]+l",
+			*plugin_set_out, plugin);
+		goto error;
+	}
+
 	BT_LOGD("Created all Python plugins from file: path=\"%s\", "
 		"plugin-addr=%p, plugin-name=\"%s\"",
 		path, plugin, bt_plugin_get_name(plugin));
+
+	/*
+	 * Insert the new plugin set into the hash table.
+	 *
+	 * Steal the `py_plugin_info` reference, since it's not needed after
+	 * this.
+	 */
+	g_hash_table_insert(python_plugin_sets, py_plugin_info, *plugin_set_out);
+	py_plugin_info = NULL;
+	bt_plugin_set_get_ref(*plugin_set_out);
 	goto end;
 
 error:
