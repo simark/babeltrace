@@ -4,10 +4,10 @@
  * Copyright (C) 2010-2019 EfficiOS Inc. and Linux Foundation
  */
 
-/* IWYU pragma: private, include <babeltrace2/babeltrace.h> */
-
 #ifndef BABELTRACE2_ERROR_REPORTING_H
 #define BABELTRACE2_ERROR_REPORTING_H
+
+/* IWYU pragma: private, include <babeltrace2/babeltrace.h> */
 
 #ifndef __BT_IN_BABELTRACE_H
 # error "Please include <babeltrace2/babeltrace.h> instead."
