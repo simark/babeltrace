@@ -61,9 +61,10 @@ With the \bt_name library, you can:
   processing \bt_graph and components are assembled to accomplish a
   trace manipulation or conversion job.
 
-- Load \bt_p_plugin, instantiate their component classes within a
-  trace processing \bt_graph, connect the components as needed, and
-  run the graph to accomplish a trace manipulation or conversion job.
+- \ref api-plugin-loading "Load plugins", instantiate their component
+  classes within a trace processing \bt_graph, connect the components
+  as needed, and run the graph to accomplish a trace manipulation or
+  conversion job.
 
   This is what the
   <a href="https://babeltrace.org/docs/v\bt_version_min_maj/man1/babeltrace2-convert.1"><code>convert</code></a>

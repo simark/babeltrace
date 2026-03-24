@@ -46,6 +46,8 @@
 	}
 }
 
+%include <babeltrace2/plugin/plugin.h>
+%include <babeltrace2/plugin/plugin-set.h>
 %include <babeltrace2/plugin/plugin-loading.h>
 
 /* Helpers */
