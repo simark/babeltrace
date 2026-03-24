@@ -23,6 +23,7 @@
 
 #define __BT_IN_BABELTRACE_H
 #include <babeltrace2/func-status.h>
+#undef __BT_IN_BABELTRACE_H
 
 #include "common/assert.h"
 #include "common/macros.h"

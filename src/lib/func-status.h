@@ -9,6 +9,7 @@
 
 #define __BT_IN_BABELTRACE_H
 #include <babeltrace2/func-status.h>
+#undef __BT_IN_BABELTRACE_H
 
 /*
  * Aliases without a `__` prefix for internal code: this is just easier
