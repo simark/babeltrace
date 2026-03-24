@@ -2,9 +2,11 @@
 #
 # Copyright (c) 2017 Philippe Proulx <pproulx@efficios.com>
 
+import inspect
 import os.path
 import collections.abc
 
+from bt2 import error as bt2_error
 from bt2 import utils as bt2_utils
 from bt2 import object as bt2_object
 from bt2 import component as bt2_component
@@ -213,6 +215,62 @@ class _Plugin(bt2_object._SharedObject):
         return _PluginSinkComponentClasses(self)
 
 
+class _UserPlugin(_Plugin):
+    def __init__(self, name):
+        assert type(name) is str
+        ptr = native_bt.plugin_create(name)
+
+        if ptr is None:
+            raise bt2_error._MemoryError("could not create plugin object")
+
+        super().__init__(ptr)
+
+    def _set_author(self, author):
+        assert type(author) is str
+        status = native_bt.plugin_set_author(self._ptr, author)
+        bt2_utils._handle_func_status(status)
+
+    author = property(fset=_set_author)
+
+    def _set_license(self, license):
+        assert type(license) is str
+        status = native_bt.plugin_set_license(self._ptr, license)
+        bt2_utils._handle_func_status(status)
+
+    license = property(fset=_set_license)
+
+    def _set_description(self, description):
+        assert type(description) is str
+        status = native_bt.plugin_set_description(self._ptr, description)
+        bt2_utils._handle_func_status(status)
+
+    description = property(fset=_set_description)
+
+    def _set_path(self, path):
+        assert type(path) is str
+        status = native_bt.plugin_set_path(self._ptr, path)
+        bt2_utils._handle_func_status(status)
+
+    path = property(fset=_set_path)
+
+    def set_version(self, major, minor, patch, extra=None):
+        assert type(major) is int
+        assert type(minor) is int
+        assert type(patch) is int
+        assert extra is None or type(extra) is str
+        status = native_bt.plugin_set_version(self._ptr, major, minor, patch, extra)
+        bt2_utils._handle_func_status(status)
+
+    def add_component_class(self, comp_class):
+        assert inspect.isclass(comp_class) and hasattr(
+            comp_class, "_bt_plugin_component_class"
+        )
+        status = native_bt.plugin_add_component_class(
+            self._ptr, comp_class._bt_as_component_class_ptr(comp_class._bt_cc_ptr)
+        )
+        bt2_utils._handle_func_status(status)
+
+
 class _PluginSet(bt2_object._SharedObject, collections.abc.Sequence):
     @staticmethod
     def _put_ref(ptr):
@@ -234,6 +292,21 @@ class _PluginSet(bt2_object._SharedObject, collections.abc.Sequence):
         return _Plugin._create_from_ptr_and_get_ref(
             native_bt.plugin_set_borrow_plugin_by_index_const(self._ptr, index)
         )
+
+
+class _UserPluginSet(_PluginSet):
+    def __init__(self):
+        ptr = native_bt.plugin_set_create()
+
+        if ptr is None:
+            raise bt2_error._MemoryError("could not create plugin set object")
+
+        super().__init__(ptr)
+
+    def add_plugin(self, plugin):
+        assert type(plugin) is _UserPlugin
+        status = native_bt.plugin_set_add_plugin(self._ptr, plugin._ptr)
+        bt2_utils._handle_func_status(status)
 
 
 def find_plugins_in_path(

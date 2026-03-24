@@ -5,13 +5,14 @@
 import sys
 
 from bt2 import utils as bt2_utils
+from bt2 import plugin as bt2_plugin
 from bt2 import component as bt2_component
 from bt2 import typing_mod
 
 typing = typing_mod._typing_mod
 
-# Python plugin path to `_PluginInfo` (cache)
-_plugin_infos = {}
+# Python plugin path to `_UserPlugin` (cache)
+_user_plugin_sets = {}
 
 
 def plugin_component_class(component_class: typing.Type[bt2_component._UserComponent]):
@@ -92,14 +93,14 @@ class _PluginInfo:
         self.author = author
         self.license = license
         self.version = version
-        self.comp_class_addrs = None
+        self.comp_classes = None
 
 
 # called by the BT plugin system
 def _try_load_plugin_module(path):
-    if path in _plugin_infos:
+    if path in _user_plugin_sets:
         # do not load module and create plugin info twice for this path
-        return _plugin_infos[path]
+        return _user_plugin_sets[path].addr
 
     import hashlib
     import inspect
@@ -145,6 +146,26 @@ def _try_load_plugin_module(path):
         return True
 
     comp_class_entries = inspect.getmembers(mod, is_user_comp_class)
-    plugin_info.comp_class_addrs = [entry[1].addr for entry in comp_class_entries]
-    _plugin_infos[path] = plugin_info
-    return plugin_info
+    plugin_info.comp_classes = [entry[1] for entry in comp_class_entries]
+    user_plugin = bt2_plugin._UserPlugin(plugin_info.name)
+    user_plugin.path = path
+
+    if plugin_info.description is not None:
+        user_plugin.description = plugin_info.description
+
+    if plugin_info.author is not None:
+        user_plugin.author = plugin_info.author
+
+    if plugin_info.license is not None:
+        user_plugin.license = plugin_info.license
+
+    if plugin_info.version is not None:
+        user_plugin.set_version(*plugin_info.version)
+
+    for comp_class in plugin_info.comp_classes:
+        user_plugin.add_component_class(comp_class)
+
+    user_plugin_set = bt2_plugin._UserPluginSet()
+    user_plugin_set.add_plugin(user_plugin)
+    _user_plugin_sets[path] = user_plugin_set
+    return user_plugin_set.addr
