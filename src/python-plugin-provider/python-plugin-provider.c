@@ -544,14 +544,12 @@ int bt_plugin_from_python_plugin_info(PyObject *plugin_info,
 		}
 	}
 
-	*plugin_out = bt_plugin_create_empty(BT_PLUGIN_TYPE_PYTHON);
+	*plugin_out = bt_plugin_create_empty(name, BT_PLUGIN_TYPE_PYTHON);
 	if (!*plugin_out) {
 		BT_LIB_LOGE_APPEND_CAUSE("Cannot create empty plugin object.");
 		status = BT_FUNC_STATUS_MEMORY_ERROR;
 		goto error;
 	}
-
-	bt_plugin_set_name(*plugin_out, name);
 
 	if (description) {
 		bt_plugin_set_description(*plugin_out, description);

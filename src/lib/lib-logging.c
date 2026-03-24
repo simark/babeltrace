@@ -1676,10 +1676,7 @@ static inline void format_plugin(char **buf_ch, bool extended,
 			PRFIELD_GSTRING(plugin->info.path));
 	}
 
-	if (plugin->info.name_set) {
-		BUF_APPEND(", %sname=\"%s\"",
-			PRFIELD_GSTRING(plugin->info.name));
-	}
+	BUF_APPEND(", %sname=\"%s\"", PRFIELD_GSTRING(plugin->info.name));
 
 	if (!extended) {
 		return;

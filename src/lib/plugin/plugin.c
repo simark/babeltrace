@@ -713,7 +713,7 @@ BT_EXPORT
 const char *bt_plugin_get_name(const struct bt_plugin *plugin)
 {
 	BT_ASSERT_PRE_DEV_PLUGIN_NON_NULL(plugin);
-	return plugin->info.name_set ? plugin->info.name->str : NULL;
+	return plugin->info.name->str;
 }
 
 BT_EXPORT
