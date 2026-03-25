@@ -36,7 +36,7 @@ object containing one or more \bt_p_plugin.
 @attention
     The plugin loading API offers functions to <em>find and load</em>
     existing plugins and use the packaged \bt_p_comp_cls. To \em write a
-    shared object plugin, see \ref api-plugin-dev.
+    shared object plugin, see \ref api-plugin-so-dev.
 
 <h1>Find and load plugins</h1>
 

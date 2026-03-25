@@ -18,7 +18,7 @@ The available examples are:
 @page example-simple-plugin-def-file Simple shared object plugin definition C file
 
 This example shows a basic \bt_name
-\ref api-plugin-dev "shared object plugin" definition C file.
+\ref api-plugin-so-dev "shared object plugin" definition C file.
 
 The name of shared object plugin is <code>vestige</code>. Therefore
 the \c input and \c output \bt_p_comp_cls would be identified in the
@@ -38,7 +38,7 @@ link those files as a \bt_name shared object plugin.
 @page example-simple-src-cmp-cls Simple source component class
 
 This example shows a basic \bt_src_comp_cls packaged as a
-\ref api-plugin-dev "shared object plugin".
+\ref api-plugin-so-dev "shared object plugin".
 
 The name of the plugin is <code>dust</code> and the name of the source
 component class is <code>input</code>. Therefore the
@@ -120,7 +120,7 @@ $ babeltrace2 --plugin-path=. --component=source.dust.input --params='path="dust
 @page example-simple-flt-cmp-cls Simple filter component class
 
 This example shows a basic \bt_flt_comp_cls packaged as a
-\ref api-plugin-dev "shared object plugin".
+\ref api-plugin-so-dev "shared object plugin".
 
 The name of the plugin is <code>distill</code> and the name of the
 filter component class is <code>theone</code>. Therefore the
@@ -171,7 +171,7 @@ $ babeltrace2 --plugin-path=. /path/to/ctf/trace \
 @page example-simple-sink-cmp-cls Simple sink component class
 
 This example shows a basic \bt_sink_comp_cls packaged as a
-\ref api-plugin-dev "shared object plugin".
+\ref api-plugin-so-dev "shared object plugin".
 
 The name of the plugin is <code>epitome</code> and the name of the
 sink component class is <code>output</code>. Therefore the component

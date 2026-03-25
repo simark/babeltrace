@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifndef BABELTRACE_CPP_COMMON_BT2_PLUGIN_DEV_HPP
-#define BABELTRACE_CPP_COMMON_BT2_PLUGIN_DEV_HPP
+#ifndef BABELTRACE_CPP_COMMON_BT2_PLUGIN_SO_DEV_HPP
+#define BABELTRACE_CPP_COMMON_BT2_PLUGIN_SO_DEV_HPP
 
 #include <babeltrace2/babeltrace.h>
 
@@ -118,4 +118,4 @@
 #define BT_CPP_PLUGIN_SINK_COMPONENT_CLASS(_name, _userComponentClass)                             \
     BT_CPP_PLUGIN_SINK_COMPONENT_CLASS_WITH_ID(auto, _name, #_name, _userComponentClass)
 
-#endif /* BABELTRACE_CPP_COMMON_BT2_PLUGIN_DEV_HPP */
+#endif /* BABELTRACE_CPP_COMMON_BT2_PLUGIN_SO_DEV_HPP */

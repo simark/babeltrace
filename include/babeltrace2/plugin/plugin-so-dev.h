@@ -4,8 +4,8 @@
  * Copyright (C) 2010-2019 EfficiOS Inc. and Linux Foundation
  */
 
-#ifndef BABELTRACE2_PLUGIN_PLUGIN_DEV_H
-#define BABELTRACE2_PLUGIN_PLUGIN_DEV_H
+#ifndef BABELTRACE2_PLUGIN_PLUGIN_SO_DEV_H
+#define BABELTRACE2_PLUGIN_PLUGIN_SO_DEV_H
 
 /* IWYU pragma: private, include <babeltrace2/babeltrace.h> */
 
@@ -44,7 +44,7 @@ extern "C" {
 #endif
 
 /*!
-@defgroup api-plugin-dev Plugin development
+@defgroup api-plugin-so-dev Plugin development
 
 @brief
     Shared object plugin development.
@@ -77,7 +77,7 @@ The structure of a \bt_name plugin definition C file is as such:
     Define a \bt_name plugin with BT_PLUGIN() if the name of the plugin
     is a valid C identifier, or with BT_PLUGIN_WITH_ID() otherwise.
 
-    See \ref api-plugin-dev-custom-plugin-id "Custom plugin ID" to
+    See \ref api-plugin-so-dev-custom-plugin-id "Custom plugin ID" to
     learn more about plugin IDs.
 
     @note
@@ -196,7 +196,7 @@ class to a given plugin.
 See \ref example-simple-plugin-def-file for a concrete example of how
 to use the macros of this API.
 
-<h1>\anchor api-plugin-dev-custom-plugin-id Custom plugin ID</h1>
+<h1>\anchor api-plugin-so-dev-custom-plugin-id Custom plugin ID</h1>
 
 The BT_PLUGIN() macro defines a plugin with a specific name and the
 ID <code>auto</code>.
@@ -2832,4 +2832,4 @@ struct __bt_plugin_component_class_descriptor_attribute const * const *__bt_get_
 }
 #endif
 
-#endif /* BABELTRACE2_PLUGIN_PLUGIN_DEV_H */
+#endif /* BABELTRACE2_PLUGIN_PLUGIN_SO_DEV_H */

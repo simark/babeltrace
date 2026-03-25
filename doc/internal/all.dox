@@ -515,7 +515,7 @@ The most common ways to use those bindings are:
   <dd>
     You can create a complete C++ plugin using the libbabeltrace2
     <code>BT_PLUGIN_*()</code> macros, but the macros of
-    cpp-common/bt2/plugin-dev.hpp to add component classes.
+    cpp-common/bt2/plugin-so-dev.hpp to add component classes.
 
     The C++ macros are straightforward and only need your
     C++&nbsp;component class (see the item above) instead of having
@@ -1352,7 +1352,7 @@ To develop a pure C++ plugin:
 -# Include:
 
    @code{.cpp}
-   #include "cpp-common/bt2/plugin-dev.hpp"
+   #include "cpp-common/bt2/plugin-so-dev.hpp"
    @endcode
 
 -# See the “Plugin development” topic of the libbabeltrace2 C&nbsp;API

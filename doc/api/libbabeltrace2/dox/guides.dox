@@ -140,7 +140,7 @@ To compile and link a \bt_name shared object plugin:
 
 @note
     At least one of your C/C++ files must declare a \bt_name plugin
-    and one or more \bt_p_comp_cls using the \ref api-plugin-dev macros.
+    and one or more \bt_p_comp_cls using the \ref api-plugin-so-dev macros.
 
 @page guide-comp-link-app Compile and link an application which uses libbabeltrace2
 
@@ -197,7 +197,7 @@ have the following precondition:
 
 To make your component indicate MIP&nbsp;1 support:
 
--# In your \ref api-plugin-dev "plugin definition C&nbsp;file",
+-# In your \ref api-plugin-so-dev "plugin definition C&nbsp;file",
    use the BT_PLUGIN_SOURCE_COMPONENT_CLASS_GET_SUPPORTED_MIP_VERSIONS_METHOD(),
    BT_PLUGIN_FILTER_COMPONENT_CLASS_GET_SUPPORTED_MIP_VERSIONS_METHOD(),
    or BT_PLUGIN_SINK_COMPONENT_CLASS_GET_SUPPORTED_MIP_VERSIONS_METHOD()

@@ -40,7 +40,7 @@ There are three types of plugins:
     <code>.so</code> file on Unix systems;
     <code>.dll</code> file on Windows systems.
 
-    See \ref api-plugin-dev to learn how to write a shared object plugin.
+    See \ref api-plugin-so-dev to learn how to write a shared object plugin.
   </dd>
 
   <dt>Python&nbsp;3 plugin</dt>
