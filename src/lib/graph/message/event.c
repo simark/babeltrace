@@ -129,7 +129,7 @@ struct bt_message *create_event_message(
 		(!with_cs && !stream_class->default_clock_class),
 		"Creating an event message with a default clock snapshot, but without "
 		"a default clock class, or without a default clock snapshot, "
-		"but with a default clock class: ",
+		"but with a default clock class: "
 		"%![ec-]+E, %![sc-]+S, with-cs=%d, "
 		"cs-val=%" PRIu64,
 		event_class, stream_class, with_cs, raw_value);
