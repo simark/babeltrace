@@ -1333,7 +1333,8 @@ int bt_plugin_so_create_all_from_sections(
 			cc_descr_attrs_begin, cc_descr_attrs_end);
 		if (status == BT_FUNC_STATUS_OK) {
 			/* Add to plugin set */
-			bt_plugin_set_add_plugin(*plugin_set_out, plugin);
+			add_plugin_to_set_if_not_exist(*plugin_set_out,
+				plugin);
 			BT_OBJECT_PUT_REF_AND_RESET(plugin);
 		} else if (status == BT_FUNC_STATUS_NOT_FOUND) {
 			/*

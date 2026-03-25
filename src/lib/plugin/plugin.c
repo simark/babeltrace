@@ -387,7 +387,8 @@ enum bt_plugin_find_all_status bt_plugin_find_all(bt_bool find_in_std_env_var,
 
 		for (plugin_i = 0; plugin_i < plugin_set->plugins->len;
 				plugin_i++) {
-			bt_plugin_set_add_plugin((void *) *plugin_set_out,
+			add_plugin_to_set_if_not_exist(
+				(void *) *plugin_set_out,
 				plugin_set->plugins->pdata[plugin_i]);
 		}
 	}
@@ -412,7 +413,8 @@ enum bt_plugin_find_all_status bt_plugin_find_all(bt_bool find_in_std_env_var,
 
 		for (plugin_i = 0; plugin_i < plugin_set->plugins->len;
 				plugin_i++) {
-			bt_plugin_set_add_plugin((void *) *plugin_set_out,
+			add_plugin_to_set_if_not_exist(
+				(void *) *plugin_set_out,
 				plugin_set->plugins->pdata[plugin_i]);
 		}
 	}
@@ -549,7 +551,7 @@ int nftw_append_all_from_dir(const char *file,
 				BT_LIB_LOGI("Adding plugin to plugin set: "
 					"plugin-path=\"%s\", %![plugin-]+l",
 					file, plugin);
-				bt_plugin_set_add_plugin(
+				add_plugin_to_set_if_not_exist(
 					append_all_from_dir_info.plugin_set,
 					plugin);
 			}

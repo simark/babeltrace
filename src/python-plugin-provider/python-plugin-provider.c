@@ -770,7 +770,7 @@ int bt_plugin_python_create_all_from_file(const char *path,
 		goto error;
 	}
 
-	bt_plugin_set_add_plugin(*plugin_set_out, plugin);
+	add_plugin_to_set_if_not_exist(*plugin_set_out, plugin);
 	BT_LOGD("Created all Python plugins from file: path=\"%s\", "
 		"plugin-addr=%p, plugin-name=\"%s\"",
 		path, plugin, bt_plugin_get_name(plugin));

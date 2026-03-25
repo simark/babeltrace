@@ -414,7 +414,7 @@ end:
 }
 
 static inline
-void bt_plugin_set_add_plugin(struct bt_plugin_set *plugin_set,
+void add_plugin_to_set_if_not_exist(struct bt_plugin_set *plugin_set,
 		struct bt_plugin *plugin)
 {
 	BT_ASSERT(plugin_set);
