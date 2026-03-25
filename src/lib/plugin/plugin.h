@@ -278,7 +278,7 @@ void bt_plugin_set_license(struct bt_plugin *plugin, const char *license)
 	BT_ASSERT(license);
 	g_string_assign(plugin->info.license, license);
 	plugin->info.license_set = BT_TRUE;
-	BT_LIB_LOGD("Set plugin's path: %![plugin-]+l, license=\"%s\"",
+	BT_LIB_LOGD("Set plugin's license: %![plugin-]+l, license=\"%s\"",
 		plugin, license);
 }
 
