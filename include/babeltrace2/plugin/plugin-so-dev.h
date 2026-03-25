@@ -4,8 +4,8 @@
  * Copyright (C) 2010-2019 EfficiOS Inc. and Linux Foundation
  */
 
-#ifndef BABELTRACE2_PLUGIN_PLUGIN_DEV_H
-#define BABELTRACE2_PLUGIN_PLUGIN_DEV_H
+#ifndef BABELTRACE2_PLUGIN_PLUGIN_SO_DEV_H
+#define BABELTRACE2_PLUGIN_PLUGIN_SO_DEV_H
 
 /* IWYU pragma: private, include <babeltrace2/babeltrace.h> */
 
@@ -2832,4 +2832,4 @@ struct __bt_plugin_component_class_descriptor_attribute const * const *__bt_get_
 }
 #endif
 
-#endif /* BABELTRACE2_PLUGIN_PLUGIN_DEV_H */
+#endif /* BABELTRACE2_PLUGIN_PLUGIN_SO_DEV_H */

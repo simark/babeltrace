@@ -58,8 +58,8 @@ $(DX_DOCDIR)/$(PACKAGE).tag: \
 	@top_srcdir@/include/babeltrace2/version.h \
 	@top_srcdir@/include/babeltrace2/logging.h \
 	@top_srcdir@/include/babeltrace2/plugin/plugin.h \
-	@top_srcdir@/include/babeltrace2/plugin/plugin-dev.h \
 	@top_srcdir@/include/babeltrace2/plugin/plugin-set.h \
+	@top_srcdir@/include/babeltrace2/plugin/plugin-so-dev.h \
 	@top_srcdir@/include/babeltrace2/plugin/plugin-loading.h \
 	@top_srcdir@/include/babeltrace2/value.h
 
