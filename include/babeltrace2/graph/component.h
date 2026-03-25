@@ -131,7 +131,7 @@ of component classes:
   </dd>
 </dl>
 
-Get the type enumerator of the class of a componen with
+Get the type enumerator of the class of a component with
 bt_component_get_class_type(). You can also use the
 bt_component_is_source(), bt_component_is_filter(), and
 bt_component_is_sink() helper functions.
@@ -1139,21 +1139,21 @@ bt_component_sink_borrow_input_port_by_index_const(
 
 /*!
 @brief
-    Borrows the \bt_oport named \bt_p{name} from the \bt_sink_comp
+    Borrows the \bt_iport named \bt_p{name} from the \bt_sink_comp
     \bt_p{component}.
 
-If \bt_p{component} has no output port named \bt_p{name}, then this
+If \bt_p{component} has no input port named \bt_p{name}, then this
 function returns \c NULL.
 
 @param[in] component
-    Sink component from which to borrow the output port
+    Sink component from which to borrow the input port
     named \bt_p{name}.
 @param[in] name
-    Name of the output port to borrow from \bt_p{component}.
+    Name of the input port to borrow from \bt_p{component}.
 
 @returns
     @parblock
-    \em Borrowed reference of the output port of
+    \em Borrowed reference of the input port of
     \bt_p{component} named \bt_p{name}, or \c NULL if none.
 
     The returned pointer remains valid as long as \bt_p{component}

@@ -340,7 +340,7 @@ See the \ref api-tir-ev-prop-common-ctx "common context field" property.
 
 @bt_pre_not_null{event}
 
-@sa bt_event_borrow_specific_context_field_const() &mdash;
+@sa bt_event_borrow_common_context_field_const() &mdash;
     \c const version of this function.
 */
 extern bt_field *

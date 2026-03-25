@@ -208,7 +208,7 @@ A plugin has the following properties:
 
     A static plugin has no path property.
 
-    Get bt_plugin_get_path().
+    Use bt_plugin_get_path().
   </dd>
 
   <dt>
@@ -756,7 +756,6 @@ If this function doesn't find any plugin, then it returns
 @retval #BT_PLUGIN_FIND_ALL_FROM_STATIC_STATUS_ERROR
     Error.
 
-@bt_pre_not_null{path}
 @bt_pre_not_null{plugins}
 */
 extern bt_plugin_find_all_from_static_status bt_plugin_find_all_from_static(
@@ -1034,9 +1033,9 @@ bt_plugin_borrow_source_component_class_by_index_const(
 @pre
     \bt_p{index} is less than the number of filter component classes in
     \bt_p{plugin} (as returned by
-    bt_plugin_get_source_component_class_count()).
+    bt_plugin_get_filter_component_class_count()).
 
-@sa bt_plugin_borrow_source_component_class_by_name_const() &mdash;
+@sa bt_plugin_borrow_filter_component_class_by_name_const() &mdash;
     Borrows a filter component class by name from a plugin.
 */
 extern const bt_component_class_filter *
@@ -1066,9 +1065,9 @@ bt_plugin_borrow_filter_component_class_by_index_const(
 @pre
     \bt_p{index} is less than the number of sink component classes in
     \bt_p{plugin} (as returned by
-    bt_plugin_get_source_component_class_count()).
+    bt_plugin_get_sink_component_class_count()).
 
-@sa bt_plugin_borrow_source_component_class_by_name_const() &mdash;
+@sa bt_plugin_borrow_sink_component_class_by_name_const() &mdash;
     Borrows a sink component class by name from a plugin.
 */
 extern const bt_component_class_sink *
@@ -1285,7 +1284,7 @@ This macro effectively moves a plugin reference from the expression
 @returns
     Number of contained plugins in \bt_p{plugin_set}.
 
-@bt_pre_not_null{plugin}
+@bt_pre_not_null{plugin_set}
 */
 extern uint64_t bt_plugin_set_get_plugin_count(
 		const bt_plugin_set *plugin_set) __BT_NOEXCEPT;

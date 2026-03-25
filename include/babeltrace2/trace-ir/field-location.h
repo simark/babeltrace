@@ -178,7 +178,7 @@ its field location \bt_var{FIELDLOC}:
         <dt>#BT_FIELD_CLASS_TYPE_DYNAMIC_ARRAY_WITH_LENGTH_FIELD</dt>
         <dd>
            While the class type of \bt_var{CURFIELD} is one of the
-           three above (that is, while \bt_var{CURFIELD} i
+           three above (that is, while \bt_var{CURFIELD} is
            an array field):
 
            - Set \bt_var{CURFIELD} to the element field of
@@ -247,7 +247,7 @@ typedef enum bt_field_location_scope {
 /*!
 @brief
     Creates a field location from the trace class \bt_p{trace_class}
-    using the scope \bt_p{scope} and the items \bt_p{items}.
+    using the scope \bt_p{root_scope} and the items \bt_p{items}.
 
 @param[in] trace_class
     Trace class from which to create a field location.

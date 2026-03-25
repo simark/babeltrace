@@ -725,7 +725,7 @@ The returned value has the type #BT_VALUE_TYPE_UNSIGNED_INTEGER.
 @returns
     New unsigned integer value reference, or \c NULL on memory error.
 
-@sa bt_value_bool_create() &mdash;
+@sa bt_value_integer_unsigned_create() &mdash;
     Creates an unsigned integer value initialized to&nbsp;0.
 */
 extern bt_value *bt_value_integer_unsigned_create_init(uint64_t raw_value) __BT_NOEXCEPT;
@@ -803,7 +803,7 @@ The returned value has the type #BT_VALUE_TYPE_SIGNED_INTEGER.
 @returns
     New signed integer value reference, or \c NULL on memory error.
 
-@sa bt_value_bool_create() &mdash;
+@sa bt_value_integer_signed_create() &mdash;
     Creates a signed integer value initialized to&nbsp;0.
 */
 extern bt_value *bt_value_integer_signed_create_init(int64_t raw_value) __BT_NOEXCEPT;
@@ -1306,7 +1306,7 @@ On success, if \bt_p{element_value} isn't \c NULL, this function sets
 map value.
 
 @param[in] value
-    Array value to which to append the created empty array value.
+    Array value to which to append the created empty map value.
 @param[out] element_value
     <strong>On success, if not \c NULL</strong>, \bt_p{*element_value}
     is a \em borrowed reference of the created empty map value.
@@ -1378,10 +1378,6 @@ at index \bt_p{index}.
 @bt_pre_not_null{element_value}
 @pre
     \bt_p{element_value} doesn't contain \bt_p{value}, recursively.
-
-@post
-    <strong>On success</strong>, the length of \bt_p{value} is
-    incremented.
 
 @sa bt_value_array_append_element() &mdash;
     Appends a value to an array value.

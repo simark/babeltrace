@@ -453,7 +453,7 @@ If \bt_p{trace} has no namespace, then this function returns \c NULL.
 @bt_since{1}
 
 @bt_pre_not_null{trace}
-@bt_pre_stream_cls_with_mip{trace, 1}
+@bt_pre_trace_with_mip{trace, 1}
 
 @sa bt_trace_set_namespace() &mdash;
     Sets the namespace of a trace.

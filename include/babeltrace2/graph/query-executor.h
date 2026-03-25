@@ -189,7 +189,7 @@ executor, the query method of \bt_p{component_class} receives:
     New query executor reference, or \c NULL on memory error.
 
 @bt_pre_not_null{component_class}
-@bt_pre_not_null{object}
+@bt_pre_not_null{object_name}
 
 @bt_post_success_frozen{component_class}
 @bt_post_success_frozen{params}

@@ -710,7 +710,7 @@ extern void bt_component_class_filter_put_ref(
 /*!
 @brief
     Decrements the reference count of the \bt_flt_comp_cls \bt_p{_dst},
-    setsc \bt_p{_dst} to \bt_p{_src}, and then sets \bt_p{_src} to
+    sets \bt_p{_dst} to \bt_p{_src}, and then sets \bt_p{_src} to
     \c NULL.
 
 This macro effectively moves a filter component class reference from the

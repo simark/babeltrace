@@ -284,14 +284,14 @@ properties:
   <dd>
     Name of the \ref api-comp-cls "class" of the component.
 
-    Use bt_error_cause_component_actor_get_component_class_type().
+    Use bt_error_cause_component_actor_get_component_class_name().
   </dd>
 
   <dt>Component class type</dt>
   <dd>
     Type of the class of the component.
 
-    Use bt_error_cause_component_actor_get_component_class_name().
+    Use bt_error_cause_component_actor_get_component_class_type().
   </dd>
 
   <dt>\bt_dt_opt Plugin name</dt>
@@ -359,14 +359,14 @@ properties:
   <dd>
     Name of the component class.
 
-    Use bt_error_cause_component_class_actor_get_component_class_type().
+    Use bt_error_cause_component_class_actor_get_component_class_name().
   </dd>
 
   <dt>Component class type</dt>
   <dd>
     Type of the component class.
 
-    Use bt_error_cause_component_class_actor_get_component_class_name().
+    Use bt_error_cause_component_class_actor_get_component_class_type().
   </dd>
 
   <dt>\bt_dt_opt Plugin name</dt>

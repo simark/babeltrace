@@ -63,13 +63,13 @@ bt_connection_borrow_downstream_port_const().
 
 /*!
 @brief
-    Borrows the upstream \bt_iport of the connection \bt_p{connection}.
+    Borrows the downstream \bt_iport of the connection \bt_p{connection}.
 
 @param[in] connection
-    Connection of which to borrow the upstream port.
+    Connection of which to borrow the downstream port.
 
 @returns
-    \em Borrowed reference of the upstream port of \bt_p{connection}.
+    \em Borrowed reference of the downstream port of \bt_p{connection}.
 
 @bt_pre_not_null{connection}
 */
@@ -78,14 +78,14 @@ extern const bt_port_input *bt_connection_borrow_downstream_port_const(
 
 /*!
 @brief
-    Borrows the downstream \bt_oport of the connection
+    Borrows the upstream \bt_oport of the connection
     \bt_p{connection}.
 
 @param[in] connection
-    Connection of which to borrow the downstream port.
+    Connection of which to borrow the upstream port.
 
 @returns
-    \em Borrowed reference of the downstream port of \bt_p{connection}.
+    \em Borrowed reference of the upstream port of \bt_p{connection}.
 
 @bt_pre_not_null{connection}
 */

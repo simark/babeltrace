@@ -870,8 +870,7 @@ typedef void (*bt_plugin_finalize_func)(void);
     @parblock
     #bt_component_class_sink_consume_method
 
-    "Next" method of the message iterator class of the sink component
-    class.
+    Consuming method of the sink component class.
     @endparblock
 
 @bt_pre_not_null{_name}
@@ -1472,7 +1471,6 @@ See the \ref api-msg-iter-cls-meth-seek-beg "seek beginning" and
     @endparblock
 
 @bt_pre_not_null{_seek_method}
-@bt_pre_not_null{_can_seek_method}
 */
 #define BT_PLUGIN_SOURCE_COMPONENT_CLASS_MESSAGE_ITERATOR_CLASS_SEEK_BEGINNING_METHODS_WITH_ID(_plugin_id, _component_class_id, _seek_method, _can_seek_method) \
 	__BT_PLUGIN_COMPONENT_CLASS_DESCRIPTOR_ATTRIBUTE(msg_iter_seek_beginning_method, BT_PLUGIN_COMPONENT_CLASS_DESCRIPTOR_ATTRIBUTE_TYPE_MSG_ITER_SEEK_BEGINNING_METHOD, _plugin_id, _component_class_id, source, _seek_method); \
@@ -1536,7 +1534,6 @@ methods.
     @endparblock
 
 @bt_pre_not_null{_seek_method}
-@bt_pre_not_null{_can_seek_method}
 */
 #define BT_PLUGIN_SOURCE_COMPONENT_CLASS_MESSAGE_ITERATOR_CLASS_SEEK_NS_FROM_ORIGIN_METHODS_WITH_ID(_plugin_id, _component_class_id, _seek_method, _can_seek_method) \
 	__BT_PLUGIN_COMPONENT_CLASS_DESCRIPTOR_ATTRIBUTE(msg_iter_seek_ns_from_origin_method, BT_PLUGIN_COMPONENT_CLASS_DESCRIPTOR_ATTRIBUTE_TYPE_MSG_ITER_SEEK_NS_FROM_ORIGIN_METHOD, _plugin_id, _component_class_id, source, _seek_method); \
@@ -1973,7 +1970,6 @@ See the \ref api-msg-iter-cls-meth-seek-beg "seek beginning" and
     @endparblock
 
 @bt_pre_not_null{_seek_method}
-@bt_pre_not_null{_can_seek_method}
 */
 #define BT_PLUGIN_FILTER_COMPONENT_CLASS_MESSAGE_ITERATOR_CLASS_SEEK_BEGINNING_METHODS_WITH_ID(_plugin_id, _component_class_id, _seek_method, _can_seek_method) \
 		__BT_PLUGIN_COMPONENT_CLASS_DESCRIPTOR_ATTRIBUTE(msg_iter_seek_beginning_method, BT_PLUGIN_COMPONENT_CLASS_DESCRIPTOR_ATTRIBUTE_TYPE_MSG_ITER_SEEK_BEGINNING_METHOD, _plugin_id, _component_class_id, filter, _seek_method); \
@@ -2037,7 +2033,6 @@ methods.
     @endparblock
 
 @bt_pre_not_null{_seek_method}
-@bt_pre_not_null{_can_seek_method}
 */
 #define BT_PLUGIN_FILTER_COMPONENT_CLASS_MESSAGE_ITERATOR_CLASS_SEEK_NS_FROM_ORIGIN_METHODS_WITH_ID(_plugin_id, _component_class_id, _seek_method, _can_seek_method) \
 	__BT_PLUGIN_COMPONENT_CLASS_DESCRIPTOR_ATTRIBUTE(msg_iter_seek_ns_from_origin_method, BT_PLUGIN_COMPONENT_CLASS_DESCRIPTOR_ATTRIBUTE_TYPE_MSG_ITER_SEEK_NS_FROM_ORIGIN_METHOD, _plugin_id, _component_class_id, filter, _seek_method); \

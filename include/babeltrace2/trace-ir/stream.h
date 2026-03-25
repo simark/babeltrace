@@ -439,9 +439,9 @@ See the \ref api-tir-stream-prop-name "name" property.
 @param[in] name
     New name of \bt_p{stream} (copied).
 
-@retval #BT_STREAM_CLASS_SET_NAME_STATUS_OK
+@retval #BT_STREAM_SET_NAME_STATUS_OK
     Success.
-@retval #BT_STREAM_CLASS_SET_NAME_STATUS_MEMORY_ERROR
+@retval #BT_STREAM_SET_NAME_STATUS_MEMORY_ERROR
     Out of memory.
 
 @bt_pre_not_null{stream}
