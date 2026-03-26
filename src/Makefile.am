@@ -123,6 +123,7 @@ common_libcommon_la_SOURCES = \
 	common/common.h \
 	common/func-status.h \
 	common/list.h \
+	common/log-and-append.h \
 	common/object-struct.h \
 	common/object.h \
 	common/macros.h \
