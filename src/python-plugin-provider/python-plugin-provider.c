@@ -680,6 +680,29 @@ end:
 	return status;
 }
 
+static
+enum bt_plugin_set_add_plugin_status
+bt_plugin_set_add_plugin_if_not_exist(
+		struct bt_plugin_set *plugin_set,
+		struct bt_plugin *plugin)
+{
+	enum bt_plugin_set_add_plugin_status status;
+
+	if (bt_plugin_set_borrow_plugin_by_name_const(plugin_set, plugin->info.name->str)) {
+		BT_LIB_LOGI(
+			"Plugin with same name already exists in plugin set, skipping: "
+			"plugin-set-addr=%p, %![plugin-]+l",
+			plugin_set, plugin);
+		status = BT_PLUGIN_SET_ADD_PLUGIN_STATUS_OK;
+		goto end;
+	}
+
+	status = bt_plugin_set_add_plugin(plugin_set, plugin);
+
+end:
+	return status;
+}
+
 BT_EXPORT
 int bt_plugin_python_create_all_from_file(const char *path,
 		bool fail_on_load_error, struct bt_plugin_set **plugin_set_out)

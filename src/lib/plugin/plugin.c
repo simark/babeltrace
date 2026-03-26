@@ -28,6 +28,8 @@
 #include "plugin.h"
 #include "plugin-so.h"
 #include "common/func-status.h"
+#include "common/object.h"
+#include "compat/compiler.h"
 
 struct bt_plugin_destruction_listener_elem {
 	bt_plugin_destruction_listener_func func;
@@ -385,6 +387,29 @@ static
 void destroy_gstring(void *data)
 {
 	g_string_free(data, TRUE);
+}
+
+static
+enum bt_plugin_set_add_plugin_status
+bt_plugin_set_add_plugin_if_not_exist(
+		struct bt_plugin_set *plugin_set,
+		struct bt_plugin *plugin)
+{
+	enum bt_plugin_set_add_plugin_status status;
+
+	if (bt_plugin_set_borrow_plugin_by_name_const(plugin_set, plugin->info.name->str)) {
+		BT_LIB_LOGI(
+			"Plugin with same name already exists in plugin set, skipping: "
+			"plugin-set-addr=%p, %![plugin-]+l",
+			plugin_set, plugin);
+		status = BT_PLUGIN_SET_ADD_PLUGIN_STATUS_OK;
+		goto end;
+	}
+
+	status = bt_plugin_set_add_plugin(plugin_set, plugin);
+
+end:
+	return status;
 }
 
 BT_EXPORT
