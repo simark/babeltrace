@@ -56,6 +56,7 @@ struct bt_plugin {
 		bool version_set;
 	} info;
 
+	GArray *destruction_listeners;
 	bool frozen;
 	/* Value depends on the specific plugin type */
 	void *spec_data;

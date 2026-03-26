@@ -29,6 +29,11 @@
 #include "plugin-so.h"
 #include "common/func-status.h"
 
+struct bt_plugin_destruction_listener_elem {
+	bt_plugin_destruction_listener_func func;
+	void *data;
+};
+
 #define BT_ASSERT_PRE_DEV_PLUGIN_HOT(_p)				\
 	BT_ASSERT_PRE_DEV_HOT("plugin",					\
 		((const struct bt_plugin *) (_p)),			\
@@ -48,6 +53,8 @@ void _bt_plugin_freeze(struct bt_plugin *plugin)
 #else
 # define bt_plugin_freeze(_p)
 #endif
+
+#define DESTRUCTION_LISTENER_FUNC_NAME  "bt_plugin_destruction_listener_func"
 
 #define PYTHON_PLUGIN_PROVIDER_FILENAME	"babeltrace2-python-plugin-provider." G_MODULE_SUFFIX
 #define PYTHON_PLUGIN_PROVIDER_DIR	BABELTRACE_PLUGIN_PROVIDERS_DIR
@@ -891,6 +898,58 @@ void destroy_plugin(struct bt_object *obj)
 		plugin->destroy_spec_data(plugin);
 	}
 
+	if (plugin->destruction_listeners) {
+		int64_t i;
+		const struct bt_error *saved_error;
+
+		BT_LIB_LOGD("Calling plugin destruction listener(s): %!+l", plugin);
+
+		/*
+		 * The plugin's reference count is 0 if we're here.
+		 * Increment it to avoid a double-destroy (possibly infinitely
+		 * recursive). This could happen for example if a destruction
+		 * listener did bt_object_get_ref() (or anything that causes
+		 * bt_object_get_ref() to be called) on the plugin (ref.
+		 * count goes from 0 to 1), and then bt_object_put_ref(): the
+		 * reference count would go from 1 to 0 again and this function
+		 * would be called again.
+		 */
+		plugin->base.ref_count++;
+
+		saved_error = bt_current_thread_take_error();
+
+		/* Call destruction listeners in reverse registration order */
+		for (i = (int64_t)plugin->destruction_listeners->len - 1;
+				i >= 0; i--) {
+			struct bt_plugin_destruction_listener_elem elem =
+				bt_g_array_index(plugin->destruction_listeners,
+					struct bt_plugin_destruction_listener_elem, i);
+
+			if (elem.func) {
+				elem.func(plugin, elem.data);
+				BT_ASSERT_POST_NO_ERROR(
+					DESTRUCTION_LISTENER_FUNC_NAME);
+			}
+
+			/*
+			 * The destruction listener should not have kept a
+			 * reference to the plugin.
+			 */
+			BT_ASSERT_POST(DESTRUCTION_LISTENER_FUNC_NAME,
+				"plugin-reference-count-not-changed",
+				plugin->base.ref_count == 1,
+				"Destruction listener kept a reference to the "
+				"plugin being destroyed: %![plugin-]+l",
+				plugin);
+		}
+		g_array_free(plugin->destruction_listeners, TRUE);
+		plugin->destruction_listeners = NULL;
+
+		if (saved_error) {
+			BT_CURRENT_THREAD_MOVE_ERROR_AND_RESET(saved_error);
+		}
+	}
+
 	if (plugin->src_comp_classes) {
 		BT_LOGD_STR("Putting source component classes.");
 		g_ptr_array_free(plugin->src_comp_classes, TRUE);
@@ -1025,6 +1084,13 @@ struct bt_plugin *bt_plugin_create(const char *name)
 	plugin->info.version.extra = g_string_new(NULL);
 	if (!plugin->info.version.extra) {
 		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GString.");
+		goto error;
+	}
+
+	plugin->destruction_listeners = g_array_new(FALSE, TRUE,
+		sizeof(struct bt_plugin_destruction_listener_elem));
+	if (!plugin->destruction_listeners) {
+		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GArray.");
 		goto error;
 	}
 
@@ -1391,6 +1457,71 @@ bt_plugin_borrow_sink_component_class_by_name_const(
 {
 	return (const void *) borrow_component_class_by_name(plugin,
 		plugin->sink_comp_classes, name);
+}
+
+BT_EXPORT
+enum bt_plugin_add_listener_status bt_plugin_add_destruction_listener(
+		const struct bt_plugin *_plugin,
+		bt_plugin_destruction_listener_func listener,
+		void *data, bt_listener_id *listener_id)
+{
+	struct bt_plugin *plugin = (void *) _plugin;
+	uint64_t index;
+	struct bt_plugin_destruction_listener_elem new_elem = {
+		.func = listener,
+		.data = data,
+	};
+
+	BT_ASSERT_PRE_NO_ERROR();
+	BT_ASSERT_PRE_PLUGIN_NON_NULL(plugin);
+	BT_ASSERT_PRE_LISTENER_FUNC_NON_NULL(listener);
+
+	index = plugin->destruction_listeners->len;
+	/* Add at the end to be able to execute in reverse order */
+	g_array_append_val(plugin->destruction_listeners, new_elem);
+
+	if (listener_id) {
+		*listener_id = index;
+	}
+
+	BT_LIB_LOGD("Added plugin destruction listener: %![plugin-]+l, "
+			"listener-id=%" PRIu64, plugin, index);
+	return BT_FUNC_STATUS_OK;
+}
+
+static
+bool has_listener_id(const struct bt_plugin *plugin, uint64_t listener_id)
+{
+	return listener_id < plugin->destruction_listeners->len &&
+		(&bt_g_array_index(plugin->destruction_listeners,
+			struct bt_plugin_destruction_listener_elem,
+			listener_id))->func;
+}
+
+BT_EXPORT
+enum bt_plugin_remove_listener_status bt_plugin_remove_destruction_listener(
+		const struct bt_plugin *_plugin, bt_listener_id listener_id)
+{
+	struct bt_plugin *plugin = (void *) _plugin;
+	struct bt_plugin_destruction_listener_elem *elem;
+
+	BT_ASSERT_PRE_NO_ERROR();
+	BT_ASSERT_PRE_PLUGIN_NON_NULL(plugin);
+	BT_ASSERT_PRE("listener-id-exists",
+		has_listener_id(plugin, listener_id),
+		"Plugin has no such plugin destruction listener ID: "
+		"%![plugin-]+l, %" PRIu64, plugin, listener_id);
+	elem = &bt_g_array_index(plugin->destruction_listeners,
+			struct bt_plugin_destruction_listener_elem,
+			listener_id);
+	BT_ASSERT(elem->func);
+
+	elem->func = NULL;
+	elem->data = NULL;
+	BT_LIB_LOGD("Removed plugin destruction listener: "
+		"%![plugin-]+l, listener-id=%" PRIu64,
+		plugin, listener_id);
+	return BT_FUNC_STATUS_OK;
 }
 
 BT_EXPORT

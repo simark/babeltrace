@@ -85,6 +85,10 @@ bt_plugin_borrow_source_component_class_by_name_const(),
 bt_plugin_borrow_filter_component_class_by_name_const(), and
 bt_plugin_borrow_sink_component_class_by_name_const().
 
+Add to and remove a destruction listener from a plugin with
+bt_plugin_add_destruction_listener() and
+bt_plugin_remove_destruction_listener().
+
 <h1>Properties</h1>
 
 A plugin has the following properties:
@@ -916,6 +920,149 @@ If no sink component class has the name \bt_p{name} within
 extern const bt_component_class_sink *
 bt_plugin_borrow_sink_component_class_by_name_const(
 		const bt_plugin *plugin, const char *name) __BT_NOEXCEPT;
+
+/*! @} */
+
+/*!
+@name Listeners
+@{
+*/
+
+/*!
+@brief
+    User function for bt_plugin_add_destruction_listener().
+
+This is the user function type for a plugin destruction listener.
+
+@param[in] plugin
+    Plugin being destroyed (\ref api-fund-freezing "frozen").
+@param[in] user_data
+    User data, as passed as the \bt_p{user_data} parameter of
+    bt_plugin_add_destruction_listener().
+
+@bt_pre_not_null{plugin}
+
+@post
+    The reference count of \bt_p{plugin} is not changed.
+@bt_post_no_error
+
+@sa bt_plugin_add_destruction_listener() &mdash;
+    Adds a destruction listener to a plugin.
+*/
+typedef void (* bt_plugin_destruction_listener_func)(
+		const bt_plugin *plugin, void *user_data);
+
+/*!
+@brief
+    Status codes for bt_plugin_add_destruction_listener().
+*/
+typedef enum bt_plugin_add_listener_status {
+	/*!
+	@brief
+	    Success.
+	*/
+	BT_PLUGIN_ADD_LISTENER_STATUS_OK		= __BT_FUNC_STATUS_OK,
+
+	/*!
+	@brief
+	    Out of memory.
+	*/
+	BT_PLUGIN_ADD_LISTENER_STATUS_MEMORY_ERROR	= __BT_FUNC_STATUS_MEMORY_ERROR,
+} bt_plugin_add_listener_status;
+
+/*!
+@brief
+    Adds a destruction listener having the function \bt_p{user_func}
+    to the plugin \bt_p{plugin}.
+
+All the destruction listener user functions of a plugin are called
+when it's being destroyed.
+
+If \bt_p{listener_id} is not \c NULL, then this function, on success,
+sets \bt_p{*listener_id} to the ID of the added destruction listener
+within \bt_p{plugin}. You can then use this ID to remove the
+added destruction listener with bt_plugin_remove_destruction_listener().
+
+@param[in] plugin
+    Plugin to add the destruction listener to.
+@param[in] user_func
+    User function of the destruction listener to add to
+    \bt_p{plugin}.
+@param[in] user_data
+    User data to pass as the \bt_p{user_data} parameter of
+    \bt_p{user_func}.
+@param[out] listener_id
+    <strong>On success and if not \c NULL</strong>, \bt_p{*listener_id}
+    is the ID of the added destruction listener within
+    \bt_p{plugin}.
+
+@retval #BT_PLUGIN_ADD_LISTENER_STATUS_OK
+    Success.
+@retval #BT_PLUGIN_ADD_LISTENER_STATUS_MEMORY_ERROR
+    Out of memory.
+
+@bt_pre_not_null{plugin}
+@bt_pre_not_null{user_func}
+
+@sa bt_plugin_remove_destruction_listener() &mdash;
+    Removes a destruction listener from a plugin.
+*/
+extern bt_plugin_add_listener_status bt_plugin_add_destruction_listener(
+		const bt_plugin *plugin,
+		bt_plugin_destruction_listener_func user_func,
+		void *user_data, bt_listener_id *listener_id) __BT_NOEXCEPT;
+
+/*!
+@brief
+    Status codes for bt_plugin_remove_destruction_listener().
+*/
+typedef enum bt_plugin_remove_listener_status {
+	/*!
+	@brief
+	    Success.
+	*/
+	BT_PLUGIN_REMOVE_LISTENER_STATUS_OK		= __BT_FUNC_STATUS_OK,
+
+	/*!
+	@brief
+	    Out of memory.
+	*/
+	BT_PLUGIN_REMOVE_LISTENER_STATUS_MEMORY_ERROR	= __BT_FUNC_STATUS_MEMORY_ERROR,
+} bt_plugin_remove_listener_status;
+
+/*!
+@brief
+    Removes the destruction listener having the ID \bt_p{listener_id}
+    from the plugin \bt_p{plugin}.
+
+The destruction listener to remove from \bt_p{plugin} was
+previously added with bt_plugin_add_destruction_listener().
+
+You can call this function when \bt_p{plugin} is
+\ref api-fund-freezing "frozen".
+
+@param[in] plugin
+    Plugin from which to remove the destruction listener having
+    the ID \bt_p{listener_id}.
+@param[in] listener_id
+    ID of the destruction listener to remove from \bt_p{plugin}.
+
+@retval #BT_PLUGIN_REMOVE_LISTENER_STATUS_OK
+    Success.
+@retval #BT_PLUGIN_REMOVE_LISTENER_STATUS_MEMORY_ERROR
+    Out of memory.
+
+@bt_pre_not_null{plugin}
+@pre
+    \bt_p{listener_id} is the ID of an existing destruction listener
+    in \bt_p{plugin}.
+
+@sa bt_plugin_add_destruction_listener() &mdash;
+    Adds a destruction listener to a plugin.
+*/
+extern bt_plugin_remove_listener_status bt_plugin_remove_destruction_listener(
+		const bt_plugin *plugin, bt_listener_id listener_id)
+		__BT_NOEXCEPT;
 
 /*! @} */
 
