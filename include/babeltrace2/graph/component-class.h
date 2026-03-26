@@ -52,6 +52,10 @@ A component class is a \ref api-fund-shared-object "shared object": get
 a new reference with bt_component_class_get_ref() and put an existing
 reference with bt_component_class_put_ref().
 
+Add to and remove a destruction listener from a component class with
+bt_component_class_add_destruction_listener() and
+bt_component_class_remove_destruction_listener().
+
 The common C&nbsp;type of a component class is #bt_component_class.
 
 There are three types of component classes:
@@ -387,6 +391,154 @@ See the \ref api-comp-cls-prop-help "help text" property.
 */
 extern const char *bt_component_class_get_help(
 		const bt_component_class *component_class) __BT_NOEXCEPT;
+
+/*! @} */
+
+/*!
+@name Listeners
+@{
+*/
+
+/*!
+@brief
+    User function for bt_component_class_add_destruction_listener().
+
+This is the user function type for a component class destruction listener.
+
+@param[in] component_class
+    Component class being destroyed (\ref api-fund-freezing "frozen").
+@param[in] user_data
+    User data, as passed as the \bt_p{user_data} parameter of
+    bt_component_class_add_destruction_listener().
+
+@bt_pre_not_null{component_class}
+
+@post
+    The reference count of \bt_p{component_class} isn't changed.
+@bt_post_no_error
+
+@sa bt_component_class_add_destruction_listener() &mdash;
+    Adds a destruction listener to a component class.
+*/
+typedef void (* bt_component_class_destruction_listener_func)(
+		const bt_component_class *component_class,
+		void *user_data);
+
+/*!
+@brief
+    Status codes for bt_component_class_add_destruction_listener().
+*/
+typedef enum bt_component_class_add_listener_status {
+	/*!
+	@brief
+	    Success.
+	*/
+	BT_COMPONENT_CLASS_ADD_LISTENER_STATUS_OK		= __BT_FUNC_STATUS_OK,
+
+	/*!
+	@brief
+	    Out of memory.
+	*/
+	BT_COMPONENT_CLASS_ADD_LISTENER_STATUS_MEMORY_ERROR	= __BT_FUNC_STATUS_MEMORY_ERROR,
+} bt_component_class_add_listener_status;
+
+/*!
+@brief
+    Adds a destruction listener having the function \bt_p{user_func}
+    to the component class \bt_p{component_class}.
+
+All the destruction listener user functions of a component class are called
+when it's being destroyed.
+
+If \bt_p{listener_id} is not \c NULL, then this function, on success,
+sets \bt_p{*listener_id} to the ID of the added destruction listener
+within \bt_p{component_class}. You can then use this ID to remove the
+added destruction listener with
+bt_component_class_remove_destruction_listener().
+
+@param[in] component_class
+    Component class to add the destruction listener to.
+@param[in] user_func
+    User function of the destruction listener to add to
+    \bt_p{component_class}.
+@param[in] user_data
+    User data to pass as the \bt_p{user_data} parameter of
+    \bt_p{user_func}.
+@param[out] listener_id
+    <strong>On success and if not \c NULL</strong>, \bt_p{*listener_id}
+    is the ID of the added destruction listener within
+    \bt_p{component_class}.
+
+@retval #BT_COMPONENT_CLASS_ADD_LISTENER_STATUS_OK
+    Success.
+@retval #BT_COMPONENT_CLASS_ADD_LISTENER_STATUS_MEMORY_ERROR
+    Out of memory.
+
+@bt_pre_not_null{component_class}
+@bt_pre_not_null{user_func}
+
+@sa bt_component_class_remove_destruction_listener() &mdash;
+    Removes a destruction listener from a component class.
+*/
+extern bt_component_class_add_listener_status
+bt_component_class_add_destruction_listener(
+		const bt_component_class *component_class,
+		bt_component_class_destruction_listener_func user_func,
+		void *user_data, bt_listener_id *listener_id) __BT_NOEXCEPT;
+
+/*!
+@brief
+    Status codes for bt_component_class_remove_destruction_listener().
+*/
+typedef enum bt_component_class_remove_listener_status {
+	/*!
+	@brief
+	    Success.
+	*/
+	BT_COMPONENT_CLASS_REMOVE_LISTENER_STATUS_OK		= __BT_FUNC_STATUS_OK,
+
+	/*!
+	@brief
+	    Out of memory.
+	*/
+	BT_COMPONENT_CLASS_REMOVE_LISTENER_STATUS_MEMORY_ERROR	= __BT_FUNC_STATUS_MEMORY_ERROR,
+} bt_component_class_remove_listener_status;
+
+/*!
+@brief
+    Removes the destruction listener having the ID \bt_p{listener_id}
+    from the component class \bt_p{component_class}.
+
+The destruction listener to remove from \bt_p{component_class} was
+previously added with bt_component_class_add_destruction_listener().
+
+You can call this function when \bt_p{component_class} is
+\ref api-fund-freezing "frozen".
+
+@param[in] component_class
+    Component class from which to remove the destruction listener having
+    the ID \bt_p{listener_id}.
+@param[in] listener_id
+    ID of the destruction listener to remove from \bt_p{component_class}­.
+
+@retval #BT_COMPONENT_CLASS_REMOVE_LISTENER_STATUS_OK
+    Success.
+@retval #BT_COMPONENT_CLASS_REMOVE_LISTENER_STATUS_MEMORY_ERROR
+    Out of memory.
+
+@bt_pre_not_null{component_class}
+@pre
+    \bt_p{listener_id} is the ID of an existing destruction listener
+    in \bt_p{component_class}.
+
+@sa bt_component_class_add_destruction_listener() &mdash;
+    Adds a destruction listener to a component class.
+*/
+extern bt_component_class_remove_listener_status
+bt_component_class_remove_destruction_listener(
+		const bt_component_class *component_class,
+		bt_listener_id listener_id)
+		__BT_NOEXCEPT;
 
 /*! @} */
 

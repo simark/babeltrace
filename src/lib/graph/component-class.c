@@ -19,33 +19,79 @@
 #include "lib/graph/message-iterator-class.h"
 #include "common/object.h"
 
+struct bt_component_class_destruction_listener_elem {
+	bt_component_class_destruction_listener_func func;
+	void *data;
+};
+
 #define BT_ASSERT_PRE_DEV_COMP_CLS_HOT(_cc)				\
 	BT_ASSERT_PRE_DEV_HOT("component-class",			\
 		((const struct bt_component_class *) (_cc)), \
 		"Component class", ": %!+C", (_cc))
 
+#define DESTRUCTION_LISTENER_FUNC_NAME  "bt_component_class_destruction_listener_func"
+
 static
 void destroy_component_class(struct bt_object *obj)
 {
 	struct bt_component_class *class;
-	int i;
 
 	BT_ASSERT(obj);
 	class = container_of(obj, struct bt_component_class, base);
 
 	BT_LIB_LOGI("Destroying component class: %!+C", class);
 
-	/* Call destroy listeners in reverse registration order */
-	if (class->destroy_listeners) {
-		for (i = class->destroy_listeners->len - 1; i >= 0; i--) {
-			struct bt_component_class_destroy_listener *listener =
-				&bt_g_array_index(class->destroy_listeners,
-					struct bt_component_class_destroy_listener,
-					i);
+	if (class->destruction_listeners) {
+		int64_t i;
+		const struct bt_error *saved_error;
 
-			BT_LOGD("Calling destroy listener: func-addr=%p, data-addr=%p",
-				listener->func, listener->data);
-			listener->func(class, listener->data);
+		BT_LIB_LOGD("Calling component class destruction listener(s): %!+C", class);
+
+		/*
+		 * The component class has a reference count of 0 at
+		 * this point. Increase it to prevent a double
+		 * destruction (which could become infinitely
+		 * recursive).
+		 *
+		 * For example, this can occur if a destruction listener
+		 * calls bt_object_get_ref() (or indirectly triggers it)
+		 * on the component class, raising the reference count
+		 * from 0 to 1, and then calls bt_object_put_ref(),
+		 * bringing it back to 0 and causing this function to be
+		 * invoked again.
+		 */
+		class->base.ref_count++;
+
+		saved_error = bt_current_thread_take_error();
+
+		/* Call destruction listeners in reverse registration order */
+		for (i = (int64_t) class->destruction_listeners->len - 1; i >= 0; i--) {
+			struct bt_component_class_destruction_listener_elem elem =
+				bt_g_array_index(class->destruction_listeners,
+						struct bt_component_class_destruction_listener_elem, i);
+
+			if (elem.func) {
+				elem.func(class, elem.data);
+				BT_ASSERT_POST_NO_ERROR(
+					DESTRUCTION_LISTENER_FUNC_NAME);
+			}
+
+			/*
+			 * The destruction listener should not have kept a
+			 * reference to the component class.
+			 */
+			BT_ASSERT_POST(DESTRUCTION_LISTENER_FUNC_NAME,
+				"component-class-reference-count-not-changed",
+				class->base.ref_count == 1,
+				"Destruction listener kept a reference to the component class being destroyed: %![cc-]+C",
+				class);
+		}
+
+		g_array_free(class->destruction_listeners, TRUE);
+		class->destruction_listeners = NULL;
+
+		if (saved_error) {
+			BT_CURRENT_THREAD_MOVE_ERROR_AND_RESET(saved_error);
 		}
 	}
 
@@ -67,11 +113,6 @@ void destroy_component_class(struct bt_object *obj)
 	if (class->plugin_name) {
 		g_string_free(class->plugin_name, TRUE);
 		class->plugin_name = NULL;
-	}
-
-	if (class->destroy_listeners) {
-		g_array_free(class->destroy_listeners, TRUE);
-		class->destroy_listeners = NULL;
 	}
 
 	if (bt_component_class_has_message_iterator_class(class)) {
@@ -118,9 +159,9 @@ int bt_component_class_init(struct bt_component_class *class,
 		goto error;
 	}
 
-	class->destroy_listeners = g_array_new(FALSE, TRUE,
-		sizeof(struct bt_component_class_destroy_listener));
-	if (!class->destroy_listeners) {
+	class->destruction_listeners = g_array_new(FALSE, TRUE,
+		sizeof(struct bt_component_class_destruction_listener_elem));
+	if (!class->destruction_listeners) {
 		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GArray.");
 		goto error;
 	}
@@ -615,19 +656,69 @@ const char *bt_component_class_get_help(
 		comp_cls->help->str[0] != '\0' ? comp_cls->help->str : NULL;
 }
 
-void bt_component_class_add_destroy_listener(
-		struct bt_component_class *comp_cls,
-		bt_component_class_destroy_listener_func func, void *data)
+BT_EXPORT
+enum bt_component_class_add_listener_status bt_component_class_add_destruction_listener(
+		const struct bt_component_class *_cc,
+		bt_component_class_destruction_listener_func listener,
+		void *data, bt_listener_id *listener_id)
 {
-	struct bt_component_class_destroy_listener listener;
+	struct bt_component_class *cc = (void *) _cc;
+	uint64_t index;
+	struct bt_component_class_destruction_listener_elem new_elem = {
+		.func = listener,
+		.data = data,
+	};
 
-	BT_ASSERT(comp_cls);
-	BT_ASSERT(func);
-	listener.func = func;
-	listener.data = data;
-	g_array_append_val(comp_cls->destroy_listeners, listener);
-	BT_LIB_LOGD("Added destroy listener to component class: "
-		"%![cc-]+C, listener-func-addr=%p", comp_cls, func);
+	BT_ASSERT_PRE_NO_ERROR();
+	BT_ASSERT_PRE_COMP_CLS_NON_NULL(cc);
+	BT_ASSERT_PRE_LISTENER_FUNC_NON_NULL(listener);
+
+	index = cc->destruction_listeners->len;
+	/* Add at the end to be able to execute in reverse order */
+	g_array_append_val(cc->destruction_listeners, new_elem);
+
+	if (listener_id) {
+		*listener_id = index;
+	}
+
+	BT_LIB_LOGD("Added component class destruction listener: %![cc-]+C, "
+			"listener-id=%" PRIu64, cc, index);
+	return BT_FUNC_STATUS_OK;
+}
+
+static
+bool has_listener_id(const struct bt_component_class *cc, uint64_t listener_id)
+{
+	return listener_id < cc->destruction_listeners->len &&
+		(&bt_g_array_index(cc->destruction_listeners,
+			struct bt_component_class_destruction_listener_elem,
+			listener_id))->func;
+}
+
+BT_EXPORT
+enum bt_component_class_remove_listener_status bt_component_class_remove_destruction_listener(
+		const struct bt_component_class *_cc, bt_listener_id listener_id)
+{
+	struct bt_component_class *cc = (void *) _cc;
+	struct bt_component_class_destruction_listener_elem *elem;
+
+	BT_ASSERT_PRE_NO_ERROR();
+	BT_ASSERT_PRE_COMP_CLS_NON_NULL(cc);
+	BT_ASSERT_PRE("listener-id-exists",
+		has_listener_id(cc, listener_id),
+		"Component class has no such component class destruction listener ID: "
+		"%![cc-]+C, %" PRIu64, cc, listener_id);
+	elem = &bt_g_array_index(cc->destruction_listeners,
+			struct bt_component_class_destruction_listener_elem,
+			listener_id);
+	BT_ASSERT(elem->func);
+
+	elem->func = NULL;
+	elem->data = NULL;
+	BT_LIB_LOGD("Removed component class destruction listener: "
+		"%![cc-]+C, listener-id=%" PRIu64,
+		cc, listener_id);
+	return BT_FUNC_STATUS_OK;
 }
 
 void _bt_component_class_freeze(const struct bt_component_class *comp_cls)
