@@ -16,7 +16,7 @@
 #include "lib/trace-ir/stream-class.h"
 #include "lib/graph/graph.h"
 #include "common/assert.h"
-#include "lib/object.h"
+#include "common/object.h"
 #include <inttypes.h>
 
 #include "packet.h"

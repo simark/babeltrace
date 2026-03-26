@@ -9,7 +9,7 @@
 #define BABELTRACE_LIB_GRAPH_COMPONENT_DESCRIPTOR_SET_H
 
 #include <glib.h>
-#include "lib/object-struct.h"
+#include "common/object-struct.h"
 
 /*
  * This structure describes an eventual component instance.

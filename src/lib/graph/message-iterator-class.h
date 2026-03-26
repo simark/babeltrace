@@ -11,7 +11,7 @@
 #include <stdbool.h>
 #include <glib.h>
 #include <babeltrace2/babeltrace.h>
-#include "lib/object-struct.h"
+#include "common/object-struct.h"
 
 struct bt_message_iterator_class {
 	struct bt_object base;

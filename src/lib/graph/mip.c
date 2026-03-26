@@ -19,7 +19,7 @@
 #include "lib/value.h"
 #include "component-descriptor-set.h"
 #include "lib/integer-range-set.h"
-#include "lib/object.h"
+#include "common/object.h"
 
 #define MAX_MIP_VERSION 1
 

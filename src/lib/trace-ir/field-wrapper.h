@@ -8,7 +8,7 @@
 #define BABELTRACE_LIB_TRACE_IR_FIELD_WRAPPER_H
 
 #include "lib/object-pool.h"
-#include "lib/object-struct.h"
+#include "common/object-struct.h"
 
 #include "field.h"
 

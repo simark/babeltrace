@@ -8,7 +8,7 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_EVENT_CLASS_H
 #define BABELTRACE_LIB_TRACE_IR_EVENT_CLASS_H
 
-#include "lib/object.h"
+#include "common/object.h"
 #include "common/assert.h"
 #include "lib/object-pool.h"
 #include "lib/property.h"

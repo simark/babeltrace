@@ -9,7 +9,7 @@
 #include "lib/logging.h"
 
 #include "lib/assert-cond.h"
-#include "lib/object.h"
+#include "common/object.h"
 #include "compat/compiler.h"
 #include <stdbool.h>
 #include <stdlib.h>

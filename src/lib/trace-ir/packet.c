@@ -8,7 +8,7 @@
 #include "lib/logging.h"
 
 #include "lib/assert-cond.h"
-#include "lib/object.h"
+#include "common/object.h"
 #include "common/assert.h"
 #include <stdbool.h>
 

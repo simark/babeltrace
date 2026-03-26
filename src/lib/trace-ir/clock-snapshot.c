@@ -10,7 +10,7 @@
 #include "lib/assert-cond.h"
 #include "clock-class.h"
 #include "clock-snapshot.h"
-#include "lib/object.h"
+#include "common/object.h"
 #include "common/assert.h"
 #include "common/func-status.h"
 

@@ -18,7 +18,7 @@
 #include "component-class.h"
 #include "component-descriptor-set.h"
 #include "lib/value.h"
-#include "lib/object.h"
+#include "common/object.h"
 
 static
 void destroy_component_descriptor_set(struct bt_object *obj)

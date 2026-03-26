@@ -17,7 +17,7 @@
 #include "component-class.h"
 #include "common/func-status.h"
 #include "lib/graph/message-iterator-class.h"
-#include "lib/object.h"
+#include "common/object.h"
 
 #define BT_ASSERT_PRE_DEV_COMP_CLS_HOT(_cc)				\
 	BT_ASSERT_PRE_DEV_HOT("component-class",			\

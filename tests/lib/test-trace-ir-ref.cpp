@@ -25,7 +25,7 @@
 extern "C" {
 
 #include "common.h"
-#include "lib/object-struct.h"
+#include "common/object-struct.h"
 
 }
 /* clang-format on */

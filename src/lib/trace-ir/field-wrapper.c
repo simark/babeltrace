@@ -8,7 +8,7 @@
 #include "lib/logging.h"
 
 #include "lib/object-pool.h"
-#include "lib/object.h"
+#include "common/object.h"
 #include <glib.h>
 
 #include "field-wrapper.h"

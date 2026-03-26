@@ -9,7 +9,7 @@
 #define BABELTRACE_LIB_GRAPH_COMPONENT_CLASS_H
 
 #include "common/list.h"
-#include "lib/object-struct.h"
+#include "common/object-struct.h"
 #include <stdbool.h>
 #include <glib.h>
 #include <babeltrace2/babeltrace.h>

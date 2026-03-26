@@ -7,7 +7,7 @@
 #define BT_LOG_TAG "LIB/FIELD-LOCATION"
 #include "lib/logging.h"
 #include "lib/assert-cond.h"
-#include "lib/object.h"
+#include "common/object.h"
 #include "field-location.h"
 
 static

@@ -9,7 +9,7 @@
 
 #include <glib.h>
 
-#include "lib/object-struct.h"
+#include "common/object-struct.h"
 #include "lib/value.h"
 
 struct bt_query_executor {

@@ -10,7 +10,7 @@
 #include <stdbool.h>
 
 #include "lib/assert-cond.h"
-#include "lib/object.h"
+#include "common/object.h"
 #include "lib/trace-ir/clock-snapshot.h"
 #include "lib/trace-ir/stream-class.h"
 #include "lib/trace-ir/stream.h"

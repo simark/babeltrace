@@ -8,7 +8,7 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_CLOCK_CLASS_H
 #define BABELTRACE_LIB_TRACE_IR_CLOCK_CLASS_H
 
-#include "lib/object-struct.h"
+#include "common/object-struct.h"
 #include "common/common.h"
 #include "lib/object-pool.h"
 #include "lib/property.h"

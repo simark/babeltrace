@@ -9,7 +9,7 @@
 
 #include "common/common.h"
 #include "lib/assert-cond.h"
-#include "lib/object.h"
+#include "common/object.h"
 #include "compat/compiler.h"
 
 #include "component-class.h"

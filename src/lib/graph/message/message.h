@@ -14,7 +14,7 @@
 #endif
 
 #include "common/assert.h"
-#include "lib/object-struct.h"
+#include "common/object-struct.h"
 #include "lib/object-pool.h"
 #include <babeltrace2/babeltrace.h>
 

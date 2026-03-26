@@ -14,7 +14,7 @@
 #endif
 
 #include "lib/assert-cond.h"
-#include "lib/object.h"
+#include "common/object.h"
 #include "common/assert.h"
 #include <glib.h>
 #include <stdbool.h>

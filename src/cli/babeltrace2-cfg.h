@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "lib/object.h"
+#include "common/object.h"
 #include <glib.h>
 #include <babeltrace2/babeltrace.h>
 

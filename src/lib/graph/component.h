@@ -8,7 +8,7 @@
 #ifndef BABELTRACE_LIB_GRAPH_COMPONENT_H
 #define BABELTRACE_LIB_GRAPH_COMPONENT_H
 
-#include "lib/object.h"
+#include "common/object.h"
 #include "common/assert.h"
 #include <glib.h>
 #include <stdbool.h>

@@ -9,7 +9,7 @@
 #define BABELTRACE_LIB_GRAPH_ITERATOR_H
 
 #include "common/macros.h"
-#include "lib/object-struct.h"
+#include "common/object-struct.h"
 #include <stdbool.h>
 #include <babeltrace2/babeltrace.h>
 #include <glib.h>

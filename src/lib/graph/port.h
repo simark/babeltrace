@@ -11,8 +11,8 @@
 #include <babeltrace2/babeltrace.h>
 #include <glib.h>
 #include "common/assert.h"
-#include "lib/object-struct.h"
-#include "lib/object.h"
+#include "common/object-struct.h"
+#include "common/object.h"
 
 struct bt_port {
 	struct bt_object base;

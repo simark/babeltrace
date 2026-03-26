@@ -10,7 +10,7 @@
 #include "common/assert.h"
 #include "common/common.h"
 #include "common/macros.h"
-#include "lib/object.h"
+#include "common/object.h"
 #include <glib.h>
 
 #include "component-class-sink-simple.h"

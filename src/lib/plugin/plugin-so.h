@@ -12,7 +12,7 @@
 #include <gmodule.h>
 #include <stdbool.h>
 #include <babeltrace2/babeltrace.h>
-#include "lib/object-struct.h"
+#include "common/object-struct.h"
 
 struct bt_plugin;
 struct bt_component_class;

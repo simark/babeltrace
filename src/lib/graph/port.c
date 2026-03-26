@@ -10,7 +10,7 @@
 
 #include "common/assert.h"
 #include "lib/assert-cond.h"
-#include "lib/object.h"
+#include "common/object.h"
 
 #include "component.h"
 #include "connection.h"

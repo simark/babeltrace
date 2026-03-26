@@ -12,7 +12,7 @@
 
 #include "common/assert.h"
 #include "common/macros.h"
-#include "lib/object-struct.h"
+#include "common/object-struct.h"
 #include <glib.h>
 #include <babeltrace2/babeltrace.h>
 

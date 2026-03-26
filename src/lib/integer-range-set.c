@@ -12,7 +12,7 @@
 #include <babeltrace2/babeltrace.h>
 
 #include "lib/assert-cond.h"
-#include "lib/object.h"
+#include "common/object.h"
 #include "common/assert.h"
 #include "common/func-status.h"
 #include "integer-range-set.h"

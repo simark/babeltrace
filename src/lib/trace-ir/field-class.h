@@ -9,7 +9,7 @@
 #define BABELTRACE_LIB_TRACE_IR_FIELD_CLASS_H
 
 #include "common/macros.h"
-#include "lib/object-struct.h"
+#include "common/object-struct.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <glib.h>

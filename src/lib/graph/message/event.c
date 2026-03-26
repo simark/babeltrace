@@ -11,7 +11,7 @@
 #include "common/assert.h"
 #include "lib/assert-cond.h"
 #include "compat/compiler.h"
-#include "lib/object.h"
+#include "common/object.h"
 #include "lib/trace-ir/event.h"
 #include "lib/trace-ir/event-class.h"
 #include "lib/trace-ir/stream-class.h"

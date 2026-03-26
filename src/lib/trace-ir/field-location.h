@@ -12,7 +12,7 @@
 
 #include <glib.h>
 #include <babeltrace2/babeltrace.h>
-#include "lib/object-struct.h"
+#include "common/object-struct.h"
 
 struct bt_field_location
 {
