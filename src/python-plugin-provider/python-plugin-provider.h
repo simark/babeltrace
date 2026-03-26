@@ -13,6 +13,7 @@
 extern
 int bt_plugin_python_create_all_from_file(const char *path,
 		bool fail_on_load_error,
-		struct bt_plugin_set **plugin_set_out);
+		struct bt_plugin_set **plugin_set_out,
+		int log_level);
 
 #endif /* BABELTRACE_PYTHON_PLUGIN_PROVIDER_PYTHON_PLUGIN_PROVIDER_H */
