@@ -1701,9 +1701,12 @@ end:
 }
 
 static
-void plugin_comp_class_destroy_listener(struct bt_component_class *comp_class,
+void plugin_comp_class_destroy_listener(
+		const struct bt_component_class *comp_class_const,
 		void *data __attribute__((unused)))
 {
+	struct bt_component_class *comp_class =
+		(struct bt_component_class *) comp_class_const;
 	bt_list_del(&comp_class->node);
 	BT_OBJECT_PUT_REF_AND_RESET(comp_class->so_handle);
 	BT_LOGD("Component class destroyed: removed entry from list: "
@@ -1730,6 +1733,6 @@ void bt_plugin_so_on_add_component_class(struct bt_plugin *plugin,
 	bt_object_get_ref_no_null_check(comp_class->so_handle);
 
 	/* Add our custom destroy listener */
-	bt_component_class_add_destroy_listener(comp_class,
-		plugin_comp_class_destroy_listener, NULL);
+	bt_component_class_add_destruction_listener(comp_class,
+		plugin_comp_class_destroy_listener, NULL, NULL);
 }

@@ -17,14 +17,6 @@
 struct bt_component_class;
 struct bt_plugin_so_shared_lib_handle;
 
-typedef void (*bt_component_class_destroy_listener_func)(
-		struct bt_component_class *class, void *data);
-
-struct bt_component_class_destroy_listener {
-	bt_component_class_destroy_listener_func func;
-	void *data;
-};
-
 struct bt_component_class {
 	struct bt_object base;
 	enum bt_component_class_type type;
@@ -33,8 +25,7 @@ struct bt_component_class {
 	GString *help;
 	GString *plugin_name;
 
-	/* Array of struct bt_component_class_destroy_listener */
-	GArray *destroy_listeners;
+	GArray *destruction_listeners;
 	bool frozen;
 	struct bt_list_head node;
 	struct bt_plugin_so_shared_lib_handle *so_handle;
@@ -81,9 +72,6 @@ struct bt_component_class_sink {
 		bt_component_class_sink_consume_method consume;
 	} methods;
 };
-
-void bt_component_class_add_destroy_listener(struct bt_component_class *class,
-		bt_component_class_destroy_listener_func func, void *data);
 
 void _bt_component_class_freeze(
 		const struct bt_component_class *component_class);
