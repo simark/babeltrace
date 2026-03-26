@@ -59,7 +59,7 @@
  * we reflect that here.
  */
 %typemap(argout) void *user_data {
-	if (PyLong_AsLong($result) == __BT_FUNC_STATUS_OK) {
+	if (PyLong_AsLong($result) == BT_FUNC_STATUS_OK) {
 		Py_INCREF($1);
 	}
 }

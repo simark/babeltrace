@@ -21,14 +21,8 @@
  */
 #include <babeltrace2/babeltrace.h>
 
-/*
- * This is not part of the API, but because those bindings reside within
- * the project, we take the liberty to use them.
- */
-#define __BT_IN_BABELTRACE_H
-#include <babeltrace2/func-status.h>
-
 #include "common/assert.h"
+#include "common/func-status.h"
 
 /* Used by some interface files */
 #include "native_bt_bt2_objects.hpp"

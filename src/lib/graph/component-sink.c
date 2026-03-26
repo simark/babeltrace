@@ -14,7 +14,7 @@
 #include "component-sink.h"
 #include "component.h"
 #include "graph.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 struct bt_component *bt_component_sink_create(void)
 {

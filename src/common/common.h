@@ -21,12 +21,8 @@
 
 #include <babeltrace2/babeltrace.h>
 
-#define __BT_IN_BABELTRACE_H
-#include <babeltrace2/func-status.h>
-#undef __BT_IN_BABELTRACE_H
-
 #include "common/assert.h"
-#include "common/macros.h"
+#include "common/func-status.h"
 #include "common/safe.h"
 
 #ifdef __cplusplus
@@ -1892,27 +1888,27 @@ static inline
 const char *bt_common_func_status_string(int status)
 {
 	switch (status) {
-	case __BT_FUNC_STATUS_OVERFLOW_ERROR:
+	case BT_FUNC_STATUS_OVERFLOW_ERROR:
 		return "OVERFLOW";
-	case __BT_FUNC_STATUS_MEMORY_ERROR:
+	case BT_FUNC_STATUS_MEMORY_ERROR:
 		return "MEMORY_ERROR";
-	case __BT_FUNC_STATUS_USER_ERROR:
+	case BT_FUNC_STATUS_USER_ERROR:
 		return "USER_ERROR";
-	case __BT_FUNC_STATUS_ERROR:
+	case BT_FUNC_STATUS_ERROR:
 		return "ERROR";
-	case __BT_FUNC_STATUS_OK:
+	case BT_FUNC_STATUS_OK:
 		return "OK";
-	case __BT_FUNC_STATUS_END:
+	case BT_FUNC_STATUS_END:
 		return "END";
-	case __BT_FUNC_STATUS_NOT_FOUND:
+	case BT_FUNC_STATUS_NOT_FOUND:
 		return "NOT_FOUND";
-	case __BT_FUNC_STATUS_INTERRUPTED:
+	case BT_FUNC_STATUS_INTERRUPTED:
 		return "INTERRUPTED";
-	case __BT_FUNC_STATUS_NO_MATCH:
+	case BT_FUNC_STATUS_NO_MATCH:
 		return "NO_MATCH";
-	case __BT_FUNC_STATUS_AGAIN:
+	case BT_FUNC_STATUS_AGAIN:
 		return "AGAIN";
-	case __BT_FUNC_STATUS_UNKNOWN_OBJECT:
+	case BT_FUNC_STATUS_UNKNOWN_OBJECT:
 		return "UNKNOWN_OBJECT";
 	}
 

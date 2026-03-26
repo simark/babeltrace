@@ -14,7 +14,7 @@
 
 %typemap(argout)
 	(bt_field_class_enumeration_mapping_label_array *labels, uint64_t *count) {
-	if (result == __BT_FUNC_STATUS_OK) {
+	if (result == BT_FUNC_STATUS_OK) {
 		PyObject *py_label_list = PyList_New(*$2);
 		uint64_t i;
 
@@ -38,7 +38,7 @@
 
 %typemap(argout)
 	(bt_field_class_bit_array_flag_label_array *labels, uint64_t *count) {
-	if (result == __BT_FUNC_STATUS_OK) {
+	if (result == BT_FUNC_STATUS_OK) {
 		PyObject *py_label_list = PyList_New(*$2);
 		uint64_t i;
 

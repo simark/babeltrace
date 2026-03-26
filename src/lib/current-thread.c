@@ -13,7 +13,7 @@
 
 #include "error.h"
 #include "lib/assert-cond.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 #define BT_ASSERT_PRE_FILE_NAME_NON_NULL(_file_name)			\
 	BT_ASSERT_PRE_NON_NULL("file-name", (_file_name), "File name");

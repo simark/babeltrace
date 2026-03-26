@@ -35,7 +35,7 @@ static struct bt_value *bt_value_map_get_keys(const struct bt_value *map_obj)
     }
 
     status = bt_value_map_foreach_entry_const(map_obj, bt_value_map_get_keys_cb, &data);
-    if (status != __BT_FUNC_STATUS_OK) {
+    if (status != BT_FUNC_STATUS_OK) {
         goto error;
     }
 

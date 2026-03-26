@@ -14,7 +14,7 @@
 #include "component-filter.h"
 #include "component.h"
 #include "component-class.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 struct bt_component *bt_component_filter_create(void)
 {

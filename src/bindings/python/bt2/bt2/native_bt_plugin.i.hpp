@@ -40,7 +40,7 @@ static bt_plugin_find_status bt_bt2_plugin_find(const char *plugin_name,
 
     status = bt_plugin_find(plugin_name, find_in_std_env_var, find_in_user_dir, find_in_sys_dir,
                             find_in_static, fail_on_load_error, plugin);
-    if (status != __BT_FUNC_STATUS_OK) {
+    if (status != BT_FUNC_STATUS_OK) {
         *plugin = NULL;
     }
 
@@ -56,7 +56,7 @@ bt_bt2_plugin_find_all(bt_bool find_in_std_env_var, bt_bool find_in_user_dir,
 
     status = bt_plugin_find_all(find_in_std_env_var, find_in_user_dir, find_in_sys_dir,
                                 find_in_static, fail_on_load_error, plugin_set);
-    if (status != __BT_FUNC_STATUS_OK) {
+    if (status != BT_FUNC_STATUS_OK) {
         *plugin_set = NULL;
     }
 
@@ -70,7 +70,7 @@ bt_bt2_plugin_find_all_from_file(const char *path, bt_bool fail_on_load_error,
     bt_plugin_find_all_from_file_status status;
 
     status = bt_plugin_find_all_from_file(path, fail_on_load_error, plugin_set);
-    if (status != __BT_FUNC_STATUS_OK) {
+    if (status != BT_FUNC_STATUS_OK) {
         *plugin_set = NULL;
     }
 
@@ -84,7 +84,7 @@ bt_bt2_plugin_find_all_from_dir(const char *path, bt_bool recurse, bt_bool fail_
     bt_plugin_find_all_from_dir_status status;
 
     status = bt_plugin_find_all_from_dir(path, recurse, fail_on_load_error, plugin_set);
-    if (status != __BT_FUNC_STATUS_OK) {
+    if (status != BT_FUNC_STATUS_OK) {
         *plugin_set = NULL;
     }
 

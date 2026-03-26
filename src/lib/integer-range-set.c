@@ -14,7 +14,7 @@
 #include "lib/assert-cond.h"
 #include "lib/object.h"
 #include "common/assert.h"
-#include "func-status.h"
+#include "common/func-status.h"
 #include "integer-range-set.h"
 
 BT_EXPORT

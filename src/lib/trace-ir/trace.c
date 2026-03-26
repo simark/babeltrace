@@ -25,7 +25,7 @@
 #include "trace-class.h"
 #include "trace.h"
 #include "lib/value.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 struct bt_trace_destruction_listener_elem {
 	bt_trace_destruction_listener_func func;

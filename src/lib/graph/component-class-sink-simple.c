@@ -14,7 +14,7 @@
 #include <glib.h>
 
 #include "component-class-sink-simple.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 /*
  * We keep a single simple sink component class reference. It's created

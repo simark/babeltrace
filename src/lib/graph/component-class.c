@@ -15,7 +15,7 @@
 #include <glib.h>
 
 #include "component-class.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 #include "lib/graph/message-iterator-class.h"
 #include "lib/object.h"
 

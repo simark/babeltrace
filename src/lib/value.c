@@ -19,7 +19,7 @@
 #include "lib/assert-cond.h"
 #include "lib/value.h"
 #include "common/assert.h"
-#include "func-status.h"
+#include "common/func-status.h"
 #include "lib/object.h"
 
 #define BT_ASSERT_PRE_DEV_VALUE_HOT_FROM_FUNC(_func, _value)		\

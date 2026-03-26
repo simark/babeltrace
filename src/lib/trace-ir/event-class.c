@@ -21,7 +21,7 @@
 #include "field-class.h"
 #include "resolve-field-path.h"
 #include "stream-class.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 #define BT_ASSERT_PRE_DEV_EVENT_CLASS_HOT(_ec)				\
 	BT_ASSERT_PRE_DEV_HOT("event-class",				\

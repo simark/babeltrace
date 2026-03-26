@@ -17,7 +17,7 @@
 #include <stdbool.h>
 #include "lib/object.h"
 #include "common/assert.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 #include "lib/value.h"
 #include "lib/graph/component.h"
 #include "lib/graph/graph.h"

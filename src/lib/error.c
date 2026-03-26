@@ -18,7 +18,7 @@
 #include "common/assert.h"
 #include "common/common.h"
 #include "lib/assert-cond.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 #define BT_ASSERT_PRE_CAUSE_HAS_ACTOR_TYPE(_cause, _exp_type_name, _exp_type) \
 	BT_ASSERT_PRE("error-cause-has-" _exp_type_name "-actor",	\

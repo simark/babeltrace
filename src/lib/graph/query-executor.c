@@ -15,7 +15,7 @@
 #include "component-class.h"
 #include "query-executor.h"
 #include "interrupter.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 static
 void bt_query_executor_destroy(struct bt_object *obj)

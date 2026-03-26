@@ -24,7 +24,7 @@
 #include "graph.h"
 #include "iterator.h"
 #include "port.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 static
 struct bt_component * (* const component_create_funcs[])(void) = {

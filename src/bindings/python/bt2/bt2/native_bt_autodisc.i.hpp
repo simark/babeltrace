@@ -75,7 +75,7 @@ static bt_value *bt_bt2_auto_discover_source_components(const bt_value *inputs,
     if (!plugins) {
         BT_CURRENT_THREAD_ERROR_APPEND_CAUSE_FROM_UNKNOWN(module_name,
                                                           "Failed to allocate plugins array.");
-        status = __BT_FUNC_STATUS_MEMORY_ERROR;
+        status = BT_FUNC_STATUS_MEMORY_ERROR;
         goto error;
     }
 
@@ -96,7 +96,7 @@ static bt_value *bt_bt2_auto_discover_source_components(const bt_value *inputs,
     if (!components_list) {
         BT_CURRENT_THREAD_ERROR_APPEND_CAUSE_FROM_UNKNOWN(module_name,
                                                           "Failed to allocate one array value.");
-        status = __BT_FUNC_STATUS_MEMORY_ERROR;
+        status = BT_FUNC_STATUS_MEMORY_ERROR;
         goto error;
     }
 
@@ -117,7 +117,7 @@ static bt_value *bt_bt2_auto_discover_source_components(const bt_value *inputs,
         if (!component_info) {
             BT_CURRENT_THREAD_ERROR_APPEND_CAUSE_FROM_UNKNOWN(
                 module_name, "Failed to allocate one array value.");
-            status = __BT_FUNC_STATUS_MEMORY_ERROR;
+            status = BT_FUNC_STATUS_MEMORY_ERROR;
             goto error;
         }
 

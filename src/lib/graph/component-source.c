@@ -14,7 +14,7 @@
 #include "component.h"
 #include "port.h"
 #include "iterator.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 struct bt_component *bt_component_source_create(void)
 {

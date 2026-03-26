@@ -111,7 +111,7 @@ static PyObject *bt_bt2_graph_add_port_added_listener(struct bt_graph *graph, Py
     /* source output port */
     status = bt_graph_add_source_component_output_port_added_listener(
         graph, source_component_output_port_added_listener, py_callable, &listener_id);
-    if (status != __BT_FUNC_STATUS_OK) {
+    if (status != BT_FUNC_STATUS_OK) {
         /*
          * bt_graph_add_source_component_output_port_added_listener has
          * already logged/appended an error cause.
@@ -132,7 +132,7 @@ static PyObject *bt_bt2_graph_add_port_added_listener(struct bt_graph *graph, Py
     /* filter input port */
     status = bt_graph_add_filter_component_input_port_added_listener(
         graph, filter_component_input_port_added_listener, py_callable, &listener_id);
-    if (status != __BT_FUNC_STATUS_OK) {
+    if (status != BT_FUNC_STATUS_OK) {
         /*
          * bt_graph_add_filter_component_input_port_added_listener has
          * already logged/appended an error cause.
@@ -153,7 +153,7 @@ static PyObject *bt_bt2_graph_add_port_added_listener(struct bt_graph *graph, Py
     /* filter output port */
     status = bt_graph_add_filter_component_output_port_added_listener(
         graph, filter_component_output_port_added_listener, py_callable, &listener_id);
-    if (status != __BT_FUNC_STATUS_OK) {
+    if (status != BT_FUNC_STATUS_OK) {
         /*
          * bt_graph_add_filter_component_output_port_added_listener has
          * already logged/appended an error cause.
@@ -174,7 +174,7 @@ static PyObject *bt_bt2_graph_add_port_added_listener(struct bt_graph *graph, Py
     /* sink input port */
     status = bt_graph_add_sink_component_input_port_added_listener(
         graph, sink_component_input_port_added_listener, py_callable, &listener_id);
-    if (status != __BT_FUNC_STATUS_OK) {
+    if (status != BT_FUNC_STATUS_OK) {
         /*
          * bt_graph_add_sink_component_input_port_added_listener has
          * already logged/appended an error cause.

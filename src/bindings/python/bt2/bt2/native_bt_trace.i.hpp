@@ -39,7 +39,7 @@ static int bt_bt2_trace_add_destruction_listener(bt_trace *trace, PyObject *py_c
     BT_ASSERT(trace);
     BT_ASSERT(py_callable);
     status = bt_trace_add_destruction_listener(trace, trace_destroyed_listener, py_callable, id);
-    if (status == __BT_FUNC_STATUS_OK) {
+    if (status == BT_FUNC_STATUS_OK) {
         Py_INCREF(py_callable);
     }
 

@@ -22,7 +22,7 @@
 #include "resolve-field-path.h"
 #include "stream-class.h"
 #include "lib/value.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 #include "trace-class.h"
 
 #define BT_ASSERT_PRE_DEV_STREAM_CLASS_HOT(_sc)				\

@@ -20,7 +20,7 @@
 
 #include "plugin.h"
 #include "plugin-so.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 #include "common/common.h"
 
 #define NATIVE_PLUGIN_SUFFIX		"." G_MODULE_SUFFIX

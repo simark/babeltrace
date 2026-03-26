@@ -89,7 +89,7 @@ static PyObject *get_msg_range_common(bt_message_iterator_next_status status,
     PyTuple_SET_ITEM(py_return_tuple, 0, py_status);
 
     /* Set tuple[1], message list on success, None otherwise. */
-    if (status == __BT_FUNC_STATUS_OK) {
+    if (status == BT_FUNC_STATUS_OK) {
         py_msg_list = create_pylist_from_messages(messages, message_count);
     } else {
         py_msg_list = Py_None;

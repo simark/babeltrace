@@ -22,7 +22,7 @@
 #include "stream-class.h"
 #include "stream.h"
 #include "lib/value.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 #include "lib/graph/component.h"
 #include "lib/graph/graph.h"
 

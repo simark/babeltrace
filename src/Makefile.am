@@ -121,6 +121,7 @@ common_libcommon_la_SOURCES = \
 	common/assert.h \
 	common/common.c \
 	common/common.h \
+	common/func-status.h \
 	common/list.h \
 	common/macros.h \
 	common/mmap-align.h \
@@ -508,7 +509,6 @@ lib_libbabeltrace2_la_SOURCES = \
 	lib/current-thread.c \
 	lib/error.c \
 	lib/error.h \
-	lib/func-status.h \
 	lib/integer-range-set.c \
 	lib/integer-range-set.h \
 	lib/lib-logging.c \

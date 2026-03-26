@@ -35,7 +35,7 @@
 #include "message/message-iterator-inactivity.h"
 #include "message/stream.h"
 #include "message/packet.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 #include "clock-correlation-validator/clock-correlation-validator.h"
 
 /*

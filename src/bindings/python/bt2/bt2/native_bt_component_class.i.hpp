@@ -94,16 +94,16 @@ static inline int py_exc_to_status_clear(bt_self_component_class *self_component
     PyObject *exc = PyErr_Occurred();
 
     if (!exc) {
-        status = __BT_FUNC_STATUS_OK;
+        status = BT_FUNC_STATUS_OK;
         goto end;
     }
 
     if (PyErr_GivenExceptionMatches(exc, py_mod_bt2_exc_try_again_type)) {
-        status = __BT_FUNC_STATUS_AGAIN;
+        status = BT_FUNC_STATUS_AGAIN;
     } else if (PyErr_GivenExceptionMatches(exc, py_mod_bt2_exc_stop_type)) {
-        status = __BT_FUNC_STATUS_END;
+        status = BT_FUNC_STATUS_END;
     } else if (PyErr_GivenExceptionMatches(exc, py_mod_bt2_exc_unknown_object_type)) {
-        status = __BT_FUNC_STATUS_UNKNOWN_OBJECT;
+        status = BT_FUNC_STATUS_UNKNOWN_OBJECT;
     } else {
         /*
          * Unknown exception: convert to general error.
@@ -111,7 +111,7 @@ static inline int py_exc_to_status_clear(bt_self_component_class *self_component
          * Because we only want to fetch the log level when
          * we actually get an exception, and not systematically
          * when we call py_exc_to_status() (as py_exc_to_status()
-         * can return `__BT_FUNC_STATUS_OK`), we get it here
+         * can return `BT_FUNC_STATUS_OK`), we get it here
          * depending on the actor's type.
          */
         if (self_component) {
@@ -126,9 +126,9 @@ static inline int py_exc_to_status_clear(bt_self_component_class *self_component
                                              self_message_iterator, module_name);
 
         if (PyErr_GivenExceptionMatches(exc, py_mod_bt2_exc_memory_error)) {
-            status = __BT_FUNC_STATUS_MEMORY_ERROR;
+            status = BT_FUNC_STATUS_MEMORY_ERROR;
         } else {
-            status = __BT_FUNC_STATUS_ERROR;
+            status = BT_FUNC_STATUS_ERROR;
         }
     }
 

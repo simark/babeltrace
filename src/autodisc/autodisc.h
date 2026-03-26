@@ -11,9 +11,7 @@
 
 #include <babeltrace2/babeltrace.h>
 
-#define __BT_IN_BABELTRACE_H
-#include <babeltrace2/func-status.h>
-#undef __BT_IN_BABELTRACE_H
+#include "common/func-status.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -52,10 +50,10 @@ struct auto_source_discovery_result {
 };
 
 typedef enum auto_source_discovery_status {
-	AUTO_SOURCE_DISCOVERY_STATUS_OK			= __BT_FUNC_STATUS_OK,
-	AUTO_SOURCE_DISCOVERY_STATUS_ERROR		= __BT_FUNC_STATUS_ERROR,
-	AUTO_SOURCE_DISCOVERY_STATUS_MEMORY_ERROR	= __BT_FUNC_STATUS_MEMORY_ERROR,
-	AUTO_SOURCE_DISCOVERY_STATUS_INTERRUPTED	= __BT_FUNC_STATUS_INTERRUPTED,
+	AUTO_SOURCE_DISCOVERY_STATUS_OK			= BT_FUNC_STATUS_OK,
+	AUTO_SOURCE_DISCOVERY_STATUS_ERROR		= BT_FUNC_STATUS_ERROR,
+	AUTO_SOURCE_DISCOVERY_STATUS_MEMORY_ERROR	= BT_FUNC_STATUS_MEMORY_ERROR,
+	AUTO_SOURCE_DISCOVERY_STATUS_INTERRUPTED	= BT_FUNC_STATUS_INTERRUPTED,
 } auto_source_discovery_status;
 
 int auto_source_discovery_init(struct auto_source_discovery *auto_disc);

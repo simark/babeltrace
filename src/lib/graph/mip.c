@@ -14,7 +14,7 @@
 
 #include "common/assert.h"
 #include "common/common.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 #include "lib/graph/component-class.h"
 #include "lib/value.h"
 #include "component-descriptor-set.h"

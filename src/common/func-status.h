@@ -4,8 +4,8 @@
  * Copyright (c) 2019 Philippe Proulx <pproulx@efficios.com>
  */
 
-#ifndef BABELTRACE_LIB_FUNC_STATUS_H
-#define BABELTRACE_LIB_FUNC_STATUS_H
+#ifndef BABELTRACE_COMMON_FUNC_STATUS_H
+#define BABELTRACE_COMMON_FUNC_STATUS_H
 
 #define __BT_IN_BABELTRACE_H
 #include <babeltrace2/func-status.h>
@@ -27,4 +27,4 @@
 #define BT_FUNC_STATUS_OK		__BT_FUNC_STATUS_OK
 #define BT_FUNC_STATUS_OVERFLOW_ERROR	__BT_FUNC_STATUS_OVERFLOW_ERROR
 
-#endif /* BABELTRACE_LIB_FUNC_STATUS_H */
+#endif /* BABELTRACE_COMMON_FUNC_STATUS_H */

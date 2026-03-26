@@ -18,7 +18,7 @@
 #include <stdint.h>
 #include <glib.h>
 
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 struct bt_clock_class {
 	struct bt_object base;

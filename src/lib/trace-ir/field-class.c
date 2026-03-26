@@ -20,7 +20,7 @@
 
 #include "field-class.h"
 #include "field-path.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 #include "lib/integer-range-set.h"
 #include "lib/value.h"
 #include "lib/trace-ir/trace-class.h"

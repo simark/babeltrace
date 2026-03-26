@@ -7,7 +7,7 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_RESOLVE_FIELD_XREF_H
 #define BABELTRACE_LIB_TRACE_IR_RESOLVE_FIELD_XREF_H
 
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 enum bt_resolve_field_xref_status {
 	BT_RESOLVE_FIELD_XREF_STATUS_OK = BT_FUNC_STATUS_OK,

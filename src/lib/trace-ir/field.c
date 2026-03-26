@@ -16,7 +16,7 @@
 
 #include "field.h"
 #include "field-class.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 #include "utils.h"
 
 #define BT_ASSERT_PRE_DEV_FIELD_HOT(_field)				\

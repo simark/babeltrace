@@ -19,7 +19,7 @@
 #include "stream.h"
 #include "trace.h"
 #include "lib/value.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 #define BT_ASSERT_PRE_DEV_STREAM_HOT(_stream)				\
 	BT_ASSERT_PRE_DEV_HOT("stream", (_stream), "Stream",		\

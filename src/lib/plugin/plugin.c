@@ -25,7 +25,7 @@
 
 #include "plugin.h"
 #include "plugin-so.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 #define PYTHON_PLUGIN_PROVIDER_FILENAME	"babeltrace2-python-plugin-provider." G_MODULE_SUFFIX
 #define PYTHON_PLUGIN_PROVIDER_DIR	BABELTRACE_PLUGIN_PROVIDERS_DIR

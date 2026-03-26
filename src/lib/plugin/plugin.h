@@ -17,7 +17,7 @@
 #include <stdbool.h>
 
 #include "plugin-so.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 /* Protection: this file uses BT_LIB_LOG*() macros directly */
 #ifndef BT_LIB_LOG_SUPPORTED

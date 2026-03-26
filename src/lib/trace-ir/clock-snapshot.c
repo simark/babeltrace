@@ -12,7 +12,7 @@
 #include "clock-snapshot.h"
 #include "lib/object.h"
 #include "common/assert.h"
-#include "lib/func-status.h"
+#include "common/func-status.h"
 
 void bt_clock_snapshot_destroy(struct bt_clock_snapshot *clock_snapshot)
 {
