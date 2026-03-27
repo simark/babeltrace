@@ -221,6 +221,20 @@ void bt_plugin_so_destroy_spec_data(struct bt_plugin *plugin)
 	plugin->spec_data = NULL;
 }
 
+static
+void plugin_comp_class_destroy_listener(
+		const struct bt_component_class *comp_class_const,
+		void *data __attribute__((unused)))
+{
+	struct bt_component_class *comp_class =
+		(struct bt_component_class *) comp_class_const;
+	bt_list_del(&comp_class->node);
+	BT_OBJECT_PUT_REF_AND_RESET(comp_class->so_handle);
+	BT_LOGD("Component class destroyed: removed entry from list: "
+		"comp-cls-addr=%p", comp_class);
+}
+
+
 /*
  * This function does the following:
  *
@@ -1202,21 +1216,24 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 			bt_common_abort();
 		}
 
-		/*
-		 * Add component class to the plugin object.
-		 *
-		 * This will call back
-		 * bt_plugin_so_on_add_component_class() so that we can
-		 * add a mapping in the component class list when we
-		 * know the component class is successfully added.
-		 */
+		/* Add component class to the plugin object. */
 		status = bt_plugin_add_component_class(plugin, comp_class);
-		BT_OBJECT_PUT_REF_AND_RESET(comp_class);
 		if (status < 0) {
 			BT_LIB_LOGE_APPEND_CAUSE(
 				"Cannot add component class to plugin.");
+			BT_OBJECT_PUT_REF_AND_RESET(comp_class);
 			goto end;
 		}
+
+		bt_list_add(&comp_class->node, &component_class_list);
+		comp_class->so_handle = spec->shared_lib_handle;
+		bt_object_get_ref_no_null_check(comp_class->so_handle);
+
+		/* Add our custom destroy listener */
+		bt_component_class_add_destruction_listener(comp_class,
+			plugin_comp_class_destroy_listener, NULL, NULL);
+
+		BT_OBJECT_PUT_REF_AND_RESET(comp_class);
 	}
 
 end:
@@ -1721,41 +1738,4 @@ int bt_plugin_so_create_all_from_file(const char *path,
 end:
 	BT_OBJECT_PUT_REF_AND_RESET(shared_lib_handle);
 	return status;
-}
-
-static
-void plugin_comp_class_destroy_listener(
-		const struct bt_component_class *comp_class_const,
-		void *data __attribute__((unused)))
-{
-	struct bt_component_class *comp_class =
-		(struct bt_component_class *) comp_class_const;
-	bt_list_del(&comp_class->node);
-	BT_OBJECT_PUT_REF_AND_RESET(comp_class->so_handle);
-	BT_LOGD("Component class destroyed: removed entry from list: "
-		"comp-cls-addr=%p", comp_class);
-}
-
-/*
- * This function would normally not be BT_EXPORTed, but it is used by the
- * Python plugin provider, which is conceptually part of libbabeltrace2, but
- * implemented as a separate shared object, for modularity.  It is therefore
- * exposed, but not part of the public ABI.
- */
-BT_EXPORT
-void bt_plugin_so_on_add_component_class(struct bt_plugin *plugin,
-		struct bt_component_class *comp_class)
-{
-	struct bt_plugin_so_spec_data *spec = plugin->spec_data;
-
-	BT_ASSERT(plugin->spec_data);
-	BT_ASSERT(plugin->type == BT_PLUGIN_TYPE_SO);
-
-	bt_list_add(&comp_class->node, &component_class_list);
-	comp_class->so_handle = spec->shared_lib_handle;
-	bt_object_get_ref_no_null_check(comp_class->so_handle);
-
-	/* Add our custom destroy listener */
-	bt_component_class_add_destruction_listener(comp_class,
-		plugin_comp_class_destroy_listener, NULL, NULL);
 }
