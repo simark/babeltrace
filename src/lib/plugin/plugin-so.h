@@ -43,7 +43,4 @@ int bt_plugin_so_create_all_from_file(const char *path,
 int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
 		struct bt_plugin_set *plugin_set);
 
-void bt_plugin_so_on_add_component_class(struct bt_plugin *plugin,
-		struct bt_component_class *comp_class);
-
 #endif /* BABELTRACE_LIB_PLUGIN_PLUGIN_SO_H */

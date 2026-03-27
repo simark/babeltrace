@@ -1287,11 +1287,6 @@ bt_plugin_add_component_class(
 	bt_object_get_ref(comp_class);
 	g_ptr_array_add(comp_classes, comp_class);
 
-	/* Special case for a shared object plugin */
-	if (plugin->type == BT_PLUGIN_TYPE_SO) {
-		bt_plugin_so_on_add_component_class(plugin, comp_class);
-	}
-
 	bt_component_class_freeze(comp_class);
 	BT_LIB_LOGD("Added component class to plugin: "
 		"%![plugin-]+l, %![cc-]+C", plugin, comp_class);
