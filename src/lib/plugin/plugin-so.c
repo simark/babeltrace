@@ -1194,8 +1194,7 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 		 * add a mapping in the component class list when we
 		 * know the component class is successfully added.
 		 */
-		status = bt_plugin_add_component_class(plugin,
-			(void *) comp_class);
+		status = bt_plugin_add_component_class(plugin, comp_class);
 		BT_OBJECT_PUT_REF_AND_RESET(comp_class);
 		if (status < 0) {
 			BT_LIB_LOGE_APPEND_CAUSE(
