@@ -308,7 +308,7 @@ enum bt_plugin_find_all_from_static_status bt_plugin_find_all_from_static(
 
 	/* bt_plugin_so_create_all_from_static() logs errors */
 	return bt_plugin_so_create_all_from_static(fail_on_load_error,
-		(void *) plugin_set_out);
+		(void *) plugin_set_out, bt_lib_log_level);
 }
 
 BT_EXPORT
@@ -325,7 +325,7 @@ enum bt_plugin_find_all_from_file_status bt_plugin_find_all_from_file(
 
 	/* Try shared object plugins */
 	status = bt_plugin_so_create_all_from_file(path, fail_on_load_error,
-		(void *) plugin_set_out);
+		(void *) plugin_set_out, bt_lib_log_level);
 	if (status == BT_FUNC_STATUS_OK) {
 		BT_ASSERT(*plugin_set_out);
 		BT_ASSERT((*plugin_set_out)->plugins->len > 0);
