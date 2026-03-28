@@ -15,7 +15,6 @@
 #include <babeltrace2/babeltrace.h>
 
 struct bt_component_class;
-struct bt_plugin_so_shared_lib_handle;
 
 struct bt_component_class {
 	struct bt_object base;
@@ -27,8 +26,6 @@ struct bt_component_class {
 
 	GArray *destruction_listeners;
 	bool frozen;
-	struct bt_list_head node;
-	struct bt_plugin_so_shared_lib_handle *so_handle;
 	bool part_of_plugin;
 };
 
