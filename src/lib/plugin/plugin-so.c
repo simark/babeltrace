@@ -1451,7 +1451,7 @@ int bt_plugin_so_create_all_from_sections(
 
 	BT_ASSERT(*plugin_set_out);
 
-	if ((*plugin_set_out)->plugins->len == 0) {
+	if (bt_plugin_set_get_plugin_count(*plugin_set_out) == 0) {
 		BT_OBJECT_PUT_REF_AND_RESET(*plugin_set_out);
 		status = BT_FUNC_STATUS_NOT_FOUND;
 	} else {
@@ -1499,8 +1499,10 @@ int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
 		__bt_get_begin_section_component_class_descriptor_attributes(),
 		__bt_get_end_section_component_class_descriptor_attributes(),
 		plugin_set_out);
+
 	BT_ASSERT((status == BT_FUNC_STATUS_OK && *plugin_set_out &&
-		(*plugin_set_out)->plugins->len > 0) || !*plugin_set_out);
+		bt_plugin_set_get_plugin_count(*plugin_set_out) > 0) ||
+		!*plugin_set_out);
 
 end:
 	BT_OBJECT_PUT_REF_AND_RESET(shared_lib_handle);
