@@ -44,9 +44,6 @@ struct bt_plugin {
 
 	GArray *destruction_listeners;
 	bool frozen;
-	/* Value depends on the specific plugin type */
-	void *spec_data;
-	void (*destroy_spec_data)(struct bt_plugin *);
 };
 
 struct bt_plugin_set {

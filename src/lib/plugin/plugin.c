@@ -919,10 +919,6 @@ void destroy_plugin(struct bt_object *obj)
 	plugin = container_of(obj, struct bt_plugin, base);
 	BT_LIB_LOGI("Destroying plugin object: %!+l", plugin);
 
-	if (plugin->destroy_spec_data) {
-		plugin->destroy_spec_data(plugin);
-	}
-
 	if (plugin->destruction_listeners) {
 		int64_t i;
 		const struct bt_error *saved_error;

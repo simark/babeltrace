@@ -251,18 +251,15 @@ end:
 }
 
 static
-void bt_plugin_so_destroy_spec_data(struct bt_plugin *plugin)
+void bt_plugin_so_destroy_spec_data(
+		const bt_plugin *plugin __attribute__((unused)),
+		void *user_data)
 {
-	struct bt_plugin_so_spec_data *spec = plugin->spec_data;
-
-	if (!plugin->spec_data) {
-		return;
-	}
+	struct bt_plugin_so_spec_data *spec = user_data;
 
 	BT_ASSERT(spec);
 	BT_OBJECT_PUT_REF_AND_RESET(spec->shared_lib_handle);
-	g_free(plugin->spec_data);
-	plugin->spec_data = NULL;
+	g_free(spec);
 }
 
 static
@@ -310,6 +307,7 @@ void plugin_comp_class_destroy_listener(
  */
 static
 int bt_plugin_so_init(struct bt_plugin *plugin,
+		struct bt_plugin_so_spec_data *spec,
 		bool fail_on_load_error,
 		const struct __bt_plugin_descriptor *descriptor,
 		struct __bt_plugin_descriptor_attribute const * const *attrs_begin,
@@ -373,7 +371,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 	struct __bt_plugin_descriptor_attribute const * const *cur_attr_ptr;
 	struct __bt_plugin_component_class_descriptor const * const *cur_cc_descr_ptr;
 	struct __bt_plugin_component_class_descriptor_attribute const * const *cur_cc_descr_attr_ptr;
-	struct bt_plugin_so_spec_data *spec = plugin->spec_data;
 	GArray *comp_class_full_descriptors;
 	size_t i;
 	int ret;
@@ -1299,38 +1296,6 @@ end:
 }
 
 static
-struct bt_plugin *bt_plugin_so_create_empty(const char *name,
-		struct bt_plugin_so_shared_lib_handle *shared_lib_handle)
-{
-	struct bt_plugin *plugin;
-	struct bt_plugin_so_spec_data *spec;
-
-	plugin = bt_plugin_create(name);
-	if (!plugin) {
-		goto error;
-	}
-
-	plugin->destroy_spec_data = bt_plugin_so_destroy_spec_data;
-	plugin->spec_data = g_new0(struct bt_plugin_so_spec_data, 1);
-	if (!plugin->spec_data) {
-		BT_SOPP_LOGE_APPEND_CAUSE(
-			"Failed to allocate one SO plugin specific data structure.");
-		goto error;
-	}
-
-	spec = plugin->spec_data;
-	spec->shared_lib_handle = shared_lib_handle;
-	bt_object_get_ref_no_null_check(spec->shared_lib_handle);
-	goto end;
-
-error:
-	BT_OBJECT_PUT_REF_AND_RESET(plugin);
-
-end:
-	return plugin;
-}
-
-static
 size_t count_non_null_items_in_section(const void *begin, const void *end)
 {
 	size_t count = 0;
@@ -1417,6 +1382,7 @@ int bt_plugin_so_create_all_from_sections(
 	for (i = 0; i < descriptors_end - descriptors_begin; i++) {
 		const struct __bt_plugin_descriptor *descriptor =
 			descriptors_begin[i];
+		struct bt_plugin_so_spec_data *spec = NULL;
 
 		if (!descriptor) {
 			continue;
@@ -1425,11 +1391,33 @@ int bt_plugin_so_create_all_from_sections(
 		BT_LOGI("Creating plugin object for plugin: name=\"%s\"",
 			descriptor->name);
 		BT_PLUGIN_PUT_REF_AND_RESET(plugin);
-		plugin = bt_plugin_so_create_empty(descriptor->name, shared_lib_handle);
+		plugin = bt_plugin_create(descriptor->name);
 		if (!plugin) {
-			BT_SOPP_LOGE_APPEND_CAUSE(
-				"Cannot create empty shared library handle.");
+			BT_SOPP_LOGE_APPEND_CAUSE("Cannot create plugin.");
 			status = BT_FUNC_STATUS_MEMORY_ERROR;
+			goto end;
+		}
+
+		spec = g_new0(struct bt_plugin_so_spec_data, 1);
+		if (!spec) {
+			BT_SOPP_LOGE_APPEND_CAUSE(
+				"Failed to allocate one SO plugin specific data structure.");
+			status = BT_FUNC_STATUS_MEMORY_ERROR;
+			goto end;
+		}
+
+		/*
+		 * Transfer ownership of `spec` to the plugin, it will be freed
+		 * in the destruction listener.
+		 */
+		spec->shared_lib_handle = shared_lib_handle;
+		bt_object_get_ref_no_null_check(spec->shared_lib_handle);
+		status = bt_plugin_add_destruction_listener(plugin,
+			bt_plugin_so_destroy_spec_data, spec, NULL);
+		if (status != BT_PLUGIN_ADD_LISTENER_STATUS_OK) {
+			BT_SOPP_LOGE_APPEND_CAUSE(
+				"Cannot add plugin destruction listener.");
+			bt_plugin_so_destroy_spec_data(plugin, spec);
 			goto end;
 		}
 
@@ -1444,7 +1432,7 @@ int bt_plugin_so_create_all_from_sections(
 			}
 		}
 
-		status = bt_plugin_so_init(plugin, fail_on_load_error,
+		status = bt_plugin_so_init(plugin, spec, fail_on_load_error,
 			descriptor, attrs_begin, attrs_end,
 			cc_descriptors_begin, cc_descriptors_end,
 			cc_descr_attrs_begin, cc_descr_attrs_end);
