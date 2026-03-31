@@ -73,6 +73,96 @@ typedef int (*create_all_from_file_sym_type)(
 		struct bt_plugin_set *plugin_set,
 		int log_level);
 
+static
+void destroy_gstring(void *data)
+{
+	g_string_free(data, TRUE);
+}
+
+#ifndef BT_BUILT_IN_PYTHON_PLUGIN_SUPPORT
+
+/*
+ * Try to open a provider module named `filename` by searching directories.
+ *
+ * If the `LIBBABELTRACE2_PLUGIN_PROVIDER_DIR` environment variable is set,
+ * search the `G_SEARCHPATH_SEPARATOR`-delimited directories it contains.
+ * Otherwise, search `BABELTRACE_PLUGIN_PROVIDERS_DIR`.
+ *
+ * Returns an open GModule on success, NULL if not found.
+ */
+static
+GModule *open_provider_module(const char *filename)
+{
+	static const char * const provider_dir_envvar_name =
+		"LIBBABELTRACE2_PLUGIN_PROVIDER_DIR";
+	const char *provider_dir_envvar = getenv(provider_dir_envvar_name);
+	GPtrArray *dirs = NULL;
+	GModule *module = NULL;
+	char *provider_path = NULL;
+
+	if (provider_dir_envvar) {
+		guint i;
+
+		dirs = g_ptr_array_new_with_free_func(destroy_gstring);
+		if (!dirs) {
+			BT_LOGE_STR("Failed to allocate a GPtrArray.");
+			goto end;
+		}
+
+		BT_LOGI("Searching for `%s` in `%s` dirs: \"%s\"",
+			filename, provider_dir_envvar_name, provider_dir_envvar);
+
+		if (bt_common_append_plugin_path_dirs(provider_dir_envvar, dirs)) {
+			BT_LOGE_STR("Failed to append plugin provider path to array of directories.");
+			goto end;
+		}
+
+		for (i = 0; i < dirs->len; i++) {
+			GString *dir = g_ptr_array_index(dirs, i);
+
+			g_free(provider_path);
+			provider_path =
+				g_build_filename(dir->str, filename, NULL);
+
+			BT_LOGI("Trying to open plugin provider: path=\"%s\"",
+				provider_path);
+
+			module = g_module_open(provider_path, G_MODULE_BIND_LOCAL);
+			if (module) {
+				break;
+			}
+
+			BT_LOGI("Cannot open plugin provider: %s: path=\"%s\"",
+				g_module_error(), provider_path);
+		}
+	} else {
+		provider_path =
+			g_build_filename(BABELTRACE_PLUGIN_PROVIDERS_DIR,
+				filename, NULL);
+
+		BT_LOGI("Using default path (`%s` environment variable is not set) "
+			"to find plugin provider: path=\"%s\"",
+			provider_dir_envvar_name, provider_path);
+
+		module = g_module_open(provider_path, G_MODULE_BIND_LOCAL);
+		if (!module) {
+			BT_LOGI("Cannot open plugin provider: %s: path=\"%s\"",
+				g_module_error(), provider_path);
+		}
+	}
+
+end:
+	if (dirs) {
+		g_ptr_array_free(dirs, TRUE);
+	}
+
+	g_free(provider_path);
+
+	return module;
+}
+
+#endif /* !BT_BUILT_IN_PYTHON_PLUGIN_SUPPORT */
+
 #ifdef BT_BUILT_IN_PYTHON_PLUGIN_SUPPORT
 #include "python-plugin-provider/python-plugin-provider.h"
 
@@ -95,9 +185,6 @@ create_all_from_file_sym_type bt_plugin_python_create_all_from_file_sym;
 static
 int init_python_plugin_provider(void) {
 	int status = BT_FUNC_STATUS_OK;
-	const char *provider_dir_envvar;
-	static const char * const provider_dir_envvar_name = "LIBBABELTRACE2_PLUGIN_PROVIDER_DIR";
-	char *provider_path = NULL;
 
 	if (bt_plugin_python_create_all_from_file_sym) {
 		goto end;
@@ -105,31 +192,16 @@ int init_python_plugin_provider(void) {
 
 	BT_LOGI_STR("Loading Python plugin provider module.");
 
-	provider_dir_envvar = getenv(provider_dir_envvar_name);
-	if (provider_dir_envvar) {
-		provider_path = g_build_filename(provider_dir_envvar,
-			PYTHON_PLUGIN_PROVIDER_FILENAME, NULL);
-		BT_LOGI("Using `%s` environment variable to find the Python "
-			"plugin provider: path=\"%s\"", provider_dir_envvar_name,
-			provider_path);
-	} else {
-		provider_path = g_build_filename(PYTHON_PLUGIN_PROVIDER_DIR,
-			PYTHON_PLUGIN_PROVIDER_FILENAME, NULL);
-		BT_LOGI("Using default path (`%s` environment variable is not "
-			"set) to find the Python plugin provider: path=\"%s\"",
-			provider_dir_envvar_name, provider_path);
-	}
-
 	python_plugin_provider_module =
-		g_module_open(provider_path, G_MODULE_BIND_LOCAL);
+		open_provider_module(PYTHON_PLUGIN_PROVIDER_FILENAME);
 	if (!python_plugin_provider_module) {
 		/*
 		 * This is not an error. The whole point of having an
 		 * external Python plugin provider is that it can be
 		 * missing and the Babeltrace library still works.
 		 */
-		BT_LOGI("Cannot open `%s`: %s: continuing without Python plugin support.",
-			provider_path, g_module_error());
+		BT_LOGI_STR("Could not find Python plugin provider: "
+			    "continuing without Python plugin support.");
 		goto end;
 	}
 
@@ -144,20 +216,19 @@ int init_python_plugin_provider(void) {
 		BT_LIB_LOGE_APPEND_CAUSE(
 			"Cannot find the Python plugin provider loading symbol: "
 			"%s: continuing without Python plugin support: "
-			"file=\"%s\", symbol=\"%s\"",
+			"path=\"%s\", symbol=\"%s\"",
 			g_module_error(),
-			provider_path,
+			g_module_name(python_plugin_provider_module),
 			PYTHON_PLUGIN_PROVIDER_SYM_NAME_STR);
 		status = BT_FUNC_STATUS_ERROR;
 		goto end;
 	}
 
-	BT_LOGI("Loaded Python plugin provider module: addr=%p",
-		python_plugin_provider_module);
+	BT_LOGI("Loaded Python plugin provider module: addr=%p, path=\"%s\"",
+		python_plugin_provider_module,
+		g_module_name(python_plugin_provider_module));
 
 end:
-	g_free(provider_path);
-
 	return status;
 }
 
@@ -406,12 +477,6 @@ end:
 
 	BT_OBJECT_PUT_REF_AND_RESET(plugin_set);
 	return status;
-}
-
-static
-void destroy_gstring(void *data)
-{
-	g_string_free(data, TRUE);
 }
 
 static
