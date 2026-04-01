@@ -48,9 +48,9 @@
 #define BT_PPP_LOGE_APPEND_CAUSE(_fmt, ...)				\
 	BT_PPP_LOG_AND_APPEND(BT_LOG_ERROR, _fmt, ##__VA_ARGS__)
 
-static enum python_state {
+enum python_state {
 	/* init_python() not called yet */
-	PYTHON_STATE_NOT_INITED,
+	PYTHON_STATE_NOT_INITED = 0,
 
 	/* init_python() called once with success */
 	PYTHON_STATE_FULLY_INITIALIZED,
@@ -63,18 +63,21 @@ static enum python_state {
 	 * Python interpreter not to be loaded.
 	 */
 	PYTHON_STATE_WONT_INITIALIZE,
-} python_state = PYTHON_STATE_NOT_INITED;
+};
 
-static PyObject *py_try_load_plugin_module_func = NULL;
-static bool python_was_initialized_by_us;
+struct python_plugin_provider_data {
+	enum python_state python_state;
+	PyObject *py_try_load_plugin_module_func;
+	bool python_was_initialized_by_us;
 
-/*
- * Hash table of `bt_plugin_set` objects created for Python plugins. They key
- * is the address of the `_PluginInfo` Python object.
- *
- * Both the key and value are strong references.
- */
-static GHashTable *python_plugin_sets = NULL;
+	/*
+	 * Hash table of `bt_plugin_set` objects created for Python plugins. They key
+	 * is the address of the `_PluginInfo` Python object.
+	 *
+	 * Both the key and value are strong references.
+	 */
+	GHashTable *python_plugin_sets;
+} g_data;
 
 static
 void append_python_traceback_error_cause(int log_level)
@@ -129,7 +132,7 @@ void pyerr_clear(void)
 }
 
 static
-int init_python(int log_level)
+int init_python(struct python_plugin_provider_data *data, int log_level)
 {
 	int ret = BT_FUNC_STATUS_OK;
 	PyObject *py_bt2_py_plugin_mod = NULL;
@@ -138,7 +141,7 @@ int init_python(int log_level)
 	sig_t old_sigint = signal(SIGINT, SIG_DFL);
 #endif
 
-	switch (python_state) {
+	switch (data->python_state) {
 	case PYTHON_STATE_NOT_INITED:
 		break;
 	case PYTHON_STATE_FULLY_INITIALIZED:
@@ -163,7 +166,7 @@ int init_python(int log_level)
 		BT_LOGI_STR("Python plugin support is disabled because the "
 			"`LIBBABELTRACE2_DISABLE_PYTHON_PLUGINS` environment "
 			"variable is set to `1`.");
-		python_state = PYTHON_STATE_WONT_INITIALIZE;
+		data->python_state = PYTHON_STATE_WONT_INITIALIZE;
 		ret = BT_FUNC_STATUS_NOT_FOUND;
 		goto end;
 	}
@@ -213,7 +216,7 @@ int init_python(int log_level)
 	if (!Py_IsInitialized()) {
 		BT_LOGI_STR("Python interpreter is not initialized: initializing Python interpreter.");
 		Py_InitializeEx(0);
-		python_was_initialized_by_us = true;
+		data->python_was_initialized_by_us = true;
 		BT_LOGI("Initialized Python interpreter: version=\"%s\"",
 			Py_GetVersion());
 	} else {
@@ -227,24 +230,24 @@ int init_python(int log_level)
 		BT_PPP_LOGW_APPEND_CAUSE(
 			"Cannot import `bt2.py_plugin` Python module: "
 			"Python plugin support is disabled.");
-		python_state = PYTHON_STATE_CANNOT_INITIALIZE;
+		data->python_state = PYTHON_STATE_CANNOT_INITIALIZE;
 		ret = BT_FUNC_STATUS_ERROR;
 		goto end;
 	}
 
-	py_try_load_plugin_module_func =
+	data->py_try_load_plugin_module_func =
 		PyObject_GetAttrString(py_bt2_py_plugin_mod, "_try_load_plugin_module");
-	if (!py_try_load_plugin_module_func) {
+	if (!data->py_try_load_plugin_module_func) {
 		append_python_traceback_error_cause(log_level);
 		BT_PPP_LOGW_APPEND_CAUSE(
 			"Cannot get `_try_load_plugin_module` attribute from `bt2.py_plugin` Python module: "
 			"Python plugin support is disabled.");
-		python_state = PYTHON_STATE_CANNOT_INITIALIZE;
+		data->python_state = PYTHON_STATE_CANNOT_INITIALIZE;
 		ret = BT_FUNC_STATUS_ERROR;
 		goto end;
 	}
 
-	python_state = PYTHON_STATE_FULLY_INITIALIZED;
+	data->python_state = PYTHON_STATE_FULLY_INITIALIZED;
 
 end:
 #ifndef __MINGW32__
@@ -262,26 +265,29 @@ end:
 
 __attribute__((destructor)) static
 void fini_python(void) {
-	if (Py_IsInitialized() && python_was_initialized_by_us) {
-		if (python_plugin_sets) {
-			g_hash_table_destroy(python_plugin_sets);
-			python_plugin_sets = NULL;
+	struct python_plugin_provider_data *data = &g_data;
+
+	if (Py_IsInitialized() && data->python_was_initialized_by_us) {
+		if (data->python_plugin_sets) {
+			g_hash_table_destroy(data->python_plugin_sets);
+			data->python_plugin_sets = NULL;
 		}
 
-		if (py_try_load_plugin_module_func) {
-			Py_DECREF(py_try_load_plugin_module_func);
-			py_try_load_plugin_module_func = NULL;
+		if (data->py_try_load_plugin_module_func) {
+			Py_DECREF(data->py_try_load_plugin_module_func);
+			data->py_try_load_plugin_module_func = NULL;
 		}
 
 		Py_Finalize();
 	}
 
-	python_state = PYTHON_STATE_NOT_INITED;
+	data->python_state = PYTHON_STATE_NOT_INITED;
 }
 
 static
-int bt_plugin_from_python_plugin_info(PyObject *plugin_info,
-		bool fail_on_load_error, bt_plugin **plugin_out, int log_level)
+int bt_plugin_from_python_plugin_info(struct python_plugin_provider_data *data,
+		PyObject *plugin_info, bool fail_on_load_error,
+		bt_plugin **plugin_out, int log_level)
 {
 	int status = BT_FUNC_STATUS_OK;
 	PyObject *py_name = NULL;
@@ -300,7 +306,7 @@ int bt_plugin_from_python_plugin_info(PyObject *plugin_info,
 	BT_ASSERT(plugin_out);
 	*plugin_out = NULL;
 	BT_ASSERT(plugin_info);
-	BT_ASSERT(python_state == PYTHON_STATE_FULLY_INITIALIZED);
+	BT_ASSERT(data->python_state == PYTHON_STATE_FULLY_INITIALIZED);
 	py_name = PyObject_GetAttrString(plugin_info, "name");
 	if (!py_name) {
 		if (fail_on_load_error) {
@@ -710,10 +716,11 @@ int bt_plugin_python_create_all_from_file(const char *path,
 	size_t path_len;
 	int status = BT_FUNC_STATUS_OK;
 	bt_plugin_set *plugin_set;
+	struct python_plugin_provider_data *data = &g_data;
 
 	BT_ASSERT(path);
 
-	if (python_state == PYTHON_STATE_CANNOT_INITIALIZE) {
+	if (data->python_state == PYTHON_STATE_CANNOT_INITIALIZE) {
 		/*
 		 * We do not even care about the rest of the function
 		 * here because we already know Python cannot be fully
@@ -723,7 +730,7 @@ int bt_plugin_python_create_all_from_file(const char *path,
 			"Python interpreter could not be initialized previously.");
 		status = BT_FUNC_STATUS_ERROR;
 		goto error;
-	} else if (python_state == PYTHON_STATE_WONT_INITIALIZE) {
+	} else if (data->python_state == PYTHON_STATE_WONT_INITIALIZE) {
 		/*
 		 * This is not an error: the environment requires that
 		 * Python plugins are disabled, so it's simply not
@@ -774,7 +781,7 @@ int bt_plugin_python_create_all_from_file(const char *path,
 	 * have any potential Python plugins, you don't need to endure
 	 * this waiting time everytime you load the library.
 	 */
-	status = init_python(log_level);
+	status = init_python(data, log_level);
 	if (status != BT_FUNC_STATUS_OK) {
 		/* init_python() logs and append errors */
 		goto error;
@@ -787,7 +794,7 @@ int bt_plugin_python_create_all_from_file(const char *path,
 	 * case we also manually clear the last Python error state.
 	 */
 	BT_LOGD_STR("Getting Python plugin info object from Python module.");
-	py_plugin_info = PyObject_CallFunction(py_try_load_plugin_module_func,
+	py_plugin_info = PyObject_CallFunction(data->py_try_load_plugin_module_func,
 		"(s)", path);
 	if (!py_plugin_info || py_plugin_info == Py_None) {
 		if (fail_on_load_error) {
@@ -804,12 +811,12 @@ int bt_plugin_python_create_all_from_file(const char *path,
 	}
 
 	/* Ensure the plugin set hash table exists.  */
-	if (!python_plugin_sets) {
-		python_plugin_sets = g_hash_table_new_full(g_direct_hash,
+	if (!data->python_plugin_sets) {
+		data->python_plugin_sets = g_hash_table_new_full(g_direct_hash,
 			g_direct_equal,
 			(GDestroyNotify) _Py_DecRef,
 			(GDestroyNotify) bt_plugin_set_put_ref);
-		if (!python_plugin_sets) {
+		if (!data->python_plugin_sets) {
 			BT_PPP_LOGE_APPEND_CAUSE(
 				"Cannot create Python plugin set hash table.");
 			status = BT_FUNC_STATUS_MEMORY_ERROR;
@@ -821,7 +828,7 @@ int bt_plugin_python_create_all_from_file(const char *path,
 	 * If we already have a plugin (set) for this Python module, return
 	 * it.
 	 */
-	plugin_set = (bt_plugin_set *) g_hash_table_lookup(python_plugin_sets,
+	plugin_set = (bt_plugin_set *) g_hash_table_lookup(data->python_plugin_sets,
 		py_plugin_info);
 	if (plugin_set) {
 		*plugin_set_out = plugin_set;
@@ -836,7 +843,7 @@ int bt_plugin_python_create_all_from_file(const char *path,
 	 * Get bt_plugin from plugin info object.
 	 */
 	plugin = NULL;
-	status = bt_plugin_from_python_plugin_info(py_plugin_info,
+	status = bt_plugin_from_python_plugin_info(data, py_plugin_info,
 		fail_on_load_error, &plugin, log_level);
 	if (status < 0) {
 		/*
@@ -891,7 +898,8 @@ int bt_plugin_python_create_all_from_file(const char *path,
 	 * Steal the `py_plugin_info` reference, since it's not needed after
 	 * this.
 	 */
-	g_hash_table_insert(python_plugin_sets, py_plugin_info, *plugin_set_out);
+	g_hash_table_insert(data->python_plugin_sets, py_plugin_info,
+		*plugin_set_out);
 	py_plugin_info = NULL;
 	bt_plugin_set_get_ref(*plugin_set_out);
 	goto end;
