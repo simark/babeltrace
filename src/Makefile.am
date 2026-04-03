@@ -136,6 +136,7 @@ common_libcommon_la_SOURCES = \
 
 common_libcommon_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
+	-DBABELTRACE_PLUGIN_PROVIDERS_DIR=\"$(BABELTRACE_PLUGIN_PROVIDERS_DIR)\" \
 	-DBABELTRACE_PLUGINS_DIR=\"$(BABELTRACE_PLUGINS_DIR)\"
 
 compat_libcompat_la_SOURCES = \
@@ -468,6 +469,9 @@ lib_libbabeltrace2_la_SOURCES = \
 	lib/graph/query-executor.h \
 	lib/plugin/plugin.c \
 	lib/plugin/plugin.h \
+	lib/plugin/plugin-provider.c \
+	lib/plugin/plugin-provider.h \
+	lib/plugin/plugin-provider-so.c \
 	lib/trace-ir/attributes.c \
 	lib/trace-ir/attributes.h \
 	lib/trace-ir/clock-class.c \
@@ -528,10 +532,6 @@ lib_libbabeltrace2_la_LDFLAGS = \
 	$(AM_LDFLAGS) \
 	$(LT_NO_UNDEFINED) \
 	-version-info $(BABELTRACE_LIBRARY_VERSION)
-
-lib_libbabeltrace2_la_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	'-DBABELTRACE_PLUGIN_PROVIDERS_DIR="$(BABELTRACE_PLUGIN_PROVIDERS_DIR)"'
 
 lib_libbabeltrace2_la_LIBADD = \
 	logging/liblogging.la \

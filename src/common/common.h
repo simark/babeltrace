@@ -719,6 +719,20 @@ void bt_common_abort(void) __attribute__((noreturn));
 @{
 */
 
+/*
+ * Returns the system-wide plugin provider path, e.g.
+ * `/usr/lib/babeltrace2/plugin-providers`. Do not free the return value.
+ * FIXME: adjust doc to new style
+ */
+const char *bt_common_get_system_plugin_provider_path(void);
+
+/*
+ * Returns the user plugin provider path, e.g.
+ * `/home/user/.local/lib/babeltrace2/plugin-providers`. You need to free the
+ * return value.
+ */
+char *bt_common_get_home_plugin_provider_path(int log_level);
+
 /*!
 @brief
     Returns the system-wide \bt_name plugin path.

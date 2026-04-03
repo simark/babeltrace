@@ -2442,14 +2442,6 @@ enum __bt_plugin_descriptor_attribute_type {
 	BT_PLUGIN_DESCRIPTOR_ATTRIBUTE_TYPE_VERSION		= 5,
 };
 
-/* Plugin (user) version */
-struct __bt_plugin_descriptor_version {
-	uint32_t major;
-	uint32_t minor;
-	uint32_t patch;
-	const char *extra;
-};
-
 /* Plugin attribute (internal use) */
 struct __bt_plugin_descriptor_attribute {
 	/* Plugin descriptor to which to associate this attribute */
@@ -2479,7 +2471,7 @@ struct __bt_plugin_descriptor_attribute {
 		const char *description;
 
 		/* BT_PLUGIN_DESCRIPTOR_ATTRIBUTE_TYPE_VERSION */
-		struct __bt_plugin_descriptor_version version;
+		struct __bt_object_descriptor_version version;
 	} value;
 } __attribute__((packed));
 

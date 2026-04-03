@@ -162,6 +162,17 @@ A plugin has the following properties:
 
     Use bt_plugin_set_version() and bt_plugin_get_version().
   </dd>
+
+  <dt>
+    \anchor api-plugin-prop-provider-info
+    \bt_dt_opt Provider information
+  </dt>
+  <dd>
+    Information about the \ref api-plugin-provider-info "provider" of the
+    plugin, if any.
+
+    Use bt_plugin_borrow_provider_info().
+  </dd>
 </dl>
 */
 
@@ -664,6 +675,33 @@ extern bt_property_availability bt_plugin_get_version(
 		const bt_plugin *plugin, unsigned int *major,
 		unsigned int *minor, unsigned int *patch,
 		const char **extra) __BT_NOEXCEPT;
+
+/*!
+@brief
+    Borrows the information of the provider of the plugin \bt_p{plugin}.
+
+See the \ref api-plugin-prop-provider-info "provider information"
+property.
+
+This function returns \c NULL if \bt_p{plugin} has no associated
+provider information. This is the case when you create a plugin directly
+with bt_plugin_create() without using any plugin provider.
+
+@param[in] plugin
+    Plugin of which to get the provider information.
+
+@returns
+    @parblock
+    Provider information of \bt_p{plugin}, or \c NULL if
+    not available.
+
+    The returned pointer remains valid as long as \bt_p{plugin} exists.
+    @endparblock
+
+@bt_pre_not_null{plugin}
+*/
+extern const bt_plugin_provider_info *
+bt_plugin_borrow_provider_info(const bt_plugin *plugin);
 
 /*! @} */
 

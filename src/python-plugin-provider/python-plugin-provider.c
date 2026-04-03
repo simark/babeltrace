@@ -14,8 +14,6 @@
 #define BT_LOG_OUTPUT_LEVEL log_level
 #include "logging/log.h"
 
-#include "python-plugin-provider.h"
-
 #include "common/common.h"
 #include "common/func-status.h"
 #include "common/log-and-append.h"
@@ -77,7 +75,7 @@ struct python_plugin_provider_data {
 	 * Both the key and value are strong references.
 	 */
 	GHashTable *python_plugin_sets;
-} g_data;
+};
 
 static
 void append_python_traceback_error_cause(int log_level)
@@ -129,6 +127,39 @@ void pyerr_clear(void)
 	if (Py_IsInitialized()) {
 		PyErr_Clear();
 	}
+}
+
+static bt_plugin_provider_initialize_func_status
+initialize_python_plugin_provider(bt_self_plugin_provider *self_plugin_provider)
+{
+	struct python_plugin_provider_data *data;
+	bt_plugin_provider_initialize_func_status status;
+	int log_level;
+
+	BT_ASSERT(self_plugin_provider);
+
+	log_level = bt_self_plugin_provider_get_logging_level(
+		self_plugin_provider);
+
+	data = g_new0(struct python_plugin_provider_data, 1);
+
+	if (!data) {
+		BT_PPP_LOGE_APPEND_CAUSE(
+			"Failed to allocate plugin provider data.");
+		status = BT_PLUGIN_PROVIDER_INITIALIZE_FUNC_STATUS_MEMORY_ERROR;
+		goto end;
+	}
+
+	data->python_state = PYTHON_STATE_NOT_INITED;
+	data->py_try_load_plugin_module_func = NULL;
+	data->python_was_initialized_by_us = false;
+
+	bt_self_plugin_provider_set_data(self_plugin_provider, data);
+	status = BT_PLUGIN_PROVIDER_INITIALIZE_FUNC_STATUS_OK;
+
+end:
+
+	return status;
 }
 
 static
@@ -263,9 +294,17 @@ end:
 	return ret;
 }
 
-__attribute__((destructor)) static
-void fini_python(void) {
-	struct python_plugin_provider_data *data = &g_data;
+static
+void finalize_python_plugin_provider(
+		bt_self_plugin_provider *self_plugin_provider)
+{
+	struct python_plugin_provider_data *data = NULL;
+
+	BT_ASSERT(self_plugin_provider);
+
+	data = bt_self_plugin_provider_get_data(self_plugin_provider);
+
+	BT_ASSERT(data);
 
 	if (Py_IsInitialized() && data->python_was_initialized_by_us) {
 		if (data->python_plugin_sets) {
@@ -282,6 +321,7 @@ void fini_python(void) {
 	}
 
 	data->python_state = PYTHON_STATE_NOT_INITED;
+	g_free(data);
 }
 
 static
@@ -705,20 +745,45 @@ end:
 	return status;
 }
 
+/* Declaration needed to avoid a -Wmissing-prototypes error. */
+
+enum bt_plugin_provider_create_all_from_file_func_status
+create_all_python_plugins_from_file(
+		bt_self_plugin_provider *self_plugin_provider, const char *path,
+		const bt_plugin_provider_create_all_from_file_options *options,
+		const struct bt_plugin_set **plugin_set_out);
+
 BT_EXPORT
-int bt_plugin_python_create_all_from_file(const char *path,
-		bool fail_on_load_error, struct bt_plugin_set **plugin_set_out,
-		int log_level)
+enum bt_plugin_provider_create_all_from_file_func_status
+create_all_python_plugins_from_file(
+		bt_self_plugin_provider *self_plugin_provider, const char *path,
+		const bt_plugin_provider_create_all_from_file_options *options,
+		const struct bt_plugin_set **plugin_set_out)
 {
 	bt_plugin *plugin = NULL;
 	PyObject *py_plugin_info = NULL;
 	gchar *basename = NULL;
 	size_t path_len;
 	int status = BT_FUNC_STATUS_OK;
-	bt_plugin_set *plugin_set;
-	struct python_plugin_provider_data *data = &g_data;
+	bt_plugin_set *plugin_set = NULL;
+	struct python_plugin_provider_data *data;
+	bool fail_on_load_error;
+	int log_level;
 
+	BT_ASSERT(self_plugin_provider);
 	BT_ASSERT(path);
+	BT_ASSERT(options);
+	BT_ASSERT(plugin_set_out);
+
+	fail_on_load_error =
+		bt_plugin_provider_create_all_from_file_options_get_fail_on_load_error(
+			options);
+
+	log_level =
+		bt_self_plugin_provider_get_logging_level(self_plugin_provider);
+
+	data = bt_self_plugin_provider_get_data(self_plugin_provider);
+	BT_ASSERT(data);
 
 	if (data->python_state == PYTHON_STATE_CANNOT_INITIALIZE) {
 		/*
@@ -828,14 +893,13 @@ int bt_plugin_python_create_all_from_file(const char *path,
 	 * If we already have a plugin (set) for this Python module, return
 	 * it.
 	 */
-	plugin_set = (bt_plugin_set *) g_hash_table_lookup(data->python_plugin_sets,
-		py_plugin_info);
-	if (plugin_set) {
-		*plugin_set_out = plugin_set;
+	*plugin_set_out = (bt_plugin_set *) g_hash_table_lookup(
+		data->python_plugin_sets, py_plugin_info);
+	if (*plugin_set_out) {
 		bt_plugin_set_get_ref(*plugin_set_out);
 		BT_LOGD("Reusing previously created Python plugin set for file: "
 			"path=\"%s\", plugin-set-addr=%p",
-			path, plugin_set);
+			path, *plugin_set_out);
 		goto end;
 	}
 
@@ -871,20 +935,20 @@ int bt_plugin_python_create_all_from_file(const char *path,
 		goto error;
 	}
 
-	*plugin_set_out = bt_plugin_set_create();
-	if (!*plugin_set_out) {
+	plugin_set = bt_plugin_set_create();
+	if (!plugin_set) {
 		BT_PPP_LOGE_APPEND_CAUSE("Cannot create empty plugin set.");
 		status = BT_FUNC_STATUS_MEMORY_ERROR;
 		goto error;
 	}
 
-	status = bt_plugin_set_add_plugin_if_not_exist(*plugin_set_out, plugin,
+	status = bt_plugin_set_add_plugin_if_not_exist(plugin_set, plugin,
 		log_level);
 	if (status) {
 		BT_PPP_LOGE_APPEND_CAUSE(
 			"Cannot add plugin to plugin set: "
 			"plugin-set-addr=%p, " BT_PLUGIN_FMT,
-			*plugin_set_out, BT_PLUGIN_ARGS(plugin));
+			plugin_set, BT_PLUGIN_ARGS(plugin));
 		goto error;
 	}
 
@@ -899,18 +963,24 @@ int bt_plugin_python_create_all_from_file(const char *path,
 	 * this.
 	 */
 	g_hash_table_insert(data->python_plugin_sets, py_plugin_info,
-		*plugin_set_out);
+		plugin_set);
 	py_plugin_info = NULL;
-	bt_plugin_set_get_ref(*plugin_set_out);
+
+	/* Acquire ref for the hash table. */
+	bt_plugin_set_get_ref(plugin_set);
+
+	/* Give this ref to the user. */
+	*plugin_set_out = plugin_set;
+	plugin_set = NULL;
 	goto end;
 
 error:
 	BT_ASSERT(status != BT_FUNC_STATUS_OK);
 	log_python_traceback(BT_LOG_WARNING);
 	pyerr_clear();
-	BT_PLUGIN_SET_PUT_REF_AND_RESET(*plugin_set_out);
 
 end:
+	bt_plugin_set_put_ref(plugin_set);
 	bt_plugin_put_ref(plugin);
 	Py_XDECREF(py_plugin_info);
 
@@ -918,3 +988,18 @@ end:
 
 	return status;
 }
+
+#ifndef BT_BUILT_IN_PYTHON_PLUGIN_SUPPORT
+BT_PLUGIN_PROVIDER_MODULE();
+#endif
+
+/* Initialize plug-in provider description. */
+BT_PLUGIN_PROVIDER(python);
+BT_PLUGIN_PROVIDER_DESCRIPTION("Python plugin support");
+BT_PLUGIN_PROVIDER_AUTHOR("EfficiOS <https://www.efficios.com/>");
+BT_PLUGIN_PROVIDER_LICENSE("MIT");
+
+/* Set plug-in provider functions. */
+BT_PLUGIN_PROVIDER_INITIALIZE_FUNC(initialize_python_plugin_provider);
+BT_PLUGIN_PROVIDER_FINALIZE_FUNC(finalize_python_plugin_provider);
+BT_PLUGIN_PROVIDER_CREATE_ALL_FROM_FILE_FUNC(create_all_python_plugins_from_file);

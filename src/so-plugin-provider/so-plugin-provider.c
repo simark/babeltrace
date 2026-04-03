@@ -103,39 +103,71 @@ struct so_plugin_provider_per_comp_class {
 
 /* Data global to the shared object plugin provider. */
 
-static struct so_plugin_provider_data {
+struct so_plugin_provider_data {
 	/* List of `so_plugin_provider_per_comp_class`. */
 	struct bt_list_head per_comp_class_list;
-} g_data;
+};
 
-__attribute__((constructor)) static
-void init_per_comp_class_list(void)
+
+static enum bt_plugin_provider_initialize_func_status
+initialize_so_plugin_provider(
+		bt_self_plugin_provider *self_plugin_provider)
 {
-	BT_INIT_LIST_HEAD(&g_data.per_comp_class_list);
+	struct so_plugin_provider_data *data;
+	enum bt_plugin_provider_initialize_func_status status;
+
+	BT_ASSERT(self_plugin_provider);
+
+	data = g_new0(struct so_plugin_provider_data, 1);
+
+	if (!data) {
+		BT_SPP_LOGE_APPEND_CAUSE(
+			"Failed to allocate plugin provider data.");
+		status = BT_PLUGIN_PROVIDER_INITIALIZE_FUNC_STATUS_MEMORY_ERROR;
+		goto end;
+	}
+
+	BT_INIT_LIST_HEAD(&data->per_comp_class_list);
+
+	bt_self_plugin_provider_set_data(self_plugin_provider, data);
+	status = BT_PLUGIN_PROVIDER_INITIALIZE_FUNC_STATUS_OK;
+
+end:
+	return status;
 }
 
-__attribute__((destructor)) static
-void fini_per_comp_class_list(void)
+static
+void finalize_so_plugin_provider(
+		bt_self_plugin_provider *self_plugin_provider)
 {
-	struct so_plugin_provider_per_comp_class *per_comp_class, *tmp;
+	struct so_plugin_provider_per_comp_class *elem, *tmp;
+	struct so_plugin_provider_data *data;
 
-	bt_list_for_each_entry_safe(per_comp_class, tmp,
-			&g_data.per_comp_class_list, node) {
-		bt_list_del(&per_comp_class->node);
-		BT_OBJECT_PUT_REF_AND_RESET(per_comp_class->so_handle);
-		g_free(per_comp_class);
+	BT_ASSERT(self_plugin_provider);
+
+	data = bt_self_plugin_provider_get_data(self_plugin_provider);
+	BT_ASSERT(data);
+
+	bt_list_for_each_entry_safe(elem, tmp, &data->per_comp_class_list, node) {
+		bt_list_del(&elem->node);
+		BT_OBJECT_PUT_REF_AND_RESET(elem->so_handle);
+		g_free(elem);
 	}
+
+	g_free(data);
+
+	BT_LOGD_STR("Released references from all component classes to shared library handles.");
 }
 
 static
 void destroy_per_plugin(const bt_plugin *plugin __attribute__((unused)),
 		void *user_data)
 {
-	struct so_plugin_provider_per_plugin *spec = user_data;
+	struct so_plugin_provider_per_plugin *per_plugin = user_data;
 
-	BT_ASSERT(spec);
-	BT_OBJECT_PUT_REF_AND_RESET(spec->so_handle);
-	g_free(spec);
+	BT_ASSERT(per_plugin);
+	BT_OBJECT_PUT_REF_AND_RESET(per_plugin->so_handle);
+	g_free(per_plugin);
 
 }
 
@@ -1207,7 +1239,7 @@ int create_all_plugins_from_sections(
 		struct __bt_plugin_component_class_descriptor const * const *cc_descriptors_end,
 		struct __bt_plugin_component_class_descriptor_attribute const * const *cc_descr_attrs_begin,
 		struct __bt_plugin_component_class_descriptor_attribute const * const *cc_descr_attrs_end,
-		struct bt_plugin_set **plugin_set_out)
+		const struct bt_plugin_set **plugin_set_out)
 {
 	int status;
 	size_t descriptor_count;
@@ -1216,8 +1248,8 @@ int create_all_plugins_from_sections(
 	size_t cc_descr_attrs_count;
 	size_t i;
 	struct bt_plugin *plugin = NULL;
+	struct bt_plugin_set *plugin_set = NULL;
 
-	BT_ASSERT(so_handle);
 	BT_ASSERT(plugin_set_out);
 	*plugin_set_out = NULL;
 	descriptor_count = count_non_null_items_in_section(descriptors_begin, descriptors_end);
@@ -1232,18 +1264,18 @@ int create_all_plugins_from_sections(
 		"cc-descr-attrs-begin-addr=%p, cc-descr-attrs-end-addr=%p, "
 		"descr-count=%zu, attrs-count=%zu, "
 		"cc-descr-count=%zu, cc-descr-attrs-count=%zu",
-		so_handle->path ? so_handle->path->str : NULL,
+		so_handle ? so_handle->path->str : NULL,
 		descriptors_begin, descriptors_end,
 		attrs_begin, attrs_end,
 		cc_descriptors_begin, cc_descriptors_end,
 		cc_descr_attrs_begin, cc_descr_attrs_end,
 		descriptor_count, attrs_count,
 		cc_descriptors_count, cc_descr_attrs_count);
-	*plugin_set_out = bt_plugin_set_create();
-	if (!*plugin_set_out) {
+	plugin_set = bt_plugin_set_create();
+	if (!plugin_set) {
 		BT_SPP_LOGE_APPEND_CAUSE("Cannot create empty plugin set.");
 		status = BT_FUNC_STATUS_MEMORY_ERROR;
-		goto error;
+		goto end;
 	}
 
 	for (i = 0; i < descriptors_end - descriptors_begin; i++) {
@@ -1262,7 +1294,7 @@ int create_all_plugins_from_sections(
 		if (!plugin) {
 			BT_SPP_LOGE_APPEND_CAUSE("Cannot create plugin.");
 			status = BT_FUNC_STATUS_MEMORY_ERROR;
-			goto error;
+			goto end;
 		}
 
 		per_plugin = g_new0(struct so_plugin_provider_per_plugin, 1);
@@ -1270,7 +1302,7 @@ int create_all_plugins_from_sections(
 			BT_SPP_LOGE_APPEND_CAUSE(
 				"Failed to allocate one SO plugin specific data structure.");
 			status = BT_FUNC_STATUS_MEMORY_ERROR;
-			goto error;
+			goto end;
 		}
 
 		/*
@@ -1282,25 +1314,24 @@ int create_all_plugins_from_sections(
 		bt_plugin_add_destruction_listener(plugin, destroy_per_plugin,
 			per_plugin, NULL);
 
-		if (so_handle->path) {
+		if (so_handle) {
 			status = bt_plugin_set_path(plugin,
 				so_handle->path->str);
 			if (status != BT_FUNC_STATUS_OK) {
 				BT_SPP_LOGE_APPEND_CAUSE(
 					"Cannot set plugin path: plugin-name=\"%s\"",
 					bt_plugin_get_name(plugin));
-				goto error;
+				goto end;
 			}
 		}
 
-		status = initialize_so_plugin(plugin, data, per_plugin, fail_on_load_error,
-			descriptor, attrs_begin, attrs_end,
+		status = initialize_so_plugin(plugin, data, per_plugin,
+			fail_on_load_error, descriptor, attrs_begin, attrs_end,
 			cc_descriptors_begin, cc_descriptors_end,
 			cc_descr_attrs_begin, cc_descr_attrs_end);
 		if (status == BT_FUNC_STATUS_OK) {
 			/* Add to plugin set */
-			status = add_plugin_if_not_exist(
-				*plugin_set_out, plugin);
+			status = add_plugin_if_not_exist(plugin_set, plugin);
 			if (status != BT_FUNC_STATUS_OK) {
 				BT_SPP_LOGE_APPEND_CAUSE(
 					"Cannot add plugin to plugin set: "
@@ -1308,7 +1339,7 @@ int create_all_plugins_from_sections(
 					"plugin-name=\"%s\"",
 					*plugin_set_out,
 					bt_plugin_get_name(plugin));
-				goto error;
+				goto end;
 			}
 		} else if (status == BT_FUNC_STATUS_NOT_FOUND) {
 			/*
@@ -1323,55 +1354,49 @@ int create_all_plugins_from_sections(
 			 */
 			BT_SPP_LOGW_APPEND_CAUSE(
 				"Cannot initialize SO plugin object from sections.");
-			goto error;
+			goto end;
 		}
 	}
 
-	BT_ASSERT(*plugin_set_out);
-
-	if (bt_plugin_set_get_plugin_count(*plugin_set_out) == 0) {
-		BT_OBJECT_PUT_REF_AND_RESET(*plugin_set_out);
-		status = BT_FUNC_STATUS_NOT_FOUND;
-	} else {
+	if (bt_plugin_set_get_plugin_count(plugin_set) > 0) {
+		*plugin_set_out = plugin_set;
+		plugin_set = NULL;
 		status = BT_FUNC_STATUS_OK;
+	} else {
+		status = BT_FUNC_STATUS_NOT_FOUND;
 	}
-
-	goto end;
-
-error:
-	BT_ASSERT(status < 0);
-	BT_OBJECT_PUT_REF_AND_RESET(*plugin_set_out);
 
 end:
 	BT_PLUGIN_PUT_REF_AND_RESET(plugin);
+	BT_PLUGIN_SET_PUT_REF_AND_RESET(plugin_set);
 	return status;
 }
 
-/* Declaration needed to avoid a -Wmissing-prototypes error. */
-
-int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
-		struct bt_plugin_set **plugin_set_out, int log_level);
-
-BT_EXPORT
-int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
-		struct bt_plugin_set **plugin_set_out, int log_level)
+static
+bt_plugin_provider_create_all_from_static_func_status
+create_all_so_plugins_from_static(
+		bt_self_plugin_provider *self_plugin_provider,
+		const bt_plugin_provider_create_all_from_static_options *options,
+		const struct bt_plugin_set **plugin_set_out)
 {
 	int status;
-	struct so_handle *so_handle = NULL;
+	struct so_plugin_provider_data *data;
+	bool fail_on_load_error;
 
-	plugin_so_log_level = log_level;
-
+	BT_ASSERT(self_plugin_provider);
+	BT_ASSERT(options);
 	BT_ASSERT(plugin_set_out);
-	*plugin_set_out = NULL;
-	status = create_so_handle(NULL, plugin_so_log_level, &so_handle);
-	if (status != BT_FUNC_STATUS_OK) {
-		BT_ASSERT(!so_handle);
-		goto end;
-	}
 
-	BT_ASSERT(so_handle);
+	data = bt_self_plugin_provider_get_data(self_plugin_provider);
+	plugin_so_log_level =
+		bt_self_plugin_provider_get_logging_level(self_plugin_provider);
+	fail_on_load_error =
+		bt_plugin_provider_create_all_from_static_options_get_fail_on_load_error(
+			options);
+	*plugin_set_out = NULL;
+
 	BT_LOGD_STR("Creating all SO plugins from built-in plugins.");
-	status = create_all_plugins_from_sections(&g_data, so_handle,
+	status = create_all_plugins_from_sections(data, NULL,
 		fail_on_load_error,
 		__bt_get_begin_section_plugin_descriptors(),
 		__bt_get_end_section_plugin_descriptors(),
@@ -1387,23 +1412,20 @@ int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
 		bt_plugin_set_get_plugin_count(*plugin_set_out) > 0) ||
 		!*plugin_set_out);
 
-end:
-	BT_OBJECT_PUT_REF_AND_RESET(so_handle);
 	return status;
 }
 
-/* Declaration needed to avoid a -Wmissing-prototypes error. */
-int bt_plugin_so_create_all_from_file(const char *path,
-		bool fail_on_load_error, struct bt_plugin_set **plugin_set_out,
-		int log_level);
-
-BT_EXPORT
-int bt_plugin_so_create_all_from_file(const char *path,
-		bool fail_on_load_error, struct bt_plugin_set **plugin_set_out,
-		int log_level)
+static
+bt_plugin_provider_create_all_from_file_func_status
+create_all_so_plugins_from_file(
+		bt_self_plugin_provider *self_plugin_provider,
+		const char *path,
+		const bt_plugin_provider_create_all_from_file_options *options,
+		const struct bt_plugin_set **plugin_set_out)
 {
 	size_t path_len;
 	int status;
+	struct so_plugin_provider_data *data;
 	struct __bt_plugin_descriptor const * const *descriptors_begin = NULL;
 	struct __bt_plugin_descriptor const * const *descriptors_end = NULL;
 	struct __bt_plugin_descriptor_attribute const * const *attrs_begin = NULL;
@@ -1420,13 +1442,20 @@ int bt_plugin_so_create_all_from_file(const char *path,
 	struct __bt_plugin_component_class_descriptor const * const *(*get_end_section_component_class_descriptors)(void);
 	struct __bt_plugin_component_class_descriptor_attribute const * const *(*get_begin_section_component_class_descriptor_attributes)(void);
 	struct __bt_plugin_component_class_descriptor_attribute const * const *(*get_end_section_component_class_descriptor_attributes)(void);
-	bt_bool is_libtool_wrapper = BT_FALSE, is_shared_object = BT_FALSE;
+	bt_bool is_libtool_wrapper = BT_FALSE, is_shared_object = BT_FALSE, fail_on_load_error;
 	struct so_handle *so_handle = NULL;
 
+	BT_ASSERT(self_plugin_provider);
 	BT_ASSERT(path);
+	BT_ASSERT(options);
 	BT_ASSERT(plugin_set_out);
 
-	plugin_so_log_level = log_level;
+	data = bt_self_plugin_provider_get_data(self_plugin_provider);
+	plugin_so_log_level =
+		bt_self_plugin_provider_get_logging_level(self_plugin_provider);
+	fail_on_load_error =
+		bt_plugin_provider_create_all_from_file_options_get_fail_on_load_error(
+			options);
 
 	*plugin_set_out = NULL;
 	path_len = strlen(path);
@@ -1642,7 +1671,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 
 	/* Initialize plugin */
 	BT_LOGD_STR("Initializing plugin object.");
-	status = create_all_plugins_from_sections(&g_data, so_handle,
+	status = create_all_plugins_from_sections(data, so_handle,
 		fail_on_load_error,
 		descriptors_begin, descriptors_end, attrs_begin, attrs_end,
 		cc_descriptors_begin, cc_descriptors_end,
@@ -1652,3 +1681,19 @@ end:
 	BT_OBJECT_PUT_REF_AND_RESET(so_handle);
 	return status;
 }
+
+#ifndef BT_BUILT_IN_PLUGINS
+BT_PLUGIN_PROVIDER_MODULE();
+#endif
+
+/* Initialize plug-in provider description. */
+BT_PLUGIN_PROVIDER(shared);
+BT_PLUGIN_PROVIDER_DESCRIPTION("Shared library plugin support");
+BT_PLUGIN_PROVIDER_AUTHOR("EfficiOS <https://www.efficios.com/>");
+BT_PLUGIN_PROVIDER_LICENSE("MIT");
+
+/* Set plug-in provider functions. */
+BT_PLUGIN_PROVIDER_INITIALIZE_FUNC(initialize_so_plugin_provider);
+BT_PLUGIN_PROVIDER_FINALIZE_FUNC(finalize_so_plugin_provider);
+BT_PLUGIN_PROVIDER_CREATE_ALL_FROM_FILE_FUNC(create_all_so_plugins_from_file);
+BT_PLUGIN_PROVIDER_CREATE_ALL_FROM_STATIC_FUNC(create_all_so_plugins_from_static);

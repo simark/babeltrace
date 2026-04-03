@@ -13,6 +13,8 @@
 
 #include "common/object-struct.h"
 
+struct bt_plugin_provider;
+
 struct bt_plugin {
 	struct bt_object base;
 
@@ -35,6 +37,7 @@ struct bt_plugin {
 			GString *extra;
 			bool extra_set;
 		} version;
+		const struct bt_plugin_provider_info *provider_info;
 		bool path_set;
 		bool author_set;
 		bool license_set;
@@ -52,5 +55,9 @@ struct bt_plugin_set {
 	/* Array of struct bt_plugin * */
 	GPtrArray *plugins;
 };
+
+int bt_plugin_set_provider_info(
+		struct bt_plugin *plugin,
+		const struct bt_plugin_provider *plugin_provider);
 
 #endif /* BABELTRACE_LIB_PLUGIN_PLUGIN_H */

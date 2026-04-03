@@ -27,6 +27,7 @@
 #include <gmodule.h>
 
 #include "plugin.h"
+#include "plugin-provider.h"
 #include "common/func-status.h"
 #include "common/object.h"
 #include "compat/compiler.h"
@@ -63,266 +64,55 @@ void _bt_plugin_freeze(struct bt_plugin *plugin)
 
 #define DESTRUCTION_LISTENER_FUNC_NAME  "bt_plugin_destruction_listener_func"
 
-#define SO_PLUGIN_PROVIDER_FILENAME \
-	"babeltrace2-so-plugin-provider." G_MODULE_SUFFIX
-#define SO_PLUGIN_PROVIDER_ALL_FROM_FILE_SYM_NAME \
-	bt_plugin_so_create_all_from_file
-#define SO_PLUGIN_PROVIDER_ALL_FROM_FILE_SYM_NAME_STR \
-	G_STRINGIFY(SO_PLUGIN_PROVIDER_ALL_FROM_FILE_SYM_NAME)
-#define SO_PLUGIN_PROVIDER_ALL_FROM_STATIC_SYM_NAME \
-	bt_plugin_so_create_all_from_static
-#define SO_PLUGIN_PROVIDER_ALL_FROM_STATIC_SYM_NAME_STR \
-	G_STRINGIFY(SO_PLUGIN_PROVIDER_ALL_FROM_STATIC_SYM_NAME)
-
-#define PYTHON_PLUGIN_PROVIDER_FILENAME	"babeltrace2-python-plugin-provider." G_MODULE_SUFFIX
-#define PYTHON_PLUGIN_PROVIDER_SYM_NAME	bt_plugin_python_create_all_from_file
-#define PYTHON_PLUGIN_PROVIDER_SYM_NAME_STR	G_STRINGIFY(PYTHON_PLUGIN_PROVIDER_SYM_NAME)
-
 #define APPEND_ALL_FROM_DIR_NFDOPEN_MAX	8
 
-typedef int (*create_all_from_file_sym_type)(
-		const char *path,
-		bool fail_on_load_error,
-		struct bt_plugin_set **plugin_set_out,
-		int log_level);
-
-typedef int (*create_all_from_static_sym_type)(
-		bool fail_on_load_error,
-		struct bt_plugin_set **plugin_set_out,
-		int log_level);
+static
+const struct bt_plugin_provider_set *plugin_provider_set = NULL;
 
 static
-void destroy_gstring(void *data)
-{
-	g_string_free(data, TRUE);
-}
-
-/*
- * Try to open a provider module named `filename` by searching directories.
- *
- * If the `LIBBABELTRACE2_PLUGIN_PROVIDER_DIR` environment variable is set,
- * search the `G_SEARCHPATH_SEPARATOR`-delimited directories it contains.
- * Otherwise, search `BABELTRACE_PLUGIN_PROVIDERS_DIR`.
- *
- * Returns an open GModule on success, NULL if not found.
- */
-static
-GModule *open_provider_module(const char *filename)
-{
-	static const char * const provider_dir_envvar_name =
-		"LIBBABELTRACE2_PLUGIN_PROVIDER_DIR";
-	const char *provider_dir_envvar = getenv(provider_dir_envvar_name);
-	GPtrArray *dirs = NULL;
-	GModule *module = NULL;
-
-	if (provider_dir_envvar) {
-		guint i;
-
-		dirs = g_ptr_array_new_with_free_func(destroy_gstring);
-		if (!dirs) {
-			BT_LOGE_STR("Failed to allocate a GPtrArray.");
-			goto end;
-		}
-
-		BT_LOGI("Searching for `%s` in `%s` dirs: \"%s\"",
-			filename, provider_dir_envvar_name, provider_dir_envvar);
-
-		if (bt_common_append_plugin_path_dirs(provider_dir_envvar, dirs)) {
-			BT_LOGE_STR("Failed to append plugin provider path to array of directories.");
-			goto end;
-		}
-
-		for (i = 0; i < dirs->len; i++) {
-			GString *dir = g_ptr_array_index(dirs, i);
-			char *provider_path =
-				g_build_filename(dir->str, filename, NULL);
-
-			BT_LOGI("Trying to open plugin provider: path=\"%s\"",
-				provider_path);
-
-			module = g_module_open(provider_path, G_MODULE_BIND_LOCAL);
-			g_free(provider_path);
-
-			if (module) {
-				break;
-			}
-
-			BT_LOGI("Cannot open: %s", g_module_error());
-		}
-	} else {
-		char *provider_path =
-			g_build_filename(BABELTRACE_PLUGIN_PROVIDERS_DIR,
-				filename, NULL);
-
-		BT_LOGI("Using default path (`%s` environment variable is not set) "
-			"to find plugin provider: path=\"%s\"",
-			provider_dir_envvar_name, provider_path);
-
-		module = g_module_open(provider_path, G_MODULE_BIND_LOCAL);
-		if (!module) {
-			BT_LOGI("Cannot open: %s", g_module_error());
-		}
-
-		g_free(provider_path);
-	}
-
-end:
-	if (dirs) {
-		g_ptr_array_free(dirs, TRUE);
-	}
-
-	return module;
-}
-
-static GModule *so_plugin_provider_module;
-static create_all_from_file_sym_type bt_plugin_so_create_all_from_file_sym;
-static create_all_from_static_sym_type bt_plugin_so_create_all_from_static_sym;
-
-static
-int init_so_plugin_provider(void)
-{
+int try_init_plugin_providers(void) {
 	int status;
 
-	if (bt_plugin_so_create_all_from_file_sym &&
-			bt_plugin_so_create_all_from_static_sym) {
+	if (plugin_provider_set) {
 		status = BT_FUNC_STATUS_OK;
 		goto end;
 	}
 
-	BT_LOGI_STR("Loading shared plugin provider module.");
+	BT_LOGI_STR("Loading plugin providers modules.");
+	status = bt_plugin_provider_find_all(&plugin_provider_set);
 
-	so_plugin_provider_module =
-		open_provider_module(SO_PLUGIN_PROVIDER_FILENAME);
-	if (!so_plugin_provider_module) {
-		BT_LOGI_STR("Could not find shared plugin provider: "
-			"continuing without shared plugin support.");
-		status = BT_FUNC_STATUS_OK;
-		goto end;
-	}
-
-	if (!g_module_symbol(so_plugin_provider_module,
-			SO_PLUGIN_PROVIDER_ALL_FROM_FILE_SYM_NAME_STR,
-			(gpointer) &bt_plugin_so_create_all_from_file_sym)) {
-		BT_LIB_LOGE_APPEND_CAUSE(
-			"Cannot find the shared plugin provider all-from-file loading symbol: "
-			"%s: continuing without shared plugin support: "
-			"symbol=\"%s\"",
-			g_module_error(),
-			SO_PLUGIN_PROVIDER_ALL_FROM_FILE_SYM_NAME_STR);
-		status = BT_FUNC_STATUS_ERROR;
-		goto end;
-	}
-
-	if (!g_module_symbol(so_plugin_provider_module,
-			SO_PLUGIN_PROVIDER_ALL_FROM_STATIC_SYM_NAME_STR,
-			(gpointer) &bt_plugin_so_create_all_from_static_sym)) {
-		BT_LIB_LOGE_APPEND_CAUSE(
-			"Cannot find the shared plugin provider all-from-static loading symbol: "
-			"%s: continuing without shared plugin support: "
-			"symbol=\"%s\"",
-			g_module_error(),
-			SO_PLUGIN_PROVIDER_ALL_FROM_STATIC_SYM_NAME_STR);
-		status = BT_FUNC_STATUS_ERROR;
-		goto end;
-	}
-
-	BT_LOGI("Loaded shared plugin provider module: addr=%p",
-		so_plugin_provider_module);
-
-	status = BT_FUNC_STATUS_OK;
 end:
 	return status;
 }
 
-/* Declare here to make sure definition in both ifdef branches are in sync. */
-static
-int init_python_plugin_provider(void);
-
-#ifdef BT_BUILT_IN_PYTHON_PLUGIN_SUPPORT
-#include "python-plugin-provider/python-plugin-provider.h"
-
-static
-create_all_from_file_sym_type
-	bt_plugin_python_create_all_from_file_sym =
-			bt_plugin_python_create_all_from_file;
-
-static
-int init_python_plugin_provider(void)
+BT_EXPORT
+uint64_t bt_get_plugin_provider_count(void)
 {
-	return BT_FUNC_STATUS_OK;
+	int status = try_init_plugin_providers();
+	if (status < 0) {
+		return 0;
+	}
+	return plugin_provider_set->plugin_providers->len;
 }
-#else /* BT_BUILT_IN_PYTHON_PLUGIN_SUPPORT */
-static GModule *python_plugin_provider_module;
 
-static
-create_all_from_file_sym_type bt_plugin_python_create_all_from_file_sym;
-
-static
-int init_python_plugin_provider(void) {
-	int status = BT_FUNC_STATUS_OK;
-
-	if (bt_plugin_python_create_all_from_file_sym) {
-		goto end;
+BT_EXPORT
+const bt_plugin_provider_info *
+bt_borrow_plugin_provider_info_by_index(uint64_t index)
+{
+	int status = try_init_plugin_providers();
+	if (status < 0) {
+		return NULL;
 	}
-
-	BT_LOGI_STR("Loading Python plugin provider module.");
-
-	python_plugin_provider_module =
-		open_provider_module(PYTHON_PLUGIN_PROVIDER_FILENAME);
-	if (!python_plugin_provider_module) {
-		/*
-		 * This is not an error. The whole point of having an
-		 * external Python plugin provider is that it can be
-		 * missing and the Babeltrace library still works.
-		 */
-		BT_LOGI_STR("Could not find Python plugin provider: "
-			    "continuing without Python plugin support.");
-		goto end;
-	}
-
-	if (!g_module_symbol(python_plugin_provider_module,
-			PYTHON_PLUGIN_PROVIDER_SYM_NAME_STR,
-			(gpointer) &bt_plugin_python_create_all_from_file_sym)) {
-		/*
-		 * This is an error because, since we found the Python
-		 * plugin provider shared object, we expect this symbol
-		 * to exist.
-		 */
-		BT_LIB_LOGE_APPEND_CAUSE(
-			"Cannot find the Python plugin provider loading symbol: "
-			"%s: continuing without Python plugin support: "
-			"symbol=\"%s\"",
-			g_module_error(),
-			PYTHON_PLUGIN_PROVIDER_SYM_NAME_STR);
-		status = BT_FUNC_STATUS_ERROR;
-		goto end;
-	}
-
-	BT_LOGI("Loaded Python plugin provider module: addr=%p",
-		python_plugin_provider_module);
-
-end:
-	return status;
+	BT_ASSERT_PRE_DEV_VALID_INDEX(index, plugin_provider_set->plugin_providers->len);
+	return bt_plugin_provider_borrow_info_const(
+		g_ptr_array_index(plugin_provider_set->plugin_providers, index));
 }
 
 __attribute__((destructor)) static
-void fini_python_plugin_provider(void) {
-	if (python_plugin_provider_module) {
-		BT_LOGI("Unloading Python plugin provider module.");
-
-		if (!g_module_close(python_plugin_provider_module)) {
-			/*
-			 * This occurs when the library is finalized: do
-			 * NOT append an error cause.
-			 */
-			BT_LOGE("Failed to close the Python plugin provider module: %s.",
-				g_module_error());
-		}
-
-		python_plugin_provider_module = NULL;
-	}
+void fini_plugin_provider_set(void) {
+	BT_LOGI_STR("Unloading plugin providers modules.");
+	BT_OBJECT_PUT_REF_AND_RESET(plugin_provider_set);
 }
-#endif
 
 static
 void destroy_plugin_set(struct bt_object *obj)
@@ -420,6 +210,23 @@ const struct bt_plugin *bt_plugin_set_borrow_plugin_by_index_const(
 	return g_ptr_array_index(plugin_set->plugins, index);
 }
 
+static
+void set_providers_of_plugins(
+	const struct bt_plugin_set *plugin_set,
+	const struct bt_plugin_provider *plugin_provider)
+{
+	BT_ASSERT(plugin_provider);
+	BT_ASSERT(plugin_set);
+	uint64_t plugin_count = plugin_set->plugins->len;
+	for (uint64_t i = 0; i < plugin_count; i++) {
+		struct bt_plugin *plugin =
+			plugin_set->plugins->pdata[i];
+		bt_plugin_set_provider_info(plugin, plugin_provider);
+	}
+}
+
+#define FIND_ALL_FROM_STATIC_FUNC_NAME	"bt_plugin_find_all_from_static_func"
+
 BT_EXPORT
 const struct bt_plugin *bt_plugin_set_borrow_plugin_by_name_const(
 		const struct bt_plugin_set *plugin_set, const char *name)
@@ -443,114 +250,6 @@ end:
 	return plugin;
 }
 
-BT_EXPORT
-enum bt_plugin_find_all_from_static_status bt_plugin_find_all_from_static(
-		bt_bool fail_on_load_error,
-		const struct bt_plugin_set **plugin_set_out)
-{
-	enum bt_plugin_find_all_from_static_status status;
-
-	BT_ASSERT_PRE_NO_ERROR();
-
-	if (!bt_plugin_so_create_all_from_static_sym) {
-		status = BT_PLUGIN_FIND_ALL_FROM_STATIC_STATUS_NOT_FOUND;
-		goto end;
-	}
-
-	/* bt_plugin_so_create_all_from_static() logs errors */
-	status =  bt_plugin_so_create_all_from_static_sym(
-		fail_on_load_error, (void *) plugin_set_out, bt_lib_log_level);
-
-end:
-	return status;
-}
-
-BT_EXPORT
-enum bt_plugin_find_all_from_file_status bt_plugin_find_all_from_file(
-		const char *path, bt_bool fail_on_load_error,
-		const struct bt_plugin_set **plugin_set_out)
-{
-	enum bt_plugin_find_all_from_file_status status;
-
-	BT_ASSERT_PRE_NO_ERROR();
-	BT_ASSERT_PRE_NON_NULL("path", path, "Path");
-	BT_ASSERT_PRE_PLUGIN_SET_OUT_NON_NULL(plugin_set_out);
-	BT_LOGI("Creating plugins from file: path=\"%s\"", path);
-
-	/* Try shared object plugins */
-	status = init_so_plugin_provider();
-	if (status < 0) {
-		/* init_shared_plugin_provider() logs errors */
-		goto end;
-	}
-
-	BT_ASSERT(status == BT_FUNC_STATUS_OK);
-	status = BT_FUNC_STATUS_NOT_FOUND;
-
-	if (bt_plugin_so_create_all_from_file_sym) {
-		status = bt_plugin_so_create_all_from_file_sym(path,
-			fail_on_load_error, (void *) plugin_set_out,
-			bt_lib_log_level);
-		if (status == BT_FUNC_STATUS_OK) {
-			BT_ASSERT(*plugin_set_out);
-			BT_ASSERT((*plugin_set_out)->plugins->len > 0);
-			goto end;
-		} else if (status < 0) {
-			BT_ASSERT(!*plugin_set_out);
-			goto end;
-		}
-
-		BT_ASSERT(status == BT_FUNC_STATUS_NOT_FOUND);
-		BT_ASSERT(!*plugin_set_out);
-	}
-
-	/* Try Python plugins if support is available */
-	status = init_python_plugin_provider();
-	if (status < 0) {
-		/* init_python_plugin_provider() logs errors */
-		goto end;
-	}
-
-	BT_ASSERT(status == BT_FUNC_STATUS_OK);
-	status = BT_FUNC_STATUS_NOT_FOUND;
-
-	if (bt_plugin_python_create_all_from_file_sym) {
-		/* Python plugin provider exists */
-		status = bt_plugin_python_create_all_from_file_sym(path,
-			fail_on_load_error, (void *) plugin_set_out,
-			bt_lib_log_level);
-		if (status == BT_FUNC_STATUS_OK) {
-			BT_ASSERT(*plugin_set_out);
-			BT_ASSERT((*plugin_set_out)->plugins->len > 0);
-			goto end;
-		} else if (status < 0) {
-			/*
-			 * bt_plugin_python_create_all_from_file_sym()
-			 * handles `fail_on_load_error` itself, so this
-			 * is a "real" error.
-			 */
-			BT_ASSERT(!*plugin_set_out);
-			goto end;
-		}
-
-		BT_ASSERT(status == BT_FUNC_STATUS_NOT_FOUND);
-		BT_ASSERT(!*plugin_set_out);
-	}
-
-end:
-	if (status == BT_FUNC_STATUS_OK) {
-		BT_LOGI("Created %u plugins from file: "
-			"path=\"%s\", count=%u, plugin-set-addr=%p",
-			(*plugin_set_out)->plugins->len, path,
-			(*plugin_set_out)->plugins->len,
-			*plugin_set_out);
-	} else if (status == BT_FUNC_STATUS_NOT_FOUND) {
-		BT_LOGI("Found no plugins in file: path=\"%s\"", path);
-	}
-
-	return status;
-}
-
 static
 enum bt_plugin_set_add_plugin_status
 bt_plugin_set_add_plugin_if_not_exist(
@@ -572,6 +271,218 @@ bt_plugin_set_add_plugin_if_not_exist(
 
 end:
 	return status;
+}
+
+BT_EXPORT
+enum bt_plugin_find_all_from_static_status bt_plugin_find_all_from_static(
+		bt_bool fail_on_load_error,
+		const struct bt_plugin_set **plugin_set_out)
+{
+	enum bt_plugin_find_all_from_static_status status;
+
+	BT_ASSERT_PRE_NO_ERROR();
+
+	status = try_init_plugin_providers();
+	if (status < 0) {
+		/* try_init_plugin_providers() logs errors */
+		goto end;
+	}
+	status = BT_FUNC_STATUS_NOT_FOUND;
+
+	if (plugin_provider_set) {
+		*plugin_set_out = bt_plugin_set_create();
+		if (!*plugin_set_out) {
+			BT_LIB_LOGE_APPEND_CAUSE("Cannot create empty plugin set.");
+			status = BT_FUNC_STATUS_MEMORY_ERROR;
+			goto end;
+		}
+		for (size_t i = 0; i < plugin_provider_set->plugin_providers->len; i++) {
+			struct bt_plugin_provider *plugin_provider =
+				g_ptr_array_index(plugin_provider_set->plugin_providers, i);
+			if (plugin_provider->create_all_from_static) {
+				const struct bt_plugin_set *plugin_set = NULL;
+				struct bt_plugin_provider_create_all_from_static_options options =
+					{ .base = { .fail_on_load_error = fail_on_load_error } };
+
+				status = (int) plugin_provider->create_all_from_static(
+					(void *) plugin_provider,
+					&options, (void *) &plugin_set);
+				BT_ASSERT_POST_NO_ERROR_IF_NO_ERROR_STATUS(
+						FIND_ALL_FROM_STATIC_FUNC_NAME,
+						status);
+				if (status == BT_FUNC_STATUS_OK) {
+					BT_ASSERT_POST(
+						FIND_ALL_FROM_STATIC_FUNC_NAME,
+						"plugin-set-is-not-empty",
+						plugin_set && plugin_set->plugins->len > 0,
+						"User plugin set is empty with the "
+						"`BT_PLUGIN_PROVIDER_CREATE_ALL_FROM_STATIC_FUNC_STATUS_OK` status: "
+						"%![plugin-provider-]+N, plugin-set-addr=%p",
+						plugin_provider->info, plugin_set);
+					set_providers_of_plugins(plugin_set, plugin_provider);
+					/* Move found plugins to the returned plugin set */
+					for (size_t plugin_i = 0; plugin_i < plugin_set->plugins->len; plugin_i++) {
+						status = (int) bt_plugin_set_add_plugin_if_not_exist(
+								(void *) *plugin_set_out,
+								plugin_set->plugins->pdata[plugin_i]);
+						if (status != BT_FUNC_STATUS_OK) {
+							BT_LIB_LOGE_APPEND_CAUSE(
+								"Cannot add plugin to plugin set.");
+							goto end;
+						}
+					}
+					BT_OBJECT_PUT_REF_AND_RESET(plugin_set);
+				} else {
+					BT_ASSERT_POST(
+						FIND_ALL_FROM_STATIC_FUNC_NAME,
+						"plugin-set-is-null",
+						!plugin_set,
+						"Plugin set is not `NULL`: "
+						"%![plugin-provider-]+N, plugin-set-addr=%p",
+						plugin_provider->info, plugin_set);
+					if (status < 0) {
+						/*
+						 * create_all_from_static
+						 * handles `fail_on_load_error` itself, so this
+						 * is a "real" error.
+						 */
+						goto end;
+					}
+					BT_ASSERT(status == BT_FUNC_STATUS_NOT_FOUND);
+				}
+			}
+		}
+		BT_ASSERT(status == BT_FUNC_STATUS_NOT_FOUND || status == BT_FUNC_STATUS_OK);
+		/* If the output set is not empty we have succesfully loaded plugins */
+		if ((*plugin_set_out)->plugins->len > 0) {
+			status = BT_FUNC_STATUS_OK;
+		}
+	}
+
+
+end:
+	if (status < 0 || status == BT_FUNC_STATUS_NOT_FOUND) {
+		BT_OBJECT_PUT_REF_AND_RESET(*plugin_set_out);
+	} else {
+		BT_ASSERT(*plugin_set_out);
+	}
+	return status;
+}
+
+#define FIND_ALL_FROM_FILE_FUNC_NAME	"bt_plugin_find_all_from_file_func"
+
+BT_EXPORT
+enum bt_plugin_find_all_from_file_status bt_plugin_find_all_from_file(
+		const char *path, bt_bool fail_on_load_error,
+		const struct bt_plugin_set **plugin_set_out)
+{
+	enum bt_plugin_find_all_from_file_status status;
+
+	BT_ASSERT_PRE_NO_ERROR();
+	BT_ASSERT_PRE_NON_NULL("path", path, "Path");
+	BT_ASSERT_PRE_PLUGIN_SET_OUT_NON_NULL(plugin_set_out);
+	BT_LOGI("Creating plugins from file: path=\"%s\"", path);
+
+	status = try_init_plugin_providers();
+	if (status < 0) {
+		/* try_init_plugin_providers() logs errors */
+		goto end;
+	}
+	status = BT_FUNC_STATUS_NOT_FOUND;
+
+	if (plugin_provider_set) {
+		*plugin_set_out = bt_plugin_set_create();
+		if (!*plugin_set_out) {
+			BT_LIB_LOGE_APPEND_CAUSE("Cannot create empty plugin set.");
+			status = BT_FUNC_STATUS_MEMORY_ERROR;
+			goto end;
+		}
+		for (size_t i = 0; i < plugin_provider_set->plugin_providers->len; i++) {
+			struct bt_plugin_provider *plugin_provider =
+				g_ptr_array_index(plugin_provider_set->plugin_providers, i);
+			if (plugin_provider->create_all_from_file) {
+				const struct bt_plugin_set *plugin_set = NULL;
+				struct bt_plugin_provider_create_all_from_file_options options =
+					{ .base = { .fail_on_load_error = fail_on_load_error } };
+
+				status = (int) plugin_provider->create_all_from_file(
+					(void *) plugin_provider, path,
+					&options, (void *) &plugin_set);
+				BT_ASSERT_POST_NO_ERROR_IF_NO_ERROR_STATUS(
+						FIND_ALL_FROM_FILE_FUNC_NAME,
+						status);
+				if (status == BT_FUNC_STATUS_OK) {
+					BT_ASSERT_POST(
+						FIND_ALL_FROM_FILE_FUNC_NAME,
+						"plugin-set-is-not-empty",
+						plugin_set && plugin_set->plugins->len > 0,
+						"User plugin set is empty with the "
+						"`BT_PLUGIN_PROVIDER_CREATE_ALL_FROM_FILE_FUNC_STATUS_OK` status: "
+						"%![plugin-provider-]+N, plugin-set-addr=%p",
+						plugin_provider->info, plugin_set);
+					set_providers_of_plugins(plugin_set, plugin_provider);
+					/* Move found plugins to the returned plugin set */
+					for (size_t plugin_i = 0; plugin_i < plugin_set->plugins->len; plugin_i++) {
+						status = (int) bt_plugin_set_add_plugin_if_not_exist(
+								(void *) *plugin_set_out,
+								plugin_set->plugins->pdata[plugin_i]);
+						if (status != BT_FUNC_STATUS_OK) {
+							BT_LIB_LOGE_APPEND_CAUSE(
+								"Cannot add plugin to plugin set.");
+							goto end;
+						}
+					}
+					BT_OBJECT_PUT_REF_AND_RESET(plugin_set);
+				} else {
+					BT_ASSERT_POST(
+						FIND_ALL_FROM_FILE_FUNC_NAME,
+						"plugin-set-is-null",
+						!plugin_set,
+						"Plugin set is not `NULL`: "
+						"%![plugin-provider-]+N, plugin-set-addr=%p",
+						plugin_provider->info, plugin_set);
+					if (status < 0) {
+						/*
+						 * create_all_from_file
+						 * handles `fail_on_load_error` itself, so this
+						 * is a "real" error.
+						 */
+						goto end;
+					}
+					BT_ASSERT(status == BT_FUNC_STATUS_NOT_FOUND);
+				}
+			}
+		}
+		BT_ASSERT(status == BT_FUNC_STATUS_NOT_FOUND || status == BT_FUNC_STATUS_OK);
+		/* If the output set is not empty we have succesfully loaded plugins */
+		if ((*plugin_set_out)->plugins->len > 0) {
+			status = BT_FUNC_STATUS_OK;
+		}
+	}
+
+end:
+	if (status < 0 || status == BT_FUNC_STATUS_NOT_FOUND) {
+		BT_OBJECT_PUT_REF_AND_RESET(*plugin_set_out);
+	} else {
+		BT_ASSERT(*plugin_set_out);
+	}
+	if (status == BT_FUNC_STATUS_OK) {
+		BT_LOGI("Created %u plugins from file: "
+			"path=\"%s\", count=%u, plugin-set-addr=%p",
+			(*plugin_set_out)->plugins->len, path,
+			(*plugin_set_out)->plugins->len,
+			*plugin_set_out);
+	} else if (status == BT_FUNC_STATUS_NOT_FOUND) {
+		BT_LOGI("Found no plugins in file: path=\"%s\"", path);
+	}
+
+	return status;
+}
+
+static
+void destroy_gstring(void *data)
+{
+	g_string_free(data, TRUE);
 }
 
 BT_EXPORT
@@ -1156,6 +1067,10 @@ void destroy_plugin(struct bt_object *obj)
 		plugin->info.version.extra = NULL;
 	}
 
+	if (plugin->info.provider_info) {
+		BT_OBJECT_PUT_REF_AND_RESET(plugin->info.provider_info);
+	}
+
 	g_free(plugin);
 }
 
@@ -1254,6 +1169,19 @@ error:
 
 end:
 	return plugin;
+}
+
+int bt_plugin_set_provider_info(
+		struct bt_plugin *plugin,
+		const struct bt_plugin_provider *plugin_provider)
+{
+	BT_ASSERT(plugin);
+	BT_ASSERT(plugin_provider);
+	bt_object_get_ref_no_null_check(plugin_provider->info);
+	plugin->info.provider_info = plugin_provider->info;
+	BT_LIB_LOGD("Set plugin's provider info: %![plugin-]+l, %![plugin-provider-]+U",
+		plugin, plugin_provider);
+	return BT_FUNC_STATUS_OK;
 }
 
 BT_EXPORT
@@ -1491,6 +1419,14 @@ enum bt_property_availability bt_plugin_get_version(const struct bt_plugin *plug
 
 end:
 	return avail;
+}
+
+BT_EXPORT
+const struct bt_plugin_provider_info *
+bt_plugin_borrow_provider_info(const struct bt_plugin *plugin)
+{
+	BT_ASSERT_PRE_DEV_PLUGIN_NON_NULL(plugin);
+	return plugin->info.provider_info;
 }
 
 BT_EXPORT

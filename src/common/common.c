@@ -33,9 +33,11 @@
 #include <sys/ioctl.h>
 #endif
 
-#define SYSTEM_PLUGIN_PATH	BABELTRACE_PLUGINS_DIR
-#define HOME_ENV_VAR		"HOME"
-#define HOME_PLUGIN_SUBPATH	"/.local/lib/babeltrace2/plugins"
+#define SYSTEM_PLUGIN_PROVIDER_PATH	BABELTRACE_PLUGIN_PROVIDERS_DIR
+#define SYSTEM_PLUGIN_PATH		BABELTRACE_PLUGINS_DIR
+#define HOME_ENV_VAR			"HOME"
+#define HOME_PLUGIN_PROVIDER_SUBPATH	"/.local/lib/babeltrace2/plugin-providers"
+#define HOME_PLUGIN_SUBPATH		"/.local/lib/babeltrace2/plugins"
 
 static const char *bt_common_color_code_reset = "";
 static const char *bt_common_color_code_bold = "";
@@ -253,6 +255,11 @@ void __attribute__((constructor)) bt_common_color_ctor(void)
 	color_codes.bg_light_gray = BT_COMMON_COLOR_BG_LIGHT_GRAY;
 }
 
+const char *bt_common_get_system_plugin_provider_path(void)
+{
+	return SYSTEM_PLUGIN_PROVIDER_PATH;
+}
+
 const char *bt_common_get_system_plugin_path(void)
 {
 	return SYSTEM_PLUGIN_PATH;
@@ -308,6 +315,37 @@ end:
 	return val;
 }
 #endif /* __MINGW32__ */
+
+char *bt_common_get_home_plugin_provider_path(int log_level)
+{
+	char *path = NULL;
+	const char *home_dir;
+	size_t length;
+
+	home_dir = bt_get_home_dir(log_level);
+	if (!home_dir) {
+		goto end;
+	}
+
+	length = strlen(home_dir) + strlen(HOME_PLUGIN_PROVIDER_SUBPATH) + 1;
+
+	if (length >= PATH_MAX) {
+		BT_LOGW("Home directory path is too long: "
+			"length=%zu, max-length=%u", length, PATH_MAX);
+		goto end;
+	}
+
+	path = malloc(PATH_MAX);
+	if (!path) {
+		goto end;
+	}
+
+	strcpy(path, home_dir);
+	strcat(path, HOME_PLUGIN_PROVIDER_SUBPATH);
+
+end:
+	return path;
+}
 
 char *bt_common_get_home_plugin_path(int log_level)
 {

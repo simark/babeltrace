@@ -487,6 +487,10 @@ The available format specifiers are:
 |Integer range set
 |`const struct bt_integer_range_set *`
 
+|`N`
+|Plugin provider info
+|`+const struct bt_plugin_provider_info *+`
+
 |`n`
 |Message
 |`+const struct bt_message *+`
@@ -522,6 +526,10 @@ The available format specifiers are:
 |`z`
 |Interrupter
 |`+struct bt_interrupter *+`
+
+|`U`
+|Plugin provider
+|`+const struct bt_plugin_provider *+`
 
 |`l`
 |Plugin

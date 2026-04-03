@@ -17,6 +17,7 @@
 #include <wchar.h>
 #include <glib.h>
 #include "common/common.h"
+#include "common/so-handle.h"
 #include "common/uuid.h"
 #include <babeltrace2/babeltrace.h>
 
@@ -37,6 +38,7 @@
 #include "graph/message/stream.h"
 #include "graph/port.h"
 #include "plugin/plugin.h"
+#include "plugin/plugin-provider.h"
 #include "trace-ir/clock-class.h"
 #include "trace-ir/clock-snapshot.h"
 #include "trace-ir/event-class.h"
@@ -1182,6 +1184,17 @@ static inline void format_message(char **buf_ch, bool extended,
 	}
 }
 
+static inline void format_so_handle(char **buf_ch,
+		const char *prefix,
+		const struct so_handle *handle)
+{
+	BUF_APPEND(", %saddr=%p", PRFIELD(handle));
+
+	if (handle->path) {
+		BUF_APPEND(", %spath=\"%s\"", PRFIELD_GSTRING(handle->path));
+	}
+}
+
 static inline void format_component_class(char **buf_ch, bool extended,
 		const char *prefix,
 		const struct bt_component_class *comp_class)
@@ -1338,6 +1351,60 @@ end:
 	return;
 }
 
+static inline void format_plugin_provider_info(char **buf_ch,
+		bool extended, const char *prefix,
+		const struct bt_plugin_provider_info *info)
+{
+	if (info->path_set) {
+		BUF_APPEND(", %spath=\"%s\"",
+			PRFIELD_GSTRING(info->path));
+	}
+
+	BUF_APPEND(", %sname=\"%s\"",
+		PRFIELD_GSTRING(info->name));
+
+	if (!extended) {
+		return;
+	}
+
+	if (info->author_set) {
+		BUF_APPEND(", %sauthor=\"%s\"",
+			PRFIELD_GSTRING(info->author));
+	}
+
+	if (info->license_set) {
+		BUF_APPEND(", %slicense=\"%s\"",
+			PRFIELD_GSTRING(info->license));
+	}
+
+	if (info->version_set) {
+		BUF_APPEND(", %sversion=%u.%u.%u%s",
+			PRFIELD(info->version.major),
+			info->version.minor,
+			info->version.patch,
+			info->version.extra ?
+				info->version.extra->str : "");
+	}
+}
+
+static inline void format_plugin_provider(char **buf_ch, bool extended,
+		const char *prefix,
+		const struct bt_plugin_provider *plugin_provider)
+{
+	char tmp_prefix[TMP_PREFIX_LEN];
+
+	SET_TMP_PREFIX("info-");
+	format_plugin_provider_info(buf_ch, extended, tmp_prefix,
+		plugin_provider->info);
+
+	if (plugin_provider->so_handle) {
+		SET_TMP_PREFIX("so-handle-");
+		format_so_handle(
+			buf_ch, tmp_prefix,
+			plugin_provider->so_handle);
+	}
+}
+
 static inline void format_plugin(char **buf_ch, bool extended,
 		const char *prefix, const struct bt_plugin *plugin)
 {
@@ -1376,6 +1443,13 @@ static inline void format_plugin(char **buf_ch, bool extended,
 		PRFIELD(plugin->src_comp_classes->len),
 		PRFIELD(plugin->flt_comp_classes->len),
 		PRFIELD(plugin->sink_comp_classes->len));
+
+	if (plugin->info.provider_info) {
+		char tmp_prefix[TMP_PREFIX_LEN];
+		SET_TMP_PREFIX("provider-info-");
+		format_plugin_provider_info(buf_ch, false, tmp_prefix,
+			plugin->info.provider_info);
+	}
 }
 
 static inline void format_error_cause(char **buf_ch, bool extended,
@@ -1540,6 +1614,9 @@ static inline void handle_conversion_specifier_bt(
 	case 'n':
 		format_message(buf_ch, extended, prefix, obj);
 		break;
+	case 'N':
+		format_plugin_provider_info(buf_ch, extended, prefix, obj);
+		break;
 	case 'I':
 		/* Empty, the address is automatically printed. */
 		break;
@@ -1557,6 +1634,9 @@ static inline void handle_conversion_specifier_bt(
 		break;
 	case 'x':
 		format_connection(buf_ch, extended, prefix, obj);
+		break;
+	case 'U':
+		format_plugin_provider(buf_ch, extended, prefix, obj);
 		break;
 	case 'l':
 		format_plugin(buf_ch, extended, prefix, obj);
@@ -1587,9 +1667,9 @@ update_fmt:
 
 /*
  * This function would normally not be BT_EXPORTed, but it is used by the
- * Python plugin provider, which is conceptually part of libbabeltrace2, but
- * implemented as a separate shared object, for modularity.  It is therefore
- * exposed, but not part of the public ABI.
+ * Python and shared plugin providers, which are conceptually part of
+ * libbabeltrace2, but implemented as separate shared objects, for
+ * modularity. It is therefore exposed, but not part of the public ABI.
  */
 BT_EXPORT
 void bt_lib_log_v(const char *file, const char *func, unsigned line,
@@ -1603,9 +1683,9 @@ void bt_lib_log_v(const char *file, const char *func, unsigned line,
 
 /*
  * This function would normally not be BT_EXPORTed, but it is used by the
- * Python plugin provider, which is conceptually part of libbabeltrace2, but
- * implemented as a separate shared object, for modularity.  It is therefore
- * exposed, but not part of the public ABI.
+ * Python and shared plugin providers, which are conceptually part of
+ * libbabeltrace2, but implemented as separate shared objects, for
+ * modularity. It is therefore exposed, but not part of the public ABI.
  */
 BT_EXPORT
 void bt_lib_log(const char *file, const char *func, unsigned line,
@@ -1621,9 +1701,9 @@ void bt_lib_log(const char *file, const char *func, unsigned line,
 
 /*
  * This function would normally not be BT_EXPORTed, but it is used by the
- * Python plugin provider, which is conceptually part of libbabeltrace2, but
- * implemented as a separate shared object, for modularity.  It is therefore
- * exposed, but not part of the ABI.
+ * Python and shared plugin providers, which are conceptually part of
+ * libbabeltrace2, but implemented as separate shared objects, for
+ * modularity. It is therefore exposed, but not part of the public ABI.
  */
 BT_EXPORT
 void bt_lib_maybe_log_and_append_cause(const char *func, const char *file,
