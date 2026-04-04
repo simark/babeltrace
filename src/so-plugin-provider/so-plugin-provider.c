@@ -30,6 +30,7 @@ int plugin_so_log_level = BT_LOGGING_LEVEL_NONE;
 #include "common/common.h"
 #include "common/object.h"
 #include "common/log-and-append.h"
+#include "common/so-handle.h"
 
 #define NATIVE_PLUGIN_SUFFIX		"." G_MODULE_SUFFIX
 #define NATIVE_PLUGIN_SUFFIX_LEN	sizeof(NATIVE_PLUGIN_SUFFIX)
@@ -49,19 +50,9 @@ int plugin_so_log_level = BT_LOGGING_LEVEL_NONE;
 #define BT_SPP_LOGE_APPEND_CAUSE(_fmt, ...)				\
 	BT_SPP_LOG_AND_APPEND(BT_LOG_ERROR, _fmt, ##__VA_ARGS__)
 
-struct so_plugin_provider_so_handle {
-	struct bt_object base;
-	GString *path;
-	GModule *module;
-
-	/* True if initialization function was called */
-	bt_bool init_called;
-	bt_plugin_finalize_func exit;
-};
-
 struct so_plugin_provider_per_plugin {
 	/* Shared lib. handle: owned by this */
-	struct so_plugin_provider_so_handle *so_handle;
+	struct so_handle *so_handle;
 
 	/* Pointers to plugin's memory: do NOT free */
 	const struct __bt_plugin_descriptor *descriptor;
@@ -107,7 +98,7 @@ struct so_plugin_provider_per_plugin {
 
 struct so_plugin_provider_per_comp_class {
 	struct bt_list_head node;
-	struct so_plugin_provider_so_handle *so_handle;
+	struct so_handle *so_handle;
 };
 
 /* Data global to the shared object plugin provider. */
@@ -134,123 +125,6 @@ void fini_per_comp_class_list(void)
 		BT_OBJECT_PUT_REF_AND_RESET(per_comp_class->so_handle);
 		g_free(per_comp_class);
 	}
-}
-
-static
-void destroy_so_handle(struct bt_object *obj)
-{
-	struct so_plugin_provider_so_handle *so_handle;
-
-	BT_ASSERT(obj);
-	so_handle = container_of(obj,
-		struct so_plugin_provider_so_handle, base);
-	const char *path = so_handle->path ?
-		so_handle->path->str : NULL;
-
-	BT_LOGI("Destroying shared library handle: addr=%p, path=\"%s\"",
-		so_handle, path);
-
-	if (so_handle->init_called && so_handle->exit) {
-		BT_LOGD_STR("Calling user's plugin exit function.");
-		so_handle->exit();
-		BT_LOGD_STR("User function returned.");
-	}
-
-	if (so_handle->module) {
-#ifdef BT_DEBUG_MODE
-		/*
-		 * Valgrind shows incomplete stack traces when
-		 * dynamically loaded libraries are closed before it
-		 * finishes. Use the LIBBABELTRACE2_NO_DLCLOSE in a debug
-		 * build to avoid this.
-		 */
-		const char *var = getenv("LIBBABELTRACE2_NO_DLCLOSE");
-
-		if (!var || strcmp(var, "1") != 0) {
-#endif
-			BT_LOGI("Closing GModule: path=\"%s\"", path);
-
-			if (!g_module_close(so_handle->module)) {
-				/*
-				 * Just log here: we're in a destructor,
-				 * so we cannot append an error cause
-				 * (there's no returned status).
-				 */
-				BT_LOGE("Cannot close GModule: %s: path=\"%s\"",
-					g_module_error(), path);
-			}
-
-			so_handle->module = NULL;
-#ifdef BT_DEBUG_MODE
-		} else {
-			BT_LOGI("Not closing GModule because `LIBBABELTRACE2_NO_DLCLOSE=1`: "
-				"path=\"%s\"", path);
-		}
-#endif
-	}
-
-	if (so_handle->path) {
-		g_string_free(so_handle->path, TRUE);
-		so_handle->path = NULL;
-	}
-
-	g_free(so_handle);
-}
-
-static
-int create_so_handle(const char *path,
-		struct so_plugin_provider_so_handle **so_handle)
-{
-	int status = BT_FUNC_STATUS_OK;
-
-	BT_ASSERT(so_handle);
-	BT_LOGI("Creating shared library handle: path=\"%s\"", path ? path : "(null)");
-	*so_handle = g_new0(struct so_plugin_provider_so_handle, 1);
-	if (!*so_handle) {
-		BT_SPP_LOGE_APPEND_CAUSE("Failed to allocate one shared library handle.");
-		status = BT_FUNC_STATUS_MEMORY_ERROR;
-		goto end;
-	}
-
-	bt_object_init_shared(&(*so_handle)->base, destroy_so_handle);
-
-	if (!path) {
-		goto end;
-	}
-
-	(*so_handle)->path = g_string_new(path);
-	if (!(*so_handle)->path) {
-		BT_SPP_LOGE_APPEND_CAUSE("Failed to allocate a GString.");
-		status = BT_FUNC_STATUS_MEMORY_ERROR;
-		goto end;
-	}
-
-	(*so_handle)->module = g_module_open(path, G_MODULE_BIND_LOCAL);
-	if (!(*so_handle)->module) {
-		/*
-		 * INFO-level logging because we're only _trying_ to
-		 * open this file as a Babeltrace plugin: if it's not,
-		 * it's not an error. And because this can be tried
-		 * during bt_plugin_find_all_from_dir(), it's not even a
-		 * warning.
-		 */
-		BT_LOGI("Cannot open GModule: %s: path=\"%s\"",
-			g_module_error(), path);
-		BT_OBJECT_PUT_REF_AND_RESET(*so_handle);
-		status = BT_FUNC_STATUS_NOT_FOUND;
-		goto end;
-	}
-
-	goto end;
-
-end:
-	BT_ASSERT(*so_handle || status != BT_FUNC_STATUS_OK);
-	if (*so_handle) {
-		BT_LOGI("Created shared library handle: path=\"%s\", addr=%p",
-			path ? path : "(null)", *so_handle);
-	}
-
-	return status;
 }
 
 static
@@ -1323,7 +1197,7 @@ end:
 static
 int create_all_plugins_from_sections(
 		struct so_plugin_provider_data *data,
-		struct so_plugin_provider_so_handle *so_handle,
+		struct so_handle *so_handle,
 		bool fail_on_load_error,
 		struct __bt_plugin_descriptor const * const *descriptors_begin,
 		struct __bt_plugin_descriptor const * const *descriptors_end,
@@ -1483,13 +1357,13 @@ int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
 		struct bt_plugin_set **plugin_set_out, int log_level)
 {
 	int status;
-	struct so_plugin_provider_so_handle *so_handle = NULL;
+	struct so_handle *so_handle = NULL;
 
 	plugin_so_log_level = log_level;
 
 	BT_ASSERT(plugin_set_out);
 	*plugin_set_out = NULL;
-	status = create_so_handle(NULL, &so_handle);
+	status = create_so_handle(NULL, plugin_so_log_level, &so_handle);
 	if (status != BT_FUNC_STATUS_OK) {
 		BT_ASSERT(!so_handle);
 		goto end;
@@ -1547,7 +1421,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 	struct __bt_plugin_component_class_descriptor_attribute const * const *(*get_begin_section_component_class_descriptor_attributes)(void);
 	struct __bt_plugin_component_class_descriptor_attribute const * const *(*get_end_section_component_class_descriptor_attributes)(void);
 	bt_bool is_libtool_wrapper = BT_FALSE, is_shared_object = BT_FALSE;
-	struct so_plugin_provider_so_handle *so_handle = NULL;
+	struct so_handle *so_handle = NULL;
 
 	BT_ASSERT(path);
 	BT_ASSERT(plugin_set_out);
@@ -1589,8 +1463,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 		goto end;
 	}
 
-	status = create_so_handle(path,
-		&so_handle);
+	status = create_so_handle(path, plugin_so_log_level, &so_handle);
 	if (status != BT_FUNC_STATUS_OK) {
 		/* create_so_handle() logs more details */
 		BT_ASSERT(!so_handle);

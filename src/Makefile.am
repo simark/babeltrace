@@ -127,6 +127,8 @@ common_libcommon_la_SOURCES = \
 	common/macros.h \
 	common/mmap-align.h \
 	common/safe.h \
+	common/so-handle.c \
+	common/so-handle.h \
 	common/uuid.c \
 	common/uuid.h \
 	common/version.h \
