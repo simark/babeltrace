@@ -94,7 +94,8 @@ int init_python_plugin_provider(void) {
 			provider_dir_envvar_name, provider_path);
 	}
 
-	python_plugin_provider_module = g_module_open(provider_path, 0);
+	python_plugin_provider_module =
+		g_module_open(provider_path, G_MODULE_BIND_LOCAL);
 	if (!python_plugin_provider_module) {
 		/*
 		 * This is not an error. The whole point of having an

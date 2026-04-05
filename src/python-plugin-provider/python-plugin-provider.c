@@ -22,6 +22,9 @@
 #include <babeltrace2/graph/component-class.h>
 #include <babeltrace2/error-reporting.h>
 #include "lib/graph/component-class.h"
+#ifdef __ELF__
+#include <dlfcn.h>
+#endif
 #include <stdbool.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -143,6 +146,48 @@ int init_python(void)
 		ret = BT_FUNC_STATUS_NOT_FOUND;
 		goto end;
 	}
+
+	/*
+	 * On ELF platforms, this shared object is loaded with RTLD_LOCAL, so
+	 * libpython, which it depends on (with DT_NEEDED) is also loaded with
+	 * the RTLD_LOCAL semantic.  Trying to load native Python modules would
+	 * fail, as they would not find the symbols they need from libpython.
+	 *
+	 * Promote libpython to the global symbol namespace before initializing
+	 * the interpreter so that extension module imports succeed.
+	 *
+	 * Use dladdr on a known libpython symbol to discover the exact path
+	 * of the already-loaded library, then re-dlopen it with RTLD_GLOBAL
+	 * and RTLD_NOLOAD to promote it without loading a second copy.
+	 */
+#ifdef __ELF__
+	{
+		Dl_info libpython_info;
+
+		if (dladdr(Py_IsInitialized, &libpython_info)
+				&& libpython_info.dli_fname) {
+			void *libpython_handle;
+
+			libpython_handle = dlopen(libpython_info.dli_fname,
+				RTLD_GLOBAL | RTLD_NOLOAD | RTLD_LAZY);
+			if (libpython_handle) {
+				BT_LOGI("Promoted %s to the global symbol "
+					"namespace.",
+					libpython_info.dli_fname);
+				dlclose(libpython_handle);
+			} else {
+				BT_LOGW("Failed to promote %s to the global "
+					"symbol namespace: %s. Python "
+					"extension module imports may fail.",
+					libpython_info.dli_fname, dlerror());
+			}
+		} else {
+			BT_LOGW_STR("Failed to resolve libpython library path "
+				"with dladdr. Python extension module "
+				"imports may fail.");
+		}
+	}
+#endif
 
 	if (!Py_IsInitialized()) {
 		BT_LOGI_STR("Python interpreter is not initialized: initializing Python interpreter.");
