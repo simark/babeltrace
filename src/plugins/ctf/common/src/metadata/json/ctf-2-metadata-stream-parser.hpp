@@ -7,8 +7,6 @@
 #ifndef BABELTRACE_PLUGINS_CTF_COMMON_SRC_METADATA_JSON_CTF_2_METADATA_STREAM_PARSER_HPP
 #define BABELTRACE_PLUGINS_CTF_COMMON_SRC_METADATA_JSON_CTF_2_METADATA_STREAM_PARSER_HPP
 
-#include <cstdint>
-
 #include <babeltrace2/babeltrace.h>
 
 #include "../ctf-ir.hpp"

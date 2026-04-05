@@ -11,7 +11,6 @@
 #include "logging/comp-logging.h"
 
 #include <babeltrace2/babeltrace.h>
-#include "compat/compiler.h"
 #include "common/common.h"
 #include <stdio.h>
 #include <stdbool.h>

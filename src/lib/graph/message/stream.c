@@ -9,7 +9,6 @@
 #include "lib/logging.h"
 
 #include "lib/assert-cond.h"
-#include "compat/compiler.h"
 #include "lib/trace-ir/stream.h"
 #include "lib/trace-ir/stream-class.h"
 #include "common/assert.h"

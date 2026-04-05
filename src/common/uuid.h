@@ -44,7 +44,6 @@ Copy a UUID with bt_uuid_copy().
 
 #include <inttypes.h>
 #include <stdint.h>
-#include "common/macros.h"
 
 #ifdef __cplusplus
 extern "C" {

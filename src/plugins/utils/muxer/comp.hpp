@@ -8,8 +8,6 @@
 #ifndef BABELTRACE_PLUGINS_UTILS_MUXER_COMP_HPP
 #define BABELTRACE_PLUGINS_UTILS_MUXER_COMP_HPP
 
-#include "cpp-common/bt2/plugin-dev.hpp"
-
 #include "msg-iter.hpp"
 
 namespace bt2mux {

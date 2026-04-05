@@ -10,7 +10,6 @@
 
 #include "lib/assert-cond.h"
 #include "common/assert.h"
-#include "compat/compiler.h"
 #include <stdbool.h>
 
 #include "field.h"

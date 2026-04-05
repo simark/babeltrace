@@ -11,6 +11,7 @@
 
 #include "interrupter.h"
 #include "lib/assert-cond.h"
+#include "lib/object.h"
 
 static
 void destroy_interrupter(struct bt_object *obj)

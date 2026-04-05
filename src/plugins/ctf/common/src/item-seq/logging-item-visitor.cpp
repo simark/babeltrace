@@ -12,7 +12,6 @@
 
 #include "common/assert.h"
 #include "common/common.h"
-#include "cpp-common/bt2c/fmt.hpp"
 
 #include "item.hpp"
 #include "logging-item-visitor.hpp"

@@ -9,6 +9,7 @@
 #include "lib/logging.h"
 
 #include "lib/assert-cond.h"
+#include "lib/object.h"
 #include <stdint.h>
 #include "common/assert.h"
 #include <glib.h>

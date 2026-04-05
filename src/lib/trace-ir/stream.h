@@ -12,6 +12,7 @@
 #include "lib/object-pool.h"
 #include <glib.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 struct bt_stream_class;
 struct bt_stream;

@@ -23,9 +23,6 @@
     For new C++ code, use bt2c::align().
 */
 
-#include "compat/compiler.h"
-#include "compat/limits.h"
-
 /*!
 @brief
     Returns the \em next multiple of \bt_p{a} from \bt_p{x},

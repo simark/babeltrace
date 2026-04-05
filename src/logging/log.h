@@ -12,7 +12,6 @@
 #ifndef BABELTRACE_LOGGING_LOG_H
 #define BABELTRACE_LOGGING_LOG_H
 
-#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

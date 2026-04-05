@@ -9,6 +9,7 @@
 
 #include <glib.h>
 #include "lib/trace-ir/clock-snapshot.h"
+#include "message.h"
 
 struct bt_message_message_iterator_inactivity {
 	struct bt_message parent;

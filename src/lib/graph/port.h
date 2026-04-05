@@ -8,6 +8,12 @@
 #ifndef BABELTRACE_LIB_GRAPH_PORT_H
 #define BABELTRACE_LIB_GRAPH_PORT_H
 
+#include <babeltrace2/babeltrace.h>
+#include <glib.h>
+#include "common/assert.h"
+#include "lib/object-struct.h"
+#include "lib/object.h"
+
 struct bt_port {
 	struct bt_object base;
 	enum bt_port_type type;

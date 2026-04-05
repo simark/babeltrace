@@ -9,7 +9,6 @@
 #ifndef BABELTRACE_PLUGINS_UTILS_TRIMMER_TRIMMER_H
 #define BABELTRACE_PLUGINS_UTILS_TRIMMER_TRIMMER_H
 
-#include "common/macros.h"
 #include <babeltrace2/babeltrace.h>
 
 #ifdef __cplusplus

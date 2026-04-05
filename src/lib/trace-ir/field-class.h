@@ -9,10 +9,11 @@
 #define BABELTRACE_LIB_TRACE_IR_FIELD_CLASS_H
 
 #include "common/macros.h"
-#include "lib/object.h"
+#include "lib/object-struct.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <glib.h>
+#include <babeltrace2/babeltrace.h>
 
 #define BT_FIELD_CLASS_ENUM_MAPPING_AT_INDEX(_fc, _index)		\
 	(&bt_g_array_index(((struct bt_field_class_enumeration *) (_fc))->mappings, \

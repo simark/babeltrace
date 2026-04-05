@@ -9,7 +9,6 @@
 #include "lib/logging.h"
 
 #include "lib/assert-cond.h"
-#include "compat/compiler.h"
 #include "compat/endian.h"
 #include "lib/value.h"
 #include "common/assert.h"

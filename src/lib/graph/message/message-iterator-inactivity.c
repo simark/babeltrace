@@ -9,7 +9,6 @@
 
 #include "lib/assert-cond.h"
 #include "lib/object.h"
-#include "compat/compiler.h"
 #include "lib/trace-ir/clock-snapshot.h"
 #include "lib/graph/message/message.h"
 

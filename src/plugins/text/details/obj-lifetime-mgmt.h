@@ -11,7 +11,6 @@
 #include <babeltrace2/babeltrace.h>
 #include <stdbool.h>
 
-#include "details.h"
 #include "write.h"
 
 /*

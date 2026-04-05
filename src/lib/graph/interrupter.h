@@ -12,7 +12,7 @@
 #include <glib.h>
 #include <babeltrace2/babeltrace.h>
 
-#include "lib/object.h"
+#include "lib/object-struct.h"
 
 struct bt_interrupter {
 	struct bt_object base;

@@ -13,8 +13,6 @@
 
 #include <babeltrace2/babeltrace.h>
 
-#include "common/macros.h"
-
 /*
  * Return the location of a path's file (the last element of the path).
  * Returns the original path on error.

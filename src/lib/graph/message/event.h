@@ -8,8 +8,6 @@
 #ifndef BABELTRACE_LIB_GRAPH_MESSAGE_EVENT_H
 #define BABELTRACE_LIB_GRAPH_MESSAGE_EVENT_H
 
-#include "compat/compiler.h"
-
 #include "message.h"
 
 #ifdef __cplusplus

@@ -11,7 +11,6 @@
 #include <babeltrace2/babeltrace.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include "common/macros.h"
 
 #ifdef __cplusplus
 extern "C" {

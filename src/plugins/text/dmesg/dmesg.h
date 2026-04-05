@@ -8,7 +8,6 @@
 #define BABELTRACE_PLUGINS_TEXT_DMESG_DMESG_H
 
 #include <stdbool.h>
-#include "common/macros.h"
 #include <babeltrace2/babeltrace.h>
 
 bt_component_class_get_supported_mip_versions_method_status

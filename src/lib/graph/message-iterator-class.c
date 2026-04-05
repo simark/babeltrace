@@ -12,6 +12,7 @@
 #include "compat/compiler.h"
 #include "lib/assert-cond.h"
 #include "lib/func-status.h"
+#include "lib/object.h"
 
 #define BT_ASSERT_PRE_DEV_MSG_ITER_CLS_HOT(_msg_iter_cls)		\
 	BT_ASSERT_PRE_DEV_HOT("message-iterator-class",			\

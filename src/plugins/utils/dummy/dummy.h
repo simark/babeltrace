@@ -9,7 +9,6 @@
 
 #include <glib.h>
 #include <babeltrace2/babeltrace.h>
-#include "common/macros.h"
 
 #ifdef __cplusplus
 extern "C" {

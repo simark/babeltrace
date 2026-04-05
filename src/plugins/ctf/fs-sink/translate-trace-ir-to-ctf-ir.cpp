@@ -16,7 +16,7 @@
 #include "common/common.h"
 #include "cpp-common/bt2/field-path.hpp"
 #include "cpp-common/bt2/wrap.hpp"
-#include "cpp-common/bt2c/fmt.hpp"
+#include "cpp-common/bt2c/fmt.hpp" /* IWYU pragma: keep */
 
 #include "fs-sink-ctf-meta.hpp"
 #include "fs-sink.hpp"

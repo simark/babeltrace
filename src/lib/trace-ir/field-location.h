@@ -10,8 +10,9 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_FIELD_LOCATION_H
 #define BABELTRACE_LIB_TRACE_IR_FIELD_LOCATION_H
 
-#include "lib/object.h"
 #include <glib.h>
+#include <babeltrace2/babeltrace.h>
+#include "lib/object-struct.h"
 
 struct bt_field_location
 {

@@ -8,10 +8,11 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_TRACE_CLASS_H
 #define BABELTRACE_LIB_TRACE_IR_TRACE_CLASS_H
 
-#include "lib/object.h"
 #include <glib.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <stdbool.h>
+#include "lib/object-struct.h"
 
 struct bt_trace_class {
 	struct bt_object base;

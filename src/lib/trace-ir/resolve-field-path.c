@@ -17,6 +17,7 @@
 #include "field-path.h"
 #include "resolve-field-path.h"
 #include "common/common.h"
+#include "lib/object.h"
 
 static
 bool find_field_class_recursive(struct bt_field_class *fc,

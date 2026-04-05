@@ -12,6 +12,7 @@
 #include "lib/graph/component-class.h"
 #include "lib/object.h"
 #include "common/assert.h"
+#include "compat/compiler.h"
 #include <glib.h>
 #include <stdbool.h>
 

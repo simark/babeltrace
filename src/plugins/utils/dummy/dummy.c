@@ -10,7 +10,6 @@
 #include "logging/comp-logging.h"
 
 #include <babeltrace2/babeltrace.h>
-#include "common/macros.h"
 #include "common/assert.h"
 #include "dummy.h"
 #include "plugins/common/param-validation/param-validation.h"

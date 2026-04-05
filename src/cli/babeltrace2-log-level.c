@@ -11,8 +11,6 @@
 
 #include <stdlib.h>
 
-#include "common/assert.h"
-
 /*
  * Known environment variable names for the log levels of the project's
  * modules.

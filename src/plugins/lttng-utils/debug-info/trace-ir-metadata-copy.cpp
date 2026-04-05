@@ -11,13 +11,11 @@
 #define BT_COMP_LOG_SELF_COMP self_comp
 #define BT_LOG_OUTPUT_LEVEL   log_level
 #define BT_LOG_TAG            "PLUGIN/FLT.LTTNG-UTILS.DEBUG-INFO/TRACE-IR-META-COPY"
-#include <inttypes.h>
 #include <stdint.h>
 
 #include "logging/comp-logging.h"
 
 #include "common/assert.h"
-#include "common/common.h"
 
 #include "trace-ir-metadata-copy.hpp"
 #include "trace-ir-metadata-field-class-copy.hpp"

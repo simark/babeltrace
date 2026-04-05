@@ -8,7 +8,7 @@
 #ifndef BABELTRACE_LIB_GRAPH_CONNECTION_H
 #define BABELTRACE_LIB_GRAPH_CONNECTION_H
 
-#include "lib/object.h"
+#include "lib/object-struct.h"
 #include "common/assert.h"
 #include <stdbool.h>
 

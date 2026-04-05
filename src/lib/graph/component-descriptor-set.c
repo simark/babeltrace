@@ -11,7 +11,6 @@
 #include "common/assert.h"
 #include "lib/assert-cond.h"
 #include "lib/func-status.h"
-#include "compat/compiler.h"
 #include "common/common.h"
 #include <unistd.h>
 #include <glib.h>
@@ -19,6 +18,7 @@
 #include "component-class.h"
 #include "component-descriptor-set.h"
 #include "lib/value.h"
+#include "lib/object.h"
 
 static
 void destroy_component_descriptor_set(struct bt_object *obj)

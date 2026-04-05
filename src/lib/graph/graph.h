@@ -13,7 +13,6 @@
 # error Please include "lib/logging.h" before including this file.
 #endif
 
-#include "lib/object.h"
 #include "lib/object-pool.h"
 #include "common/assert.h"
 #include <stdbool.h>

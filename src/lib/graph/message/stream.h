@@ -8,7 +8,6 @@
 #ifndef BABELTRACE_LIB_GRAPH_MESSAGE_STREAM_H
 #define BABELTRACE_LIB_GRAPH_MESSAGE_STREAM_H
 
-#include "compat/compiler.h"
 #include "lib/trace-ir/stream.h"
 #include "lib/trace-ir/clock-snapshot.h"
 

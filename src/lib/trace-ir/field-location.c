@@ -8,10 +8,6 @@
 #include "lib/logging.h"
 #include "lib/assert-cond.h"
 #include "lib/object.h"
-#include "lib/graph/graph.h"
-#include "lib/trace-ir/trace-class.h"
-#include "compat/compiler.h"
-
 #include "field-location.h"
 
 static

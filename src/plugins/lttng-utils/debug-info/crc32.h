@@ -8,9 +8,7 @@
 #define BABELTRACE_PLUGINS_LTTNG_UTILS_DEBUG_INFO_CRC32_H
 
 #include <stdint.h>
-#include <stdio.h>
 #include <unistd.h>
-#include "common/macros.h"
 
 #ifdef __cplusplus
 extern "C" {

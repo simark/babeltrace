@@ -8,6 +8,7 @@
 #define BABELTRACE2_CTF_WRITER_EVENT_H
 
 #include <babeltrace2-ctf-writer/object.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {

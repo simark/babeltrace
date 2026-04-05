@@ -15,8 +15,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "common/macros.h"
-
 /*
  * bt_dwarf is a wrapper over libdw providing a nicer, higher-level
  * interface, to access basic debug information.

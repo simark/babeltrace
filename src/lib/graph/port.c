@@ -11,7 +11,6 @@
 #include "common/assert.h"
 #include "lib/assert-cond.h"
 #include "lib/object.h"
-#include "compat/compiler.h"
 
 #include "component.h"
 #include "connection.h"

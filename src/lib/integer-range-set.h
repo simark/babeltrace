@@ -14,7 +14,7 @@
 #include <glib.h>
 #include <babeltrace2/babeltrace.h>
 
-#include "object.h"
+#include "object-struct.h"
 
 #define BT_INTEGER_RANGE_SET_RANGE_AT_INDEX(_rs, _index)		\
 	(&bt_g_array_index((_rs)->ranges, struct bt_integer_range, (_index)))

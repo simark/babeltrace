@@ -10,10 +10,11 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_FIELD_PATH_H
 #define BABELTRACE_LIB_TRACE_IR_FIELD_PATH_H
 
-#include "lib/object.h"
 #include "common/assert.h"
 #include "common/macros.h"
+#include "lib/object-struct.h"
 #include <glib.h>
+#include <babeltrace2/babeltrace.h>
 
 struct bt_field_path_item {
 	enum bt_field_path_item_type type;

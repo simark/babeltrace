@@ -9,9 +9,6 @@
 #define BABELTRACE_LIB_GRAPH_COMPONENT_SINK_H
 
 #include <stdbool.h>
-
-#include "compat/compiler.h"
-
 #include "component.h"
 
 struct bt_component_sink {

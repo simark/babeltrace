@@ -8,10 +8,11 @@
 #ifndef BABELTRACE_LIB_GRAPH_COMPONENT_CLASS_H
 #define BABELTRACE_LIB_GRAPH_COMPONENT_CLASS_H
 
-#include "lib/object.h"
 #include "common/list.h"
+#include "lib/object-struct.h"
 #include <stdbool.h>
 #include <glib.h>
+#include <babeltrace2/babeltrace.h>
 
 struct bt_component_class;
 struct bt_plugin_so_shared_lib_handle;

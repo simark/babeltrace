@@ -16,7 +16,6 @@
 
 #include "exc.hpp"
 #include "str-scanner.hpp"
-#include "text-loc.hpp"
 
 namespace bt2c {
 namespace internal {

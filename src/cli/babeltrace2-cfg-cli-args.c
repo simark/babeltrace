@@ -9,13 +9,11 @@
 #define BT_LOG_TAG "CLI/CFG-CLI-ARGS"
 #include "logging.h"
 
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include "common/assert.h"
 #include <stdio.h>
 #include <stdbool.h>
-#include <inttypes.h>
 #include <babeltrace2/babeltrace.h>
 #include "common/common.h"
 #include <glib.h>
@@ -27,9 +25,9 @@
 #include "param-parse/param-parse.h"
 #include "babeltrace2-log-level.h"
 #include "babeltrace2-plugins.h"
-#include "babeltrace2-query.h"
 #include "autodisc/autodisc.h"
 #include "common/version.h"
+#include "compat/compiler.h"
 
 #define BT_CLI_LOGE_APPEND_CAUSE_OOM() BT_CLI_LOGE_APPEND_CAUSE("Out of memory.")
 #define WHILE_PARSING_ARG_N_FMT "While parsing argument #%d (`%s`): "

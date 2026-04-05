@@ -15,16 +15,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "common/assert.h"
-#include <stdarg.h>
-#include <ctype.h>
 #include <glib.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <wchar.h>
-#include "common/macros.h"
 #include "common/common.h"
 #include "ctfser/ctfser.h"
-#include "compat/unistd.h"
 #include "compat/fcntl.h"
 
 static inline

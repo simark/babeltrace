@@ -7,7 +7,6 @@
 #include <glib.h>
 #include <stdio.h>
 #include <string.h>
-#include <inttypes.h>
 
 #include "common/assert.h"
 #include "common/uuid.h"

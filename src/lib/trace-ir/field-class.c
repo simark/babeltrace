@@ -10,7 +10,6 @@
 
 #include "lib/assert-cond.h"
 #include "lib/object.h"
-#include "compat/compiler.h"
 #include "compat/endian.h"
 #include "common/assert.h"
 #include "common/common.h"

@@ -24,7 +24,6 @@
 #endif
 
 #include <stdbool.h>
-#include "common/macros.h"
 
 /*
  * Prints the details of an unsatisfied precondition or postcondition

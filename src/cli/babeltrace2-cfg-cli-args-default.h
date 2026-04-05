@@ -9,6 +9,7 @@
 #ifndef BABELTRACE_CLI_BABELTRACE2_CFG_CLI_ARGS_DEFAULT_H
 #define BABELTRACE_CLI_BABELTRACE2_CFG_CLI_ARGS_DEFAULT_H
 
+#include <babeltrace2/babeltrace.h>
 #include "babeltrace2-cfg.h"
 
 enum bt_config_cli_args_status bt_config_cli_args_create_with_default(int argc,

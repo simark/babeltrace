@@ -24,7 +24,6 @@
 #include <stdio.h>
 #include <wchar.h>
 #include <stdbool.h>
-#include "common/macros.h"
 #include "common/common.h"
 #include "compat/unistd.h"
 #include "compat/limits.h"

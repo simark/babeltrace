@@ -8,7 +8,6 @@
 #define BABELTRACE_CLI_BABELTRACE2_QUERY_H
 
 #include <babeltrace2/babeltrace.h>
-#include "common/macros.h"
 
 bt_query_executor_query_status cli_query(const bt_component_class *comp_cls,
 		const char *obj, const bt_value *params,

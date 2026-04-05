@@ -8,7 +8,6 @@
 
 #include <babeltrace2/babeltrace.h>
 
-#include "common/common.h"
 #include "common/assert.h"
 #include <glib.h>
 

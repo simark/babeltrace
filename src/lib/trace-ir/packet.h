@@ -8,7 +8,7 @@
 #define BABELTRACE_LIB_TRACE_IR_PACKET_H
 
 #include <stdbool.h>
-#include "lib/object.h"
+#include "lib/object-struct.h"
 
 #include "field-wrapper.h"
 

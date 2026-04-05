@@ -11,7 +11,6 @@
 #include "common/assert.h"
 #include "lib/assert-cond.h"
 #include "common/macros.h"
-#include "compat/compiler.h"
 #include "compat/limits.h"
 #include "common/common.h"
 #include "lib/graph/component-class.h"

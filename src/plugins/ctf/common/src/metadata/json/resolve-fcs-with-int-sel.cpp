@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include <unordered_map>
 #include <utility>
 
 #include "common/assert.h"

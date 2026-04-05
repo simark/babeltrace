@@ -8,10 +8,11 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_FIELD_H
 #define BABELTRACE_LIB_TRACE_IR_FIELD_H
 
-#include "lib/object.h"
+#include "lib/object-struct.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <glib.h>
+#include "common/assert.h"
 
 #include "field-class.h"
 

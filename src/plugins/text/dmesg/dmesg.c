@@ -16,7 +16,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
-#include "common/common.h"
 #include "common/assert.h"
 #include <babeltrace2/babeltrace.h>
 #include "compat/utc.h"

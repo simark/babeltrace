@@ -33,7 +33,8 @@
  */
 
 #include <glib.h>
-#include "lib/object.h"
+#include <common/assert.h>
+#include "lib/object-struct.h"
 
 /* Protection: this file uses BT_LIB_LOG*() macros directly */
 #ifndef BT_LIB_LOG_SUPPORTED

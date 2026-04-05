@@ -17,7 +17,6 @@
 #include "cpp-common/bt2/plugin-load.hpp"
 #include "cpp-common/bt2/query-executor.hpp"
 #include "cpp-common/bt2/value.hpp"
-#include "cpp-common/bt2c/fmt.hpp" /* IWYU pragma: keep */
 
 #include "catch2/catch_test_macros.hpp"
 

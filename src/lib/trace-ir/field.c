@@ -10,8 +10,6 @@
 
 #include "lib/assert-cond.h"
 #include "lib/object.h"
-#include "compat/compiler.h"
-#include "compat/fcntl.h"
 #include "common/assert.h"
 #include <inttypes.h>
 #include <stdbool.h>

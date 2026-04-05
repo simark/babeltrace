@@ -8,10 +8,6 @@
 #define BABELTRACE_CLI_BABELTRACE2_CFG_CLI_ARGS_H
 
 #include <stdbool.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include "lib/object.h"
-#include "compat/compiler.h"
 #include <glib.h>
 
 #include "babeltrace2-cfg.h"

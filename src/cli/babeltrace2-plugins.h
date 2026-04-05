@@ -10,7 +10,6 @@
 #define BABELTRACE_CLI_BABELTRACE2_PLUGINS_H
 
 #include <babeltrace2/babeltrace.h>
-#include "common/macros.h"
 
 void init_loaded_plugins(void);
 void fini_loaded_plugins(void);

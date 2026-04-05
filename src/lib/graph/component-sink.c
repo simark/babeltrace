@@ -10,7 +10,6 @@
 
 #include "common/assert.h"
 #include "lib/assert-cond.h"
-#include "compat/compiler.h"
 
 #include "component-sink.h"
 #include "component.h"

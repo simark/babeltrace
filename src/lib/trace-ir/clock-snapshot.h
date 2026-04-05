@@ -7,7 +7,7 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_CLOCK_SNAPSHOT_H
 #define BABELTRACE_LIB_TRACE_IR_CLOCK_SNAPSHOT_H
 
-#include "lib/object.h"
+#include "lib/object-struct.h"
 #include <stdbool.h>
 #include <stdint.h>
 

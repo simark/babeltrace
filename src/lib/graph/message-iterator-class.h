@@ -8,9 +8,10 @@
 #ifndef BABELTRACE_LIB_GRAPH_MESSAGE_ITERATOR_CLASS_H
 #define BABELTRACE_LIB_GRAPH_MESSAGE_ITERATOR_CLASS_H
 
-#include "lib/object.h"
 #include <stdbool.h>
 #include <glib.h>
+#include <babeltrace2/babeltrace.h>
+#include "lib/object-struct.h"
 
 struct bt_message_iterator_class {
 	struct bt_object base;

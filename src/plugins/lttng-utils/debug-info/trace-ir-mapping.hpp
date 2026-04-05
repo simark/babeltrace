@@ -12,9 +12,6 @@
 #include <babeltrace2/babeltrace.h>
 
 #include "common/assert.h"
-#include "common/macros.h"
-
-#include "debug-info.hpp"
 
 enum debug_info_trace_ir_mapping_status
 {

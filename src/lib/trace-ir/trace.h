@@ -8,7 +8,6 @@
 #ifndef BABELTRACE_LIB_TRACE_IR_TRACE_H
 #define BABELTRACE_LIB_TRACE_IR_TRACE_H
 
-#include "lib/object.h"
 #include <glib.h>
 #include <stdbool.h>
 #include <sys/types.h>

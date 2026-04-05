@@ -13,7 +13,6 @@
 #include "clock-class.h"
 #include "clock-snapshot.h"
 #include "utils.h"
-#include "compat/compiler.h"
 #include <inttypes.h>
 #include <stdbool.h>
 #include "lib/object.h"

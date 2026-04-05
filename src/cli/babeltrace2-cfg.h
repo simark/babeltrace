@@ -13,8 +13,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "lib/object.h"
-#include "compat/compiler.h"
 #include <glib.h>
+#include <babeltrace2/babeltrace.h>
 
 enum bt_config_command {
 	BT_CONFIG_COMMAND_RUN,

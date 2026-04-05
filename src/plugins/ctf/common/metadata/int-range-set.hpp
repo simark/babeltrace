@@ -10,8 +10,6 @@
 #include <set>
 #include <utility>
 
-#include "common/assert.h"
-
 #include "int-range.hpp"
 
 namespace ctf {

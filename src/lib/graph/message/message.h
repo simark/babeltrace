@@ -13,9 +13,10 @@
 # error Please include "lib/logging.h" before including this file.
 #endif
 
-#include "lib/object.h"
 #include "common/assert.h"
+#include "lib/object-struct.h"
 #include "lib/object-pool.h"
+#include <babeltrace2/babeltrace.h>
 
 /* Protection: this file uses BT_LIB_LOG*() macros directly */
 #ifndef BT_LIB_LOG_SUPPORTED
