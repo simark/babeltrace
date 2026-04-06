@@ -19,7 +19,6 @@ static int plugin_so_log_level = BT_LOGGING_LEVEL_NONE;
 
 #include "common/assert.h"
 #include "compat/compiler.h"
-#include "lib/graph/component-class.h"
 #include "common/list.h"
 #include <string.h>
 #include <stdbool.h>
@@ -53,6 +52,26 @@ static int plugin_so_log_level = BT_LOGGING_LEVEL_NONE;
 	BT_SOPP_LOG_AND_APPEND(BT_LOG_ERROR, _fmt, ##__VA_ARGS__)
 
 BT_PLUGIN_MODULE();
+
+struct bt_plugin_so_shared_lib_handle {
+	struct bt_object base;
+	GString *path;
+	GModule *module;
+
+	/* True if initialization function was called */
+	bt_bool init_called;
+	bt_plugin_finalize_func exit;
+};
+
+struct bt_plugin_so_spec_data {
+	/* Shared lib. handle: owned by this */
+	struct bt_plugin_so_shared_lib_handle *shared_lib_handle;
+
+	/* Pointers to plugin's memory: do NOT free */
+	const struct __bt_plugin_descriptor *descriptor;
+	bt_plugin_initialize_func init;
+	const struct __bt_plugin_descriptor_version *version;
+};
 
 /*
  * This list, global to the library, keeps all component classes that
@@ -90,17 +109,23 @@ BT_PLUGIN_MODULE();
  * g_slice_alloc()).
  */
 
+struct bt_plugin_so_component_class {
+	struct bt_list_head node;
+	struct bt_plugin_so_shared_lib_handle *so_handle;
+};
+
 static
 BT_LIST_HEAD(component_class_list);
 
 __attribute__((destructor)) static
 void fini_comp_class_list(void)
 {
-	struct bt_component_class *comp_class, *tmp;
+	struct bt_plugin_so_component_class *comp_class, *tmp;
 
 	bt_list_for_each_entry_safe(comp_class, tmp, &component_class_list, node) {
 		bt_list_del(&comp_class->node);
 		BT_OBJECT_PUT_REF_AND_RESET(comp_class->so_handle);
+		g_free(comp_class);
 	}
 
 	BT_LOGD_STR("Released references from all component classes to shared library handles.");
@@ -243,15 +268,17 @@ void bt_plugin_so_destroy_spec_data(struct bt_plugin *plugin)
 static
 void plugin_comp_class_destroy_listener(
 		const struct bt_component_class *comp_class_const,
-		void *data __attribute__((unused)))
+		void *comp_class_entry_void)
 {
-	struct bt_component_class *comp_class =
-		(struct bt_component_class *) comp_class_const;
+	struct bt_plugin_so_component_class *comp_class_entry =
+		(struct bt_plugin_so_component_class *) comp_class_entry_void;
 
-	bt_list_del(&comp_class->node);
-	BT_OBJECT_PUT_REF_AND_RESET(comp_class->so_handle);
+	bt_list_del(&comp_class_entry->node);
+	BT_OBJECT_PUT_REF_AND_RESET(comp_class_entry->so_handle);
 	BT_LOGD("Component class destroyed: removed entry from list: "
-		"comp-cls-addr=%p", comp_class);
+		"comp-cls-addr=%p, comp-cls-entry=%p", comp_class_const,
+		comp_class_entry);
+	g_free(comp_class_entry);
 }
 
 /*
@@ -352,6 +379,7 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 	int ret;
 	struct bt_message_iterator_class *msg_iter_class = NULL;
 	struct bt_component_class *comp_class = NULL;
+	struct bt_plugin_so_component_class *comp_class_entry = NULL;
 
 	BT_LOGI("Initializing plugin object from descriptors found in sections: "
 		"plugin-addr=%p, plugin-path=\"%s\", "
@@ -1226,27 +1254,44 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 			goto end;
 		}
 
+		g_free(comp_class_entry);
+		comp_class_entry =
+			g_new0(struct bt_plugin_so_component_class, 1);
+		if (!comp_class_entry) {
+			BT_SOPP_LOGE_APPEND_CAUSE(
+				"Failed to allocate one SO plugin component class entry.");
+			status = BT_FUNC_STATUS_MEMORY_ERROR;
+			goto end;
+		}
+
 		/*
 		 * Add our custom destroy listener.  Do this before adding
-		 * the component class to `component_class_list` and
-		 * setting its `so_handle`, so that on failure there is
-		 * nothing to undo: the destruction listener is the one
-		 * responsible for cleaning those up.
+		 * the entry to `component_class_list` and setting its
+		 * `so_handle`, so that on failure there is nothing to
+		 * undo: the destruction listener is the one responsible for
+		 * cleaning those up.
 		 */
 		status = bt_component_class_add_destruction_listener(comp_class,
-			plugin_comp_class_destroy_listener, NULL, NULL);
+			plugin_comp_class_destroy_listener, comp_class_entry, NULL);
 		if (status != BT_COMPONENT_CLASS_ADD_LISTENER_STATUS_OK) {
 			BT_SOPP_LOGE_APPEND_CAUSE(
 				"Cannot add component class destruction listener.");
 			goto end;
 		}
 
-		bt_list_add(&comp_class->node, &component_class_list);
-		comp_class->so_handle = spec->shared_lib_handle;
-		bt_object_get_ref_no_null_check(comp_class->so_handle);
+		comp_class_entry->so_handle = spec->shared_lib_handle;
+		bt_object_get_ref_no_null_check(comp_class_entry->so_handle);
+		bt_list_add(&comp_class_entry->node, &component_class_list);
+
+		/*
+		 * comp_class_entry is now owned (will get freed) by the
+		 * destruction listener.
+		 */
+		comp_class_entry = NULL;
 	}
 
 end:
+	g_free(comp_class_entry);
 	bt_message_iterator_class_put_ref(msg_iter_class);
 	bt_component_class_put_ref(comp_class);
 	g_array_free(comp_class_full_descriptors, TRUE);

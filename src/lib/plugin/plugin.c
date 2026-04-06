@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #include <ftw.h>
 #include <pthread.h>
+#include <gmodule.h>
 
 #include "plugin.h"
 #include "plugin-so.h"

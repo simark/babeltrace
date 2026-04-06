@@ -37,7 +37,6 @@
 #include "graph/message/stream.h"
 #include "graph/port.h"
 #include "plugin/plugin.h"
-#include "plugin/plugin-so.h"
 #include "trace-ir/clock-class.h"
 #include "trace-ir/clock-snapshot.h"
 #include "trace-ir/event-class.h"
@@ -1489,23 +1488,10 @@ static inline void format_message(char **buf_ch, bool extended,
 	}
 }
 
-static inline void format_plugin_so_shared_lib_handle(char **buf_ch,
-		const char *prefix,
-		const struct bt_plugin_so_shared_lib_handle *handle)
-{
-	BUF_APPEND(", %saddr=%p", PRFIELD(handle));
-
-	if (handle->path) {
-		BUF_APPEND(", %spath=\"%s\"", PRFIELD_GSTRING(handle->path));
-	}
-}
-
 static inline void format_component_class(char **buf_ch, bool extended,
 		const char *prefix,
 		const struct bt_component_class *comp_class)
 {
-	char tmp_prefix[TMP_PREFIX_LEN];
-
 	BUF_APPEND(", %stype=%s, %sname=\"%s\"",
 		PRFIELD(bt_common_component_class_type_string(comp_class->type)),
 		PRFIELD_GSTRING(comp_class->name));
@@ -1520,12 +1506,6 @@ static inline void format_component_class(char **buf_ch, bool extended,
 	}
 
 	BUF_APPEND(", %sis-frozen=%d", PRFIELD(comp_class->frozen));
-
-	if (comp_class->so_handle) {
-		SET_TMP_PREFIX("so-handle-");
-		format_plugin_so_shared_lib_handle(buf_ch, tmp_prefix,
-			comp_class->so_handle);
-	}
 }
 
 static inline void format_component(char **buf_ch, bool extended,
@@ -1667,8 +1647,6 @@ end:
 static inline void format_plugin(char **buf_ch, bool extended,
 		const char *prefix, const struct bt_plugin *plugin)
 {
-	char tmp_prefix[TMP_PREFIX_LEN];
-
 	if (plugin->info.path_set) {
 		BUF_APPEND(", %spath=\"%s\"",
 			PRFIELD_GSTRING(plugin->info.path));
@@ -1704,17 +1682,6 @@ static inline void format_plugin(char **buf_ch, bool extended,
 		PRFIELD(plugin->src_comp_classes->len),
 		PRFIELD(plugin->flt_comp_classes->len),
 		PRFIELD(plugin->sink_comp_classes->len));
-
-	if (plugin->spec_data) {
-		const struct bt_plugin_so_spec_data *spec_data =
-			(const void *) plugin->spec_data;
-
-		if (spec_data->shared_lib_handle) {
-			SET_TMP_PREFIX("so-handle-");
-			format_plugin_so_shared_lib_handle(buf_ch, tmp_prefix,
-				spec_data->shared_lib_handle);
-		}
-	}
 }
 
 static inline void format_error_cause(char **buf_ch, bool extended,
