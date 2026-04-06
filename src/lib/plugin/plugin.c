@@ -27,7 +27,6 @@
 #include <gmodule.h>
 
 #include "plugin.h"
-#include "plugin-so.h"
 #include "common/func-status.h"
 #include "common/object.h"
 #include "compat/compiler.h"
@@ -48,6 +47,12 @@ struct bt_plugin_destruction_listener_elem {
 # define bt_plugin_freeze(_p)
 #endif
 
+/*
+ * Make the libbabeltrace2 library able to contain shared object
+ * plugins.
+ */
+BT_PLUGIN_MODULE();
+
 static
 void _bt_plugin_freeze(struct bt_plugin *plugin)
 {
@@ -58,18 +63,30 @@ void _bt_plugin_freeze(struct bt_plugin *plugin)
 
 #define DESTRUCTION_LISTENER_FUNC_NAME  "bt_plugin_destruction_listener_func"
 
+#define SO_PLUGIN_PROVIDER_FILENAME \
+	"babeltrace2-so-plugin-provider." G_MODULE_SUFFIX
+#define SO_PLUGIN_PROVIDER_ALL_FROM_FILE_SYM_NAME \
+	bt_plugin_so_create_all_from_file
+#define SO_PLUGIN_PROVIDER_ALL_FROM_FILE_SYM_NAME_STR \
+	G_STRINGIFY(SO_PLUGIN_PROVIDER_ALL_FROM_FILE_SYM_NAME)
+#define SO_PLUGIN_PROVIDER_ALL_FROM_STATIC_SYM_NAME \
+	bt_plugin_so_create_all_from_static
+#define SO_PLUGIN_PROVIDER_ALL_FROM_STATIC_SYM_NAME_STR \
+	G_STRINGIFY(SO_PLUGIN_PROVIDER_ALL_FROM_STATIC_SYM_NAME)
+
 #define PYTHON_PLUGIN_PROVIDER_FILENAME	"babeltrace2-python-plugin-provider." G_MODULE_SUFFIX
-#define PYTHON_PLUGIN_PROVIDER_DIR	BABELTRACE_PLUGIN_PROVIDERS_DIR
 #define PYTHON_PLUGIN_PROVIDER_SYM_NAME	bt_plugin_python_create_all_from_file
 #define PYTHON_PLUGIN_PROVIDER_SYM_NAME_STR	G_STRINGIFY(PYTHON_PLUGIN_PROVIDER_SYM_NAME)
 
 #define APPEND_ALL_FROM_DIR_NFDOPEN_MAX	8
 
-/* Declare here to make sure definition in both ifdef branches are in sync. */
-static
-int init_python_plugin_provider(void);
 typedef int (*create_all_from_file_sym_type)(
 		const char *path,
+		bool fail_on_load_error,
+		struct bt_plugin_set **plugin_set_out,
+		int log_level);
+
+typedef int (*create_all_from_static_sym_type)(
 		bool fail_on_load_error,
 		struct bt_plugin_set **plugin_set_out,
 		int log_level);
@@ -156,6 +173,70 @@ end:
 
 	return module;
 }
+
+static GModule *so_plugin_provider_module;
+static create_all_from_file_sym_type bt_plugin_so_create_all_from_file_sym;
+static create_all_from_static_sym_type bt_plugin_so_create_all_from_static_sym;
+
+static
+int init_so_plugin_provider(void)
+{
+	int status;
+
+	if (bt_plugin_so_create_all_from_file_sym &&
+			bt_plugin_so_create_all_from_static_sym) {
+		status = BT_FUNC_STATUS_OK;
+		goto end;
+	}
+
+	BT_LOGI_STR("Loading shared plugin provider module.");
+
+	so_plugin_provider_module =
+		open_provider_module(SO_PLUGIN_PROVIDER_FILENAME);
+	if (!so_plugin_provider_module) {
+		BT_LOGI_STR("Could not find shared plugin provider: "
+			"continuing without shared plugin support.");
+		status = BT_FUNC_STATUS_OK;
+		goto end;
+	}
+
+	if (!g_module_symbol(so_plugin_provider_module,
+			SO_PLUGIN_PROVIDER_ALL_FROM_FILE_SYM_NAME_STR,
+			(gpointer) &bt_plugin_so_create_all_from_file_sym)) {
+		BT_LIB_LOGE_APPEND_CAUSE(
+			"Cannot find the shared plugin provider all-from-file loading symbol: "
+			"%s: continuing without shared plugin support: "
+			"symbol=\"%s\"",
+			g_module_error(),
+			SO_PLUGIN_PROVIDER_ALL_FROM_FILE_SYM_NAME_STR);
+		status = BT_FUNC_STATUS_ERROR;
+		goto end;
+	}
+
+	if (!g_module_symbol(so_plugin_provider_module,
+			SO_PLUGIN_PROVIDER_ALL_FROM_STATIC_SYM_NAME_STR,
+			(gpointer) &bt_plugin_so_create_all_from_static_sym)) {
+		BT_LIB_LOGE_APPEND_CAUSE(
+			"Cannot find the shared plugin provider all-from-static loading symbol: "
+			"%s: continuing without shared plugin support: "
+			"symbol=\"%s\"",
+			g_module_error(),
+			SO_PLUGIN_PROVIDER_ALL_FROM_STATIC_SYM_NAME_STR);
+		status = BT_FUNC_STATUS_ERROR;
+		goto end;
+	}
+
+	BT_LOGI("Loaded shared plugin provider module: addr=%p",
+		so_plugin_provider_module);
+
+	status = BT_FUNC_STATUS_OK;
+end:
+	return status;
+}
+
+/* Declare here to make sure definition in both ifdef branches are in sync. */
+static
+int init_python_plugin_provider(void);
 
 #ifdef BT_BUILT_IN_PYTHON_PLUGIN_SUPPORT
 #include "python-plugin-provider/python-plugin-provider.h"
@@ -367,11 +448,21 @@ enum bt_plugin_find_all_from_static_status bt_plugin_find_all_from_static(
 		bt_bool fail_on_load_error,
 		const struct bt_plugin_set **plugin_set_out)
 {
+	enum bt_plugin_find_all_from_static_status status;
+
 	BT_ASSERT_PRE_NO_ERROR();
 
+	if (!bt_plugin_so_create_all_from_static_sym) {
+		status = BT_PLUGIN_FIND_ALL_FROM_STATIC_STATUS_NOT_FOUND;
+		goto end;
+	}
+
 	/* bt_plugin_so_create_all_from_static() logs errors */
-	return bt_plugin_so_create_all_from_static(fail_on_load_error,
-		(void *) plugin_set_out, bt_lib_log_level);
+	status =  bt_plugin_so_create_all_from_static_sym(
+		fail_on_load_error, (void *) plugin_set_out, bt_lib_log_level);
+
+end:
+	return status;
 }
 
 BT_EXPORT
@@ -387,19 +478,31 @@ enum bt_plugin_find_all_from_file_status bt_plugin_find_all_from_file(
 	BT_LOGI("Creating plugins from file: path=\"%s\"", path);
 
 	/* Try shared object plugins */
-	status = bt_plugin_so_create_all_from_file(path, fail_on_load_error,
-		(void *) plugin_set_out, bt_lib_log_level);
-	if (status == BT_FUNC_STATUS_OK) {
-		BT_ASSERT(*plugin_set_out);
-		BT_ASSERT((*plugin_set_out)->plugins->len > 0);
-		goto end;
-	} else if (status < 0) {
-		BT_ASSERT(!*plugin_set_out);
+	status = init_so_plugin_provider();
+	if (status < 0) {
+		/* init_shared_plugin_provider() logs errors */
 		goto end;
 	}
 
-	BT_ASSERT(status == BT_FUNC_STATUS_NOT_FOUND);
-	BT_ASSERT(!*plugin_set_out);
+	BT_ASSERT(status == BT_FUNC_STATUS_OK);
+	status = BT_FUNC_STATUS_NOT_FOUND;
+
+	if (bt_plugin_so_create_all_from_file_sym) {
+		status = bt_plugin_so_create_all_from_file_sym(path,
+			fail_on_load_error, (void *) plugin_set_out,
+			bt_lib_log_level);
+		if (status == BT_FUNC_STATUS_OK) {
+			BT_ASSERT(*plugin_set_out);
+			BT_ASSERT((*plugin_set_out)->plugins->len > 0);
+			goto end;
+		} else if (status < 0) {
+			BT_ASSERT(!*plugin_set_out);
+			goto end;
+		}
+
+		BT_ASSERT(status == BT_FUNC_STATUS_NOT_FOUND);
+		BT_ASSERT(!*plugin_set_out);
+	}
 
 	/* Try Python plugins if support is available */
 	status = init_python_plugin_provider();

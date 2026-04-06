@@ -26,8 +26,6 @@ int plugin_so_log_level = BT_LOGGING_LEVEL_NONE;
 #include <glib.h>
 #include <gmodule.h>
 
-#include "plugin.h"
-#include "plugin-so.h"
 #include "common/func-status.h"
 #include "common/common.h"
 #include "common/object.h"
@@ -50,8 +48,6 @@ int plugin_so_log_level = BT_LOGGING_LEVEL_NONE;
 	BT_SPP_LOG_AND_APPEND(BT_LOG_WARNING, _fmt, ##__VA_ARGS__)
 #define BT_SPP_LOGE_APPEND_CAUSE(_fmt, ...)				\
 	BT_SPP_LOG_AND_APPEND(BT_LOG_ERROR, _fmt, ##__VA_ARGS__)
-
-BT_PLUGIN_MODULE();
 
 struct bt_plugin_so_shared_lib_handle {
 	struct bt_object base;
@@ -1469,6 +1465,12 @@ end:
 	return status;
 }
 
+/* Declaration needed to avoid a -Wmissing-prototypes error. */
+
+int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
+		struct bt_plugin_set **plugin_set_out, int log_level);
+
+BT_EXPORT
 int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
 		struct bt_plugin_set **plugin_set_out, int log_level)
 {
@@ -1509,6 +1511,12 @@ end:
 	return status;
 }
 
+/* Declaration needed to avoid a -Wmissing-prototypes error. */
+int bt_plugin_so_create_all_from_file(const char *path,
+		bool fail_on_load_error, struct bt_plugin_set **plugin_set_out,
+		int log_level);
+
+BT_EXPORT
 int bt_plugin_so_create_all_from_file(const char *path,
 		bool fail_on_load_error, struct bt_plugin_set **plugin_set_out,
 		int log_level)
