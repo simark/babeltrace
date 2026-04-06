@@ -351,6 +351,7 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 	size_t i;
 	int ret;
 	struct bt_message_iterator_class *msg_iter_class = NULL;
+	struct bt_component_class *comp_class = NULL;
 
 	BT_LOGI("Initializing plugin object from descriptors found in sections: "
 		"plugin-addr=%p, plugin-path=\"%s\", "
@@ -808,7 +809,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 		struct comp_class_full_descriptor *cc_full_descr =
 			&bt_g_array_index(comp_class_full_descriptors,
 				struct comp_class_full_descriptor, i);
-		struct bt_component_class *comp_class = NULL;
 		struct bt_component_class_source *src_comp_class = NULL;
 		struct bt_component_class_filter *flt_comp_class = NULL;
 		struct bt_component_class_sink *sink_comp_class = NULL;
@@ -909,6 +909,8 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 			}
 		}
 
+		BT_COMPONENT_CLASS_PUT_REF_AND_RESET(comp_class);
+
 		switch (cc_full_descr->descriptor->type) {
 		case BT_COMPONENT_CLASS_TYPE_SOURCE:
 			BT_ASSERT(msg_iter_class);
@@ -986,7 +988,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 				BT_SOPP_LOGE_APPEND_CAUSE(
 					"Cannot set component class's description.");
 				status = BT_FUNC_STATUS_MEMORY_ERROR;
-				BT_OBJECT_PUT_REF_AND_RESET(comp_class);
 				goto end;
 			}
 		}
@@ -998,7 +999,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 				BT_SOPP_LOGE_APPEND_CAUSE(
 					"Cannot set component class's help string.");
 				status = BT_FUNC_STATUS_MEMORY_ERROR;
-				BT_OBJECT_PUT_REF_AND_RESET(comp_class);
 				goto end;
 			}
 		}
@@ -1013,7 +1013,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set source component class's \"get supported MIP versions\" method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(src_comp_class);
 					goto end;
 				}
 			}
@@ -1026,7 +1025,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set source component class's initialization method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(src_comp_class);
 					goto end;
 				}
 			}
@@ -1039,7 +1037,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set source component class's finalization method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(src_comp_class);
 					goto end;
 				}
 			}
@@ -1052,7 +1049,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set source component class's query method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(src_comp_class);
 					goto end;
 				}
 			}
@@ -1065,7 +1061,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set source component class's \"output port connected\" method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(src_comp_class);
 					goto end;
 				}
 			}
@@ -1080,7 +1075,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set filter component class's \"get supported MIP versions\" method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(flt_comp_class);
 					goto end;
 				}
 			}
@@ -1093,7 +1087,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set filter component class's initialization method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(flt_comp_class);
 					goto end;
 				}
 			}
@@ -1106,7 +1099,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set filter component class's finalization method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(flt_comp_class);
 					goto end;
 				}
 			}
@@ -1119,7 +1111,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set filter component class's query method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(flt_comp_class);
 					goto end;
 				}
 			}
@@ -1132,7 +1123,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set filter component class's \"input port connected\" method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(flt_comp_class);
 					goto end;
 				}
 			}
@@ -1145,7 +1135,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set filter component class's \"output port connected\" method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(flt_comp_class);
 					goto end;
 				}
 			}
@@ -1160,7 +1149,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set sink component class's \"get supported MIP versions\" method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(sink_comp_class);
 					goto end;
 				}
 			}
@@ -1173,7 +1161,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set sink component class's initialization method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(sink_comp_class);
 					goto end;
 				}
 			}
@@ -1186,7 +1173,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set sink component class's finalization method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(sink_comp_class);
 					goto end;
 				}
 			}
@@ -1199,7 +1185,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set sink component class's query method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(sink_comp_class);
 					goto end;
 				}
 			}
@@ -1212,7 +1197,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set sink component class's \"input port connected\" method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(sink_comp_class);
 					goto end;
 				}
 			}
@@ -1225,7 +1209,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					BT_SOPP_LOGE_APPEND_CAUSE(
 						"Cannot set sink component class's \"graph is configured\" method.");
 					status = BT_FUNC_STATUS_MEMORY_ERROR;
-					BT_OBJECT_PUT_REF_AND_RESET(sink_comp_class);
 					goto end;
 				}
 			}
@@ -1240,7 +1223,6 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 		if (status < 0) {
 			BT_SOPP_LOGE_APPEND_CAUSE(
 				"Cannot add component class to plugin.");
-			BT_OBJECT_PUT_REF_AND_RESET(comp_class);
 			goto end;
 		}
 
@@ -1256,19 +1238,17 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 		if (status != BT_COMPONENT_CLASS_ADD_LISTENER_STATUS_OK) {
 			BT_SOPP_LOGE_APPEND_CAUSE(
 				"Cannot add component class destruction listener.");
-			BT_OBJECT_PUT_REF_AND_RESET(comp_class);
 			goto end;
 		}
 
 		bt_list_add(&comp_class->node, &component_class_list);
 		comp_class->so_handle = spec->shared_lib_handle;
 		bt_object_get_ref_no_null_check(comp_class->so_handle);
-
-		BT_OBJECT_PUT_REF_AND_RESET(comp_class);
 	}
 
 end:
 	bt_message_iterator_class_put_ref(msg_iter_class);
+	bt_component_class_put_ref(comp_class);
 	g_array_free(comp_class_full_descriptors, TRUE);
 	return status;
 }
@@ -1365,6 +1345,7 @@ int bt_plugin_so_create_all_from_sections(
 	size_t cc_descriptors_count;
 	size_t cc_descr_attrs_count;
 	size_t i;
+	struct bt_plugin *plugin = NULL;
 
 	BT_ASSERT(shared_lib_handle);
 	BT_ASSERT(plugin_set);
@@ -1391,7 +1372,6 @@ int bt_plugin_so_create_all_from_sections(
 	for (i = 0; i < descriptors_end - descriptors_begin; i++) {
 		const struct __bt_plugin_descriptor *descriptor =
 			descriptors_begin[i];
-		struct bt_plugin *plugin;
 
 		if (!descriptor) {
 			continue;
@@ -1399,6 +1379,7 @@ int bt_plugin_so_create_all_from_sections(
 
 		BT_LOGI("Creating plugin object for plugin: name=\"%s\"",
 			descriptor->name);
+		BT_PLUGIN_PUT_REF_AND_RESET(plugin);
 		plugin = bt_plugin_so_create_empty(descriptor->name, shared_lib_handle);
 		if (!plugin) {
 			BT_SOPP_LOGE_APPEND_CAUSE(
@@ -1431,16 +1412,13 @@ int bt_plugin_so_create_all_from_sections(
 					"Cannot add plugin to plugin set: "
 					"plugin-set-addr=%p, " BT_PLUGIN_FMT,
 					plugin_set, BT_PLUGIN_ARGS(plugin));
-				BT_OBJECT_PUT_REF_AND_RESET(plugin);
 				goto end;
 			}
-			BT_OBJECT_PUT_REF_AND_RESET(plugin);
 		} else if (status == BT_FUNC_STATUS_NOT_FOUND) {
 			/*
 			 * There was an error initializing the plugin,
 			 * but `fail_on_load_error` is false.
 			 */
-		        BT_OBJECT_PUT_REF_AND_RESET(plugin);
 		} else if (status < 0) {
 			/*
 			 * bt_plugin_so_init() handles
@@ -1449,11 +1427,8 @@ int bt_plugin_so_create_all_from_sections(
 			 */
 			BT_SOPP_LOGW_APPEND_CAUSE(
 				"Cannot initialize SO plugin object from sections.");
-			BT_OBJECT_PUT_REF_AND_RESET(plugin);
 			goto end;
 		}
-
-		BT_ASSERT(!plugin);
 	}
 
 	if (plugin_set->plugins->len == 0) {
@@ -1463,6 +1438,7 @@ int bt_plugin_so_create_all_from_sections(
 	}
 
 end:
+	BT_PLUGIN_PUT_REF_AND_RESET(plugin);
 	return status;
 }
 
