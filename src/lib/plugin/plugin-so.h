@@ -38,9 +38,10 @@ struct bt_plugin_so_spec_data {
 };
 
 int bt_plugin_so_create_all_from_file(const char *path,
-		bool fail_on_load_error, struct bt_plugin_set *plugin_set);
+		bool fail_on_load_error, struct bt_plugin_set *plugin_set,
+		int log_level);
 
 int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
-		struct bt_plugin_set *plugin_set);
+		struct bt_plugin_set *plugin_set, int log_level);
 
 #endif /* BABELTRACE_LIB_PLUGIN_PLUGIN_SO_H */

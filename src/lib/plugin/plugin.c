@@ -313,7 +313,7 @@ enum bt_plugin_find_all_from_static_status bt_plugin_find_all_from_static(
 
 	/* bt_plugin_so_create_all_from_static() logs errors */
 	status = bt_plugin_so_create_all_from_static(fail_on_load_error,
-		plugin_set);
+		plugin_set, bt_lib_log_level);
 	if (status == BT_FUNC_STATUS_OK) {
 		BT_ASSERT(plugin_set->plugins->len > 0);
 		*plugin_set_out = plugin_set;
@@ -347,7 +347,7 @@ enum bt_plugin_find_all_from_file_status bt_plugin_find_all_from_file(
 
 	/* Try shared object plugins */
 	status = bt_plugin_so_create_all_from_file(path, fail_on_load_error,
-		plugin_set);
+		plugin_set, bt_lib_log_level);
 	if (status == BT_FUNC_STATUS_OK) {
 		BT_ASSERT(plugin_set->plugins->len > 0);
 		*plugin_set_out = plugin_set;
