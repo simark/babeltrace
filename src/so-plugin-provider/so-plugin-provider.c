@@ -111,15 +111,22 @@ struct sopp_per_comp_class {
 	struct sopp_so_handle *so_handle;
 };
 
-static
-BT_LIST_HEAD(component_class_list);
+/* Data global to the shared object plugin provider. */
+
+static struct sopp_data {
+	/* List of `sopp_per_comp_class`. */
+	struct bt_list_head per_comp_class_list;
+} g_data = {
+	.per_comp_class_list = BT_LIST_HEAD_INIT(g_data.per_comp_class_list)
+};
 
 __attribute__((destructor)) static
 void fini_per_comp_class_list(void)
 {
 	struct sopp_per_comp_class *per_comp_class, *tmp;
 
-	bt_list_for_each_entry_safe(per_comp_class, tmp, &component_class_list, node) {
+	bt_list_for_each_entry_safe(per_comp_class, tmp,
+			&g_data.per_comp_class_list, node) {
 		bt_list_del(&per_comp_class->node);
 		BT_OBJECT_PUT_REF_AND_RESET(per_comp_class->so_handle);
 		g_free(per_comp_class);
@@ -299,6 +306,7 @@ void destroy_per_comp_class(const struct bt_component_class *comp_class_const,
  */
 static
 int initialize_so_plugin(struct bt_plugin *plugin,
+		struct sopp_data *data,
 		struct sopp_per_plugin *per_plugin,
 		bool fail_on_load_error,
 		const struct __bt_plugin_descriptor *descriptor,
@@ -1254,7 +1262,7 @@ int initialize_so_plugin(struct bt_plugin *plugin,
 
 		/*
 		 * Add our custom destroy listener.  Do this before adding
-		 * the entry to `component_class_list` and setting its
+		 * the entry to the per-comp-class list and setting its
 		 * `so_handle`, so that on failure there is nothing to
 		 * undo: the destruction listener is the one responsible for
 		 * cleaning those up.
@@ -1269,7 +1277,7 @@ int initialize_so_plugin(struct bt_plugin *plugin,
 
 		per_comp_class->so_handle = per_plugin->so_handle;
 		bt_object_get_ref_no_null_check(per_comp_class->so_handle);
-		bt_list_add(&per_comp_class->node, &component_class_list);
+		bt_list_add(&per_comp_class->node, &data->per_comp_class_list);
 
 		/*
 		 * per_comp_class is now owned (will get freed) by the
@@ -1328,6 +1336,7 @@ end:
 
 static
 int create_all_plugins_from_sections(
+		struct sopp_data *data,
 		struct sopp_so_handle *so_handle,
 		bool fail_on_load_error,
 		struct __bt_plugin_descriptor const * const *descriptors_begin,
@@ -1423,7 +1432,7 @@ int create_all_plugins_from_sections(
 			}
 		}
 
-		status = initialize_so_plugin(plugin, per_plugin, fail_on_load_error,
+		status = initialize_so_plugin(plugin, data, per_plugin, fail_on_load_error,
 			descriptor, attrs_begin, attrs_end,
 			cc_descriptors_begin, cc_descriptors_end,
 			cc_descr_attrs_begin, cc_descr_attrs_end);
@@ -1488,7 +1497,7 @@ int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
 
 	BT_ASSERT(so_handle);
 	BT_LOGD_STR("Creating all SO plugins from built-in plugins.");
-	status = create_all_plugins_from_sections(so_handle,
+	status = create_all_plugins_from_sections(&g_data, so_handle,
 		fail_on_load_error,
 		__bt_get_begin_section_plugin_descriptors(),
 		__bt_get_end_section_plugin_descriptors(),
@@ -1755,7 +1764,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 
 	/* Initialize plugin */
 	BT_LOGD_STR("Initializing plugin object.");
-	status = create_all_plugins_from_sections(so_handle,
+	status = create_all_plugins_from_sections(&g_data, so_handle,
 		fail_on_load_error,
 		descriptors_begin, descriptors_end, attrs_begin, attrs_end,
 		cc_descriptors_begin, cc_descriptors_end,
