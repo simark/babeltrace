@@ -49,7 +49,7 @@ int plugin_so_log_level = BT_LOGGING_LEVEL_NONE;
 #define BT_SPP_LOGE_APPEND_CAUSE(_fmt, ...)				\
 	BT_SPP_LOG_AND_APPEND(BT_LOG_ERROR, _fmt, ##__VA_ARGS__)
 
-struct bt_plugin_so_shared_lib_handle {
+struct so_plugin_provider_so_handle {
 	struct bt_object base;
 	GString *path;
 	GModule *module;
@@ -59,9 +59,9 @@ struct bt_plugin_so_shared_lib_handle {
 	bt_plugin_finalize_func exit;
 };
 
-struct bt_plugin_so_spec_data {
+struct so_plugin_provider_per_plugin {
 	/* Shared lib. handle: owned by this */
-	struct bt_plugin_so_shared_lib_handle *shared_lib_handle;
+	struct so_plugin_provider_so_handle *so_handle;
 
 	/* Pointers to plugin's memory: do NOT free */
 	const struct __bt_plugin_descriptor *descriptor;
@@ -105,47 +105,47 @@ struct bt_plugin_so_spec_data {
  * g_slice_alloc()).
  */
 
-struct bt_plugin_so_component_class {
+struct so_plugin_provider_per_comp_class {
 	struct bt_list_head node;
-	struct bt_plugin_so_shared_lib_handle *so_handle;
+	struct so_plugin_provider_so_handle *so_handle;
 };
 
 static
 BT_LIST_HEAD(component_class_list);
 
 __attribute__((destructor)) static
-void fini_comp_class_list(void)
+void fini_per_comp_class_list(void)
 {
-	struct bt_plugin_so_component_class *comp_class, *tmp;
+	struct so_plugin_provider_per_comp_class *per_comp_class, *tmp;
 
-	bt_list_for_each_entry_safe(comp_class, tmp, &component_class_list, node) {
-		bt_list_del(&comp_class->node);
-		BT_OBJECT_PUT_REF_AND_RESET(comp_class->so_handle);
-		g_free(comp_class);
+	bt_list_for_each_entry_safe(per_comp_class, tmp, &component_class_list, node) {
+		bt_list_del(&per_comp_class->node);
+		BT_OBJECT_PUT_REF_AND_RESET(per_comp_class->so_handle);
+		g_free(per_comp_class);
 	}
 }
 
 static
-void bt_plugin_so_shared_lib_handle_destroy(struct bt_object *obj)
+void destroy_so_handle(struct bt_object *obj)
 {
-	struct bt_plugin_so_shared_lib_handle *shared_lib_handle;
+	struct so_plugin_provider_so_handle *so_handle;
 
 	BT_ASSERT(obj);
-	shared_lib_handle = container_of(obj,
-		struct bt_plugin_so_shared_lib_handle, base);
-	const char *path = shared_lib_handle->path ?
-		shared_lib_handle->path->str : NULL;
+	so_handle = container_of(obj,
+		struct so_plugin_provider_so_handle, base);
+	const char *path = so_handle->path ?
+		so_handle->path->str : NULL;
 
 	BT_LOGI("Destroying shared library handle: addr=%p, path=\"%s\"",
-		shared_lib_handle, path);
+		so_handle, path);
 
-	if (shared_lib_handle->init_called && shared_lib_handle->exit) {
+	if (so_handle->init_called && so_handle->exit) {
 		BT_LOGD_STR("Calling user's plugin exit function.");
-		shared_lib_handle->exit();
+		so_handle->exit();
 		BT_LOGD_STR("User function returned.");
 	}
 
-	if (shared_lib_handle->module) {
+	if (so_handle->module) {
 #ifdef BT_DEBUG_MODE
 		/*
 		 * Valgrind shows incomplete stack traces when
@@ -159,7 +159,7 @@ void bt_plugin_so_shared_lib_handle_destroy(struct bt_object *obj)
 #endif
 			BT_LOGI("Closing GModule: path=\"%s\"", path);
 
-			if (!g_module_close(shared_lib_handle->module)) {
+			if (!g_module_close(so_handle->module)) {
 				/*
 				 * Just log here: we're in a destructor,
 				 * so we cannot append an error cause
@@ -169,7 +169,7 @@ void bt_plugin_so_shared_lib_handle_destroy(struct bt_object *obj)
 					g_module_error(), path);
 			}
 
-			shared_lib_handle->module = NULL;
+			so_handle->module = NULL;
 #ifdef BT_DEBUG_MODE
 		} else {
 			BT_LOGI("Not closing GModule because `LIBBABELTRACE2_NO_DLCLOSE=1`: "
@@ -178,46 +178,44 @@ void bt_plugin_so_shared_lib_handle_destroy(struct bt_object *obj)
 #endif
 	}
 
-	if (shared_lib_handle->path) {
-		g_string_free(shared_lib_handle->path, TRUE);
-		shared_lib_handle->path = NULL;
+	if (so_handle->path) {
+		g_string_free(so_handle->path, TRUE);
+		so_handle->path = NULL;
 	}
 
-	g_free(shared_lib_handle);
+	g_free(so_handle);
 }
 
 static
-int bt_plugin_so_shared_lib_handle_create(
-		const char *path,
-		struct bt_plugin_so_shared_lib_handle **shared_lib_handle)
+int create_so_handle(const char *path,
+		struct so_plugin_provider_so_handle **so_handle)
 {
 	int status = BT_FUNC_STATUS_OK;
 
-	BT_ASSERT(shared_lib_handle);
+	BT_ASSERT(so_handle);
 	BT_LOGI("Creating shared library handle: path=\"%s\"", path ? path : "(null)");
-	*shared_lib_handle = g_new0(struct bt_plugin_so_shared_lib_handle, 1);
-	if (!*shared_lib_handle) {
+	*so_handle = g_new0(struct so_plugin_provider_so_handle, 1);
+	if (!*so_handle) {
 		BT_SPP_LOGE_APPEND_CAUSE("Failed to allocate one shared library handle.");
 		status = BT_FUNC_STATUS_MEMORY_ERROR;
 		goto end;
 	}
 
-	bt_object_init_shared(&(*shared_lib_handle)->base,
-		bt_plugin_so_shared_lib_handle_destroy);
+	bt_object_init_shared(&(*so_handle)->base, destroy_so_handle);
 
 	if (!path) {
 		goto end;
 	}
 
-	(*shared_lib_handle)->path = g_string_new(path);
-	if (!(*shared_lib_handle)->path) {
+	(*so_handle)->path = g_string_new(path);
+	if (!(*so_handle)->path) {
 		BT_SPP_LOGE_APPEND_CAUSE("Failed to allocate a GString.");
 		status = BT_FUNC_STATUS_MEMORY_ERROR;
 		goto end;
 	}
 
-	(*shared_lib_handle)->module = g_module_open(path, G_MODULE_BIND_LOCAL);
-	if (!(*shared_lib_handle)->module) {
+	(*so_handle)->module = g_module_open(path, G_MODULE_BIND_LOCAL);
+	if (!(*so_handle)->module) {
 		/*
 		 * INFO-level logging because we're only _trying_ to
 		 * open this file as a Babeltrace plugin: if it's not,
@@ -227,7 +225,7 @@ int bt_plugin_so_shared_lib_handle_create(
 		 */
 		BT_LOGI("Cannot open GModule: %s: path=\"%s\"",
 			g_module_error(), path);
-		BT_OBJECT_PUT_REF_AND_RESET(*shared_lib_handle);
+		BT_OBJECT_PUT_REF_AND_RESET(*so_handle);
 		status = BT_FUNC_STATUS_NOT_FOUND;
 		goto end;
 	}
@@ -235,42 +233,40 @@ int bt_plugin_so_shared_lib_handle_create(
 	goto end;
 
 end:
-	BT_ASSERT(*shared_lib_handle || status != BT_FUNC_STATUS_OK);
-	if (*shared_lib_handle) {
+	BT_ASSERT(*so_handle || status != BT_FUNC_STATUS_OK);
+	if (*so_handle) {
 		BT_LOGI("Created shared library handle: path=\"%s\", addr=%p",
-			path ? path : "(null)", *shared_lib_handle);
+			path ? path : "(null)", *so_handle);
 	}
 
 	return status;
 }
 
 static
-void bt_plugin_so_destroy_spec_data(
-		const bt_plugin *plugin __attribute__((unused)),
+void destroy_per_plugin(const bt_plugin *plugin __attribute__((unused)),
 		void *user_data)
 {
-	struct bt_plugin_so_spec_data *spec = user_data;
+	struct so_plugin_provider_per_plugin *spec = user_data;
 
 	BT_ASSERT(spec);
-	BT_OBJECT_PUT_REF_AND_RESET(spec->shared_lib_handle);
+	BT_OBJECT_PUT_REF_AND_RESET(spec->so_handle);
 	g_free(spec);
 
 }
 
 static
-void plugin_comp_class_destroy_listener(
-		const struct bt_component_class *comp_class_const,
-		void *comp_class_entry_void)
+void destroy_per_comp_class(const struct bt_component_class *comp_class_const,
+		void *per_comp_class_void)
 {
-	struct bt_plugin_so_component_class *comp_class_entry =
-		(struct bt_plugin_so_component_class *) comp_class_entry_void;
+	struct so_plugin_provider_per_comp_class *per_comp_class =
+		(struct so_plugin_provider_per_comp_class *) per_comp_class_void;
 
-	bt_list_del(&comp_class_entry->node);
-	BT_OBJECT_PUT_REF_AND_RESET(comp_class_entry->so_handle);
-	g_free(comp_class_entry);
+	bt_list_del(&per_comp_class->node);
+	BT_OBJECT_PUT_REF_AND_RESET(per_comp_class->so_handle);
+	g_free(per_comp_class);
 	BT_LOGD("Component class destroyed: removed entry from list: "
 		"comp-cls-addr=%p, comp-cls-entry=%p", comp_class_const,
-		comp_class_entry);
+		per_comp_class);
 }
 
 
@@ -302,8 +298,8 @@ void plugin_comp_class_destroy_listener(
  * 6. Freeze the plugin object.
  */
 static
-int bt_plugin_so_init(struct bt_plugin *plugin,
-		struct bt_plugin_so_spec_data *spec,
+int initialize_so_plugin(struct bt_plugin *plugin,
+		struct so_plugin_provider_per_plugin *per_plugin,
 		bool fail_on_load_error,
 		const struct __bt_plugin_descriptor *descriptor,
 		struct __bt_plugin_descriptor_attribute const * const *attrs_begin,
@@ -379,8 +375,8 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 		"cc-descr-begin-addr=%p, cc-descr-end-addr=%p, "
 		"cc-descr-attrs-begin-addr=%p, cc-descr-attrs-end-addr=%p",
 		plugin,
-		spec->shared_lib_handle->path ?
-			spec->shared_lib_handle->path->str : NULL,
+		per_plugin->so_handle->path ?
+			per_plugin->so_handle->path->str : NULL,
 		attrs_begin, attrs_end,
 		cc_descriptors_begin, cc_descriptors_end,
 		cc_descr_attrs_begin, cc_descr_attrs_end);
@@ -396,7 +392,7 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 	 * Find and set optional attributes attached to this plugin
 	 * descriptor.
 	 */
-	spec->descriptor = descriptor;
+	per_plugin->descriptor = descriptor;
 
 	for (cur_attr_ptr = attrs_begin; cur_attr_ptr != attrs_end; cur_attr_ptr++) {
 		const struct __bt_plugin_descriptor_attribute *cur_attr =
@@ -412,10 +408,10 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 
 		switch (cur_attr->type) {
 		case BT_PLUGIN_DESCRIPTOR_ATTRIBUTE_TYPE_INIT:
-			spec->init = cur_attr->value.init;
+			per_plugin->init = cur_attr->value.init;
 			break;
 		case BT_PLUGIN_DESCRIPTOR_ATTRIBUTE_TYPE_EXIT:
-			spec->shared_lib_handle->exit = cur_attr->value.exit;
+			per_plugin->so_handle->exit = cur_attr->value.exit;
 			break;
 		case BT_PLUGIN_DESCRIPTOR_ATTRIBUTE_TYPE_AUTHOR:
 			status = bt_plugin_set_author(plugin, cur_attr->value.author);
@@ -463,8 +459,8 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					"Unknown plugin descriptor attribute: "
 					"plugin-path=\"%s\", plugin-name=\"%s\", "
 					"attr-type-name=\"%s\", attr-type-id=%d",
-					spec->shared_lib_handle->path ?
-						spec->shared_lib_handle->path->str :
+					per_plugin->so_handle->path ?
+						per_plugin->so_handle->path->str :
 						NULL,
 					descriptor->name, cur_attr->type_name,
 					cur_attr->type);
@@ -474,8 +470,8 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 				BT_LOGW("Ignoring unknown plugin descriptor attribute: "
 					"plugin-path=\"%s\", plugin-name=\"%s\", "
 					"attr-type-name=\"%s\", attr-type-id=%d",
-					spec->shared_lib_handle->path ?
-						spec->shared_lib_handle->path->str :
+					per_plugin->so_handle->path ?
+						per_plugin->so_handle->path->str :
 						NULL,
 					descriptor->name, cur_attr->type_name,
 					cur_attr->type);
@@ -753,8 +749,8 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 						"comp-class-type=%s, "
 						"attr-type-name=\"%s\", "
 						"attr-type-id=%d",
-						spec->shared_lib_handle->path ?
-							spec->shared_lib_handle->path->str :
+						per_plugin->so_handle->path ?
+							per_plugin->so_handle->path->str :
 							NULL,
 						descriptor->name,
 						cur_cc_descr_attr->comp_class_descriptor->name,
@@ -772,8 +768,8 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 						"comp-class-type=%s, "
 						"attr-type-name=\"%s\", "
 						"attr-type-id=%d",
-						spec->shared_lib_handle->path ?
-							spec->shared_lib_handle->path->str :
+						per_plugin->so_handle->path ?
+							per_plugin->so_handle->path->str :
 							NULL,
 						descriptor->name,
 						cur_cc_descr_attr->comp_class_descriptor->name,
@@ -789,11 +785,11 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 	}
 
 	/* Initialize plugin */
-	if (spec->init) {
+	if (per_plugin->init) {
 		enum bt_plugin_initialize_func_status init_status;
 
 		BT_LOGD_STR("Calling user's plugin initialization function.");
-		init_status = spec->init((void *) plugin);
+		init_status = per_plugin->init((void *) plugin);
 		BT_LOGD("User function returned: status=%s",
 			bt_common_func_status_string(init_status));
 
@@ -822,7 +818,7 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 		}
 	}
 
-	spec->shared_lib_handle->init_called = BT_TRUE;
+	per_plugin->so_handle->init_called = BT_TRUE;
 
 	/* Add described component classes to plugin */
 	for (i = 0; i < comp_class_full_descriptors->len; i++) {
@@ -832,13 +828,13 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 		struct bt_component_class_source *src_comp_class = NULL;
 		struct bt_component_class_filter *flt_comp_class = NULL;
 		struct bt_component_class_sink *sink_comp_class = NULL;
-		struct bt_plugin_so_component_class *comp_class_entry;
+		struct so_plugin_provider_per_comp_class *comp_class_entry;
 
 		BT_LOGI("Creating and setting properties of plugin's component class: "
 			"plugin-path=\"%s\", plugin-name=\"%s\", "
 			"comp-class-name=\"%s\", comp-class-type=%s",
-			spec->shared_lib_handle->path ?
-				spec->shared_lib_handle->path->str :
+			per_plugin->so_handle->path ?
+				per_plugin->so_handle->path->str :
 				NULL,
 			descriptor->name,
 			cc_full_descr->descriptor->name,
@@ -964,8 +960,8 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 					"Unknown component class type: "
 					"plugin-path=\"%s\", plugin-name=\"%s\", "
 					"comp-class-name=\"%s\", comp-class-type=%d",
-					spec->shared_lib_handle->path->str ?
-						spec->shared_lib_handle->path->str :
+					per_plugin->so_handle->path->str ?
+						per_plugin->so_handle->path->str :
 						NULL,
 					descriptor->name,
 					cc_full_descr->descriptor->name,
@@ -976,8 +972,8 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 				BT_LOGW("Ignoring unknown component class type: "
 					"plugin-path=\"%s\", plugin-name=\"%s\", "
 					"comp-class-name=\"%s\", comp-class-type=%d",
-					spec->shared_lib_handle->path->str ?
-						spec->shared_lib_handle->path->str :
+					per_plugin->so_handle->path->str ?
+						per_plugin->so_handle->path->str :
 						NULL,
 					descriptor->name,
 					cc_full_descr->descriptor->name,
@@ -1248,7 +1244,7 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 		}
 
 		comp_class_entry =
-			g_new0(struct bt_plugin_so_component_class, 1);
+			g_new0(struct so_plugin_provider_per_comp_class, 1);
 		if (!comp_class_entry) {
 			BT_SPP_LOGE_APPEND_CAUSE(
 				"Failed to allocate one SO plugin component class entry.");
@@ -1256,13 +1252,13 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 			goto end;
 		}
 
-		comp_class_entry->so_handle = spec->shared_lib_handle;
+		comp_class_entry->so_handle = per_plugin->so_handle;
 		bt_object_get_ref_no_null_check(comp_class_entry->so_handle);
 		bt_list_add(&comp_class_entry->node, &component_class_list);
 
 		/* Add our custom destroy listener */
 		bt_component_class_add_destruction_listener(comp_class,
-			plugin_comp_class_destroy_listener, comp_class_entry,
+			destroy_per_comp_class, comp_class_entry,
 			NULL);
 	}
 
@@ -1292,8 +1288,7 @@ size_t count_non_null_items_in_section(const void *begin, const void *end)
 
 static
 enum bt_plugin_set_add_plugin_status
-bt_plugin_set_add_plugin_if_not_exist(
-		struct bt_plugin_set *plugin_set,
+add_plugin_if_not_exist(struct bt_plugin_set *plugin_set,
 		struct bt_plugin *plugin)
 {
 	enum bt_plugin_set_add_plugin_status status;
@@ -1314,8 +1309,8 @@ end:
 }
 
 static
-int bt_plugin_so_create_all_from_sections(
-		struct bt_plugin_so_shared_lib_handle *shared_lib_handle,
+int create_all_plugins_from_sections(
+		struct so_plugin_provider_so_handle *so_handle,
 		bool fail_on_load_error,
 		struct __bt_plugin_descriptor const * const *descriptors_begin,
 		struct __bt_plugin_descriptor const * const *descriptors_end,
@@ -1335,7 +1330,7 @@ int bt_plugin_so_create_all_from_sections(
 	size_t i;
 	struct bt_plugin *plugin = NULL;
 
-	BT_ASSERT(shared_lib_handle);
+	BT_ASSERT(so_handle);
 	BT_ASSERT(plugin_set_out);
 	*plugin_set_out = NULL;
 	descriptor_count = count_non_null_items_in_section(descriptors_begin, descriptors_end);
@@ -1350,7 +1345,7 @@ int bt_plugin_so_create_all_from_sections(
 		"cc-descr-attrs-begin-addr=%p, cc-descr-attrs-end-addr=%p, "
 		"descr-count=%zu, attrs-count=%zu, "
 		"cc-descr-count=%zu, cc-descr-attrs-count=%zu",
-		shared_lib_handle->path ? shared_lib_handle->path->str : NULL,
+		so_handle->path ? so_handle->path->str : NULL,
 		descriptors_begin, descriptors_end,
 		attrs_begin, attrs_end,
 		cc_descriptors_begin, cc_descriptors_end,
@@ -1367,7 +1362,7 @@ int bt_plugin_so_create_all_from_sections(
 	for (i = 0; i < descriptors_end - descriptors_begin; i++) {
 		const struct __bt_plugin_descriptor *descriptor =
 			descriptors_begin[i];
-		struct bt_plugin_so_spec_data *spec = NULL;
+		struct so_plugin_provider_per_plugin *per_plugin = NULL;
 
 		if (!descriptor) {
 			continue;
@@ -1383,8 +1378,8 @@ int bt_plugin_so_create_all_from_sections(
 			goto error;
 		}
 
-		spec = g_new0(struct bt_plugin_so_spec_data, 1);
-		if (!spec) {
+		per_plugin = g_new0(struct so_plugin_provider_per_plugin, 1);
+		if (!per_plugin) {
 			BT_SPP_LOGE_APPEND_CAUSE(
 				"Failed to allocate one SO plugin specific data structure.");
 			status = BT_FUNC_STATUS_MEMORY_ERROR;
@@ -1395,14 +1390,14 @@ int bt_plugin_so_create_all_from_sections(
 		 * Transfer ownership of `spec` to the plugin, it will be freed
 		 * in the destruction listener.
 		 */
-		spec->shared_lib_handle = shared_lib_handle;
-		bt_object_get_ref_no_null_check(spec->shared_lib_handle);
-		bt_plugin_add_destruction_listener(plugin,
-			bt_plugin_so_destroy_spec_data, spec, NULL);
+		per_plugin->so_handle = so_handle;
+		bt_object_get_ref_no_null_check(per_plugin->so_handle);
+		bt_plugin_add_destruction_listener(plugin, destroy_per_plugin,
+			per_plugin, NULL);
 
-		if (shared_lib_handle->path) {
+		if (so_handle->path) {
 			status = bt_plugin_set_path(plugin,
-				shared_lib_handle->path->str);
+				so_handle->path->str);
 			if (status != BT_FUNC_STATUS_OK) {
 				BT_SPP_LOGE_APPEND_CAUSE(
 					"Cannot set plugin path: plugin-name=\"%s\"",
@@ -1411,13 +1406,13 @@ int bt_plugin_so_create_all_from_sections(
 			}
 		}
 
-		status = bt_plugin_so_init(plugin, spec, fail_on_load_error,
+		status = initialize_so_plugin(plugin, per_plugin, fail_on_load_error,
 			descriptor, attrs_begin, attrs_end,
 			cc_descriptors_begin, cc_descriptors_end,
 			cc_descr_attrs_begin, cc_descr_attrs_end);
 		if (status == BT_FUNC_STATUS_OK) {
 			/* Add to plugin set */
-			status = bt_plugin_set_add_plugin_if_not_exist(
+			status = add_plugin_if_not_exist(
 				*plugin_set_out, plugin);
 			if (status != BT_FUNC_STATUS_OK) {
 				BT_SPP_LOGE_APPEND_CAUSE(
@@ -1475,22 +1470,21 @@ int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
 		struct bt_plugin_set **plugin_set_out, int log_level)
 {
 	int status;
-	struct bt_plugin_so_shared_lib_handle *shared_lib_handle = NULL;
+	struct so_plugin_provider_so_handle *so_handle = NULL;
 
 	plugin_so_log_level = log_level;
 
 	BT_ASSERT(plugin_set_out);
 	*plugin_set_out = NULL;
-	status = bt_plugin_so_shared_lib_handle_create(NULL,
-		&shared_lib_handle);
+	status = create_so_handle(NULL, &so_handle);
 	if (status != BT_FUNC_STATUS_OK) {
-		BT_ASSERT(!shared_lib_handle);
+		BT_ASSERT(!so_handle);
 		goto end;
 	}
 
-	BT_ASSERT(shared_lib_handle);
+	BT_ASSERT(so_handle);
 	BT_LOGD_STR("Creating all SO plugins from built-in plugins.");
-	status = bt_plugin_so_create_all_from_sections(shared_lib_handle,
+	status = create_all_plugins_from_sections(so_handle,
 		fail_on_load_error,
 		__bt_get_begin_section_plugin_descriptors(),
 		__bt_get_end_section_plugin_descriptors(),
@@ -1507,7 +1501,7 @@ int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
 		!*plugin_set_out);
 
 end:
-	BT_OBJECT_PUT_REF_AND_RESET(shared_lib_handle);
+	BT_OBJECT_PUT_REF_AND_RESET(so_handle);
 	return status;
 }
 
@@ -1540,7 +1534,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 	struct __bt_plugin_component_class_descriptor_attribute const * const *(*get_begin_section_component_class_descriptor_attributes)(void);
 	struct __bt_plugin_component_class_descriptor_attribute const * const *(*get_end_section_component_class_descriptor_attributes)(void);
 	bt_bool is_libtool_wrapper = BT_FALSE, is_shared_object = BT_FALSE;
-	struct bt_plugin_so_shared_lib_handle *shared_lib_handle = NULL;
+	struct so_plugin_provider_so_handle *so_handle = NULL;
 
 	BT_ASSERT(path);
 	BT_ASSERT(plugin_set_out);
@@ -1582,15 +1576,15 @@ int bt_plugin_so_create_all_from_file(const char *path,
 		goto end;
 	}
 
-	status = bt_plugin_so_shared_lib_handle_create(path,
-		&shared_lib_handle);
+	status = create_so_handle(path,
+		&so_handle);
 	if (status != BT_FUNC_STATUS_OK) {
-		/* bt_plugin_so_shared_lib_handle_create() logs more details */
-		BT_ASSERT(!shared_lib_handle);
+		/* create_so_handle() logs more details */
+		BT_ASSERT(!so_handle);
 		goto end;
 	}
 
-	if (g_module_symbol(shared_lib_handle->module, "__bt_get_begin_section_plugin_descriptors",
+	if (g_module_symbol(so_handle->module, "__bt_get_begin_section_plugin_descriptors",
 			(gpointer *) &get_begin_section_plugin_descriptors)) {
 		descriptors_begin = get_begin_section_plugin_descriptors();
 	} else {
@@ -1611,7 +1605,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 	 * If g_module_symbol() fails for any of the other symbols, fail
 	 * if `fail_on_load_error` is true.
 	 */
-	if (g_module_symbol(shared_lib_handle->module, "__bt_get_end_section_plugin_descriptors",
+	if (g_module_symbol(so_handle->module, "__bt_get_end_section_plugin_descriptors",
 			(gpointer *) &get_end_section_plugin_descriptors)) {
 		descriptors_end = get_end_section_plugin_descriptors();
 	} else {
@@ -1631,7 +1625,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 		goto end;
 	}
 
-	if (g_module_symbol(shared_lib_handle->module, "__bt_get_begin_section_plugin_descriptor_attributes",
+	if (g_module_symbol(so_handle->module, "__bt_get_begin_section_plugin_descriptor_attributes",
 			(gpointer *) &get_begin_section_plugin_descriptor_attributes)) {
 		 attrs_begin = get_begin_section_plugin_descriptor_attributes();
 	} else {
@@ -1640,7 +1634,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 			"__bt_get_begin_section_plugin_descriptor_attributes");
 	}
 
-	if (g_module_symbol(shared_lib_handle->module, "__bt_get_end_section_plugin_descriptor_attributes",
+	if (g_module_symbol(so_handle->module, "__bt_get_end_section_plugin_descriptor_attributes",
 			(gpointer *) &get_end_section_plugin_descriptor_attributes)) {
 		attrs_end = get_end_section_plugin_descriptor_attributes();
 	} else {
@@ -1674,7 +1668,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 		goto end;
 	}
 
-	if (g_module_symbol(shared_lib_handle->module, "__bt_get_begin_section_component_class_descriptors",
+	if (g_module_symbol(so_handle->module, "__bt_get_begin_section_component_class_descriptors",
 			(gpointer *) &get_begin_section_component_class_descriptors)) {
 		cc_descriptors_begin = get_begin_section_component_class_descriptors();
 	} else {
@@ -1683,7 +1677,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 			"__bt_get_begin_section_component_class_descriptors");
 	}
 
-	if (g_module_symbol(shared_lib_handle->module, "__bt_get_end_section_component_class_descriptors",
+	if (g_module_symbol(so_handle->module, "__bt_get_end_section_component_class_descriptors",
 			(gpointer *) &get_end_section_component_class_descriptors)) {
 		cc_descriptors_end = get_end_section_component_class_descriptors();
 	} else {
@@ -1717,7 +1711,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 		goto end;
 	}
 
-	if (g_module_symbol(shared_lib_handle->module, "__bt_get_begin_section_component_class_descriptor_attributes",
+	if (g_module_symbol(so_handle->module, "__bt_get_begin_section_component_class_descriptor_attributes",
 			(gpointer *) &get_begin_section_component_class_descriptor_attributes)) {
 		cc_descr_attrs_begin = get_begin_section_component_class_descriptor_attributes();
 	} else {
@@ -1726,7 +1720,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 			"__bt_get_begin_section_component_class_descriptor_attributes");
 	}
 
-	if (g_module_symbol(shared_lib_handle->module, "__bt_get_end_section_component_class_descriptor_attributes",
+	if (g_module_symbol(so_handle->module, "__bt_get_end_section_component_class_descriptor_attributes",
 			(gpointer *) &get_end_section_component_class_descriptor_attributes)) {
 		cc_descr_attrs_end = get_end_section_component_class_descriptor_attributes();
 	} else {
@@ -1762,13 +1756,13 @@ int bt_plugin_so_create_all_from_file(const char *path,
 
 	/* Initialize plugin */
 	BT_LOGD_STR("Initializing plugin object.");
-	status = bt_plugin_so_create_all_from_sections(shared_lib_handle,
+	status = create_all_plugins_from_sections(so_handle,
 		fail_on_load_error,
 		descriptors_begin, descriptors_end, attrs_begin, attrs_end,
 		cc_descriptors_begin, cc_descriptors_end,
 		cc_descr_attrs_begin, cc_descr_attrs_end, plugin_set_out);
 
 end:
-	BT_OBJECT_PUT_REF_AND_RESET(shared_lib_handle);
+	BT_OBJECT_PUT_REF_AND_RESET(so_handle);
 	return status;
 }
