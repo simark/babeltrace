@@ -637,7 +637,7 @@ int bt_plugin_from_python_plugin_info(PyObject *plugin_info,
 					status = BT_FUNC_STATUS_NOT_FOUND;
 				}
 
-				continue;
+				goto error;
 			}
 
 			status = bt_plugin_add_component_class(*plugin_out,
