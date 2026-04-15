@@ -15,18 +15,6 @@
 
 #include "catch2/catch_test_macros.hpp"
 
-unsigned int glob;
-
-/*
- * This function is only declared to show the size of a bitfield write in
- * objdump.  The declaration is there to avoid a -Wmissing-prototypes warning.
- */
-void fct(void);
-void fct(void)
-{
-    bt_bitfield_write(&glob, unsigned int, 12, 15, 0x12345678);
-}
-
 /* Test array size, in bytes */
 #define TEST_LEN                           128
 #define SIGNED_INT_READ_TEST_DESC          "signed int dest, varying read unit size"
