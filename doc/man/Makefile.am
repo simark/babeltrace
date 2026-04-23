@@ -15,6 +15,7 @@ MAN1_NAMES = \
 	babeltrace2-convert \
 	babeltrace2-help \
 	babeltrace2-list-plugins \
+	babeltrace2-list-plugin-providers \
 	babeltrace2-query \
 	babeltrace2-run
 MAN7_NAMES = babeltrace2-filter.utils.muxer \

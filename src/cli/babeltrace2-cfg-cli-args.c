@@ -433,6 +433,8 @@ void bt_config_destroy(bt_object *obj)
 		break;
 	case BT_CONFIG_COMMAND_LIST_PLUGINS:
 		break;
+	case BT_CONFIG_COMMAND_LIST_PLUGIN_PROVIDERS:
+		break;
 	case BT_CONFIG_COMMAND_HELP:
 		BT_OBJECT_PUT_REF_AND_RESET(cfg->cmd_data.help.cfg_component);
 		break;
@@ -1099,6 +1101,13 @@ struct bt_config *bt_config_list_plugins_create(const bt_value *plugin_paths)
 }
 
 static
+struct bt_config *bt_config_list_plugin_providers_create(void)
+{
+	return bt_config_base_create(BT_CONFIG_COMMAND_LIST_PLUGIN_PROVIDERS,
+		NULL, false);
+}
+
+static
 struct bt_config *bt_config_help_create(const bt_value *plugin_paths,
 		int default_log_level)
 {
@@ -1458,7 +1467,9 @@ void print_help_usage(FILE *fp)
 	fprintf(fp, "\n");
 	fprintf(fp, "See `babeltrace2 --help` for the list of general options.\n");
 	fprintf(fp, "\n");
-	fprintf(fp, "Use `babeltrace2 list-plugins` to show the list of available plugins.\n");
+	fprintf(fp, "Use `babeltrace2 list-plugins` to list the available plugins.\n");
+	fprintf(fp, "\n");
+	fprintf(fp, "Use `babeltrace2 list-plugin-providers` to list the available plugin providers.\n");
 }
 
 static
@@ -1783,6 +1794,8 @@ void print_list_plugins_usage(FILE *fp)
 	fprintf(fp, "See `babeltrace2 --help` for the list of general options.\n");
 	fprintf(fp, "\n");
 	fprintf(fp, "Use `babeltrace2 help` to get help for a specific plugin or component class.\n");
+	fprintf(fp, "\n");
+	fprintf(fp, "Use `babeltrace2 list-plugin-providers` to list the available plugin providers.\n");
 }
 
 static
@@ -1847,6 +1860,103 @@ enum bt_config_cli_args_status bt_config_list_plugins_from_args(int argc,
 			goto error;
 		}
 		}
+
+	BT_OBJECT_MOVE_REF(*cfg_out, cfg);
+	status = BT_CONFIG_CLI_ARGS_STATUS_OK;
+	goto end;
+
+error:
+	status = BT_CONFIG_CLI_ARGS_STATUS_ERROR;
+
+end:
+	argpar_iter_destroy(argpar_iter);
+	argpar_item_destroy(argpar_item);
+	bt_object_put_ref(cfg);
+
+	return status;
+}
+
+/*
+ * Prints the list-plugin-providers command usage.
+ */
+static
+void print_list_plugin_providers_usage(FILE *fp)
+{
+	fprintf(fp, "Usage: babeltrace2 [GENERAL OPTIONS] list-plugin-providers [OPTIONS]\n");
+	fprintf(fp, "\n");
+	fprintf(fp, "Options:\n");
+	fprintf(fp, "\n");
+	fprintf(fp, "  -h, --help                        Show this help and quit\n");
+	fprintf(fp, "\n");
+	fprintf(fp, "See `babeltrace2 --help` for the list of general options.\n");
+	fprintf(fp, "\n");
+	fprintf(fp, "Use `babeltrace2 help` to get help for a specific plugin or component class.\n");
+	fprintf(fp, "\n");
+	fprintf(fp, "Use `babeltrace2 list-plugins` to list the available plugins.\n");
+}
+
+static
+const struct argpar_opt_descr list_plugin_providers_options[] = {
+	/* id, short_name, long_name, with_arg */
+	{ OPT_HELP, 'h', "help", false },
+	ARGPAR_OPT_DESCR_SENTINEL
+};
+
+/*
+ * Creates a Babeltrace config object from the arguments of a
+ * list-plugin-providers command.
+ */
+static
+enum bt_config_cli_args_status bt_config_list_plugin_providers_from_args(
+		int argc, const char *argv[], struct bt_config **cfg_out,
+		unsigned int consumed_args)
+{
+	enum bt_config_cli_args_status status;
+	struct bt_config *cfg = NULL;
+	struct argpar_iter *argpar_iter = NULL;
+	const struct argpar_item *argpar_item = NULL;
+
+	cfg = bt_config_list_plugin_providers_create();
+	if (!cfg) {
+		goto error;
+	}
+
+	argpar_iter = argpar_iter_create(argc, argv, list_plugin_providers_options);
+	if (!argpar_iter) {
+		BT_CLI_LOGE_APPEND_CAUSE_OOM();
+		goto error;
+	}
+
+	while (true) {
+		enum parse_next_item_status parse_status =
+			parse_next_item(argpar_iter, &argpar_item, argv, "list-plugin-providers",
+				consumed_args);
+
+		if (parse_status == PARSE_NEXT_ITEM_STATUS_ERROR) {
+			goto error;
+		} else if (parse_status == PARSE_NEXT_ITEM_STATUS_END) {
+			break;
+		}
+
+		if (argpar_item_type(argpar_item) == ARGPAR_ITEM_TYPE_OPT) {
+			const struct argpar_opt_descr *opt_descr =
+				argpar_item_opt_descr(argpar_item);
+
+			switch (opt_descr->id) {
+			case OPT_HELP:
+				print_list_plugin_providers_usage(stdout);
+				status = BT_CONFIG_CLI_ARGS_STATUS_INFO_ONLY;
+				goto end;
+			default:
+				bt_common_abort();
+			}
+		} else {
+			BT_CLI_LOGE_APPEND_CAUSE(
+				"Extraneous command-line argument specified to `list-plugin-providers` command: `%s`.",
+				argpar_item_non_opt_arg(argpar_item));
+			goto error;
+		}
+	}
 
 	BT_OBJECT_MOVE_REF(*cfg_out, cfg);
 	status = BT_CONFIG_CLI_ARGS_STATUS_OK;
@@ -4695,11 +4805,12 @@ void print_gen_usage(FILE *fp)
 	fprintf(fp, "\n");
 	fprintf(fp, "Available commands:\n");
 	fprintf(fp, "\n");
-	fprintf(fp, "    convert       Convert and trim traces (default)\n");
-	fprintf(fp, "    help          Get help for a plugin or a component class\n");
-	fprintf(fp, "    list-plugins  List available plugins and their content\n");
-	fprintf(fp, "    query         Query objects from a component class\n");
-	fprintf(fp, "    run           Build a processing graph and run it\n");
+	fprintf(fp, "    convert                Convert and trim traces (default)\n");
+	fprintf(fp, "    help                   Get help for a plugin or a component class\n");
+	fprintf(fp, "    list-plugins           List available plugins and their content\n");
+	fprintf(fp, "    list-plugin-providers  List available plugin providers\n");
+	fprintf(fp, "    query                  Query objects from a component class\n");
+	fprintf(fp, "    run                    Build a processing graph and run it\n");
 	fprintf(fp, "\n");
 	fprintf(fp, "Use `babeltrace2 COMMAND --help` to show the help of COMMAND.\n");
 }
@@ -4742,6 +4853,7 @@ enum bt_config_cli_args_status bt_config_cli_args_create(int argc,
 		COMMAND_TYPE_RUN = 0,
 		COMMAND_TYPE_CONVERT,
 		COMMAND_TYPE_LIST_PLUGINS,
+		COMMAND_TYPE_LIST_PLUGIN_PROVIDERS,
 		COMMAND_TYPE_HELP,
 		COMMAND_TYPE_QUERY,
 	} command_type = COMMAND_TYPE_NONE;
@@ -4898,6 +5010,9 @@ enum bt_config_cli_args_status bt_config_cli_args_create(int argc,
 			} else if (strcmp(arg, "list-plugins") == 0) {
 				command_type = COMMAND_TYPE_LIST_PLUGINS;
 				command_name = "list-plugins";
+			} else if (strcmp(arg, "list-plugin-providers") == 0) {
+				command_type = COMMAND_TYPE_LIST_PLUGIN_PROVIDERS;
+				command_name = "list-plugin-providers";
 			} else if (strcmp(arg, "help") == 0) {
 				command_type = COMMAND_TYPE_HELP;
 				command_name = "help";
@@ -4993,6 +5108,10 @@ enum bt_config_cli_args_status bt_config_cli_args_create(int argc,
 	case COMMAND_TYPE_LIST_PLUGINS:
 		status = bt_config_list_plugins_from_args(command_argc,
 			command_argv, cfg, plugin_paths, consumed_args);
+		break;
+	case COMMAND_TYPE_LIST_PLUGIN_PROVIDERS:
+		status = bt_config_list_plugin_providers_from_args(
+			command_argc, command_argv, cfg, consumed_args);
 		break;
 	case COMMAND_TYPE_HELP:
 		status = bt_config_help_from_args(command_argc,

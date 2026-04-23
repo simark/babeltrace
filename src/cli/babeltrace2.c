@@ -554,6 +554,8 @@ void print_cfg(struct bt_config *cfg)
 	case BT_CONFIG_COMMAND_LIST_PLUGINS:
 		print_cfg_list_plugins(cfg);
 		break;
+	case BT_CONFIG_COMMAND_LIST_PLUGIN_PROVIDERS:
+		break;
 	case BT_CONFIG_COMMAND_HELP:
 		print_cfg_help(cfg);
 		break;
@@ -582,6 +584,8 @@ void print_plugin_info(const bt_plugin *plugin)
 	const char *author;
 	const char *license;
 	const char *plugin_description;
+	const bt_plugin_provider_info *provider_info;
+	const char *provider_name;
 
 	plugin_name = bt_plugin_get_name(plugin);
 	path = bt_plugin_get_path(plugin);
@@ -590,6 +594,9 @@ void print_plugin_info(const bt_plugin *plugin)
 	plugin_description = bt_plugin_get_description(plugin);
 	version_avail = bt_plugin_get_version(plugin, &major, &minor,
 		&patch, &extra);
+	provider_info = bt_plugin_borrow_provider_info(plugin);
+	provider_name = provider_info ?
+		bt_plugin_provider_info_get_name(provider_info) : NULL;
 	printf("%s%s%s%s:\n", bt_common_color_bold(),
 		bt_common_color_fg_bright_blue(), plugin_name,
 		bt_common_color_reset());
@@ -615,6 +622,61 @@ void print_plugin_info(const bt_plugin *plugin)
 	printf("  %sDescription%s: %s\n", bt_common_color_bold(),
 		bt_common_color_reset(),
 		plugin_description ? plugin_description : "(None)");
+	printf("  %sAuthor%s: %s\n", bt_common_color_bold(),
+		bt_common_color_reset(), author ? author : "(Unknown)");
+	printf("  %sLicense%s: %s\n", bt_common_color_bold(),
+		bt_common_color_reset(),
+		license ? license : "(Unknown)");
+	printf("  %sProvider%s: %s\n", bt_common_color_bold(),
+		bt_common_color_reset(),
+		provider_name ? provider_name : "(None)");
+}
+
+static
+void print_plugin_provider_info(const bt_plugin_provider_info *info)
+{
+	unsigned int major, minor, patch;
+	const char *extra;
+	bt_property_availability version_avail;
+	const char *name;
+	const char *path;
+	const char *author;
+	const char *license;
+	const char *description;
+
+	name = bt_plugin_provider_info_get_name(info);
+	path = bt_plugin_provider_info_get_path(info);
+	author = bt_plugin_provider_info_get_author(info);
+	license = bt_plugin_provider_info_get_license(info);
+	description = bt_plugin_provider_info_get_description(
+		info);
+	version_avail = bt_plugin_provider_info_get_version(info,
+		&major, &minor,	&patch, &extra);
+	printf("%s%s%s%s:\n", bt_common_color_bold(),
+		bt_common_color_fg_bright_blue(), name,
+		bt_common_color_reset());
+	if (path) {
+		printf("  %sPath%s: %s\n", bt_common_color_bold(),
+			bt_common_color_reset(), path);
+	} else {
+		puts("  Built-in");
+	}
+
+	if (version_avail == BT_PROPERTY_AVAILABILITY_AVAILABLE) {
+		printf("  %sVersion%s: %u.%u.%u",
+			bt_common_color_bold(), bt_common_color_reset(),
+			major, minor, patch);
+
+		if (extra) {
+			printf("%s", extra);
+		}
+
+		printf("\n");
+	}
+
+	printf("  %sDescription%s: %s\n", bt_common_color_bold(),
+		bt_common_color_reset(),
+		description ? description : "(None)");
 	printf("  %sAuthor%s: %s\n", bt_common_color_bold(),
 		bt_common_color_reset(), author ? author : "(Unknown)");
 	printf("  %sLicense%s: %s\n", bt_common_color_bold(),
@@ -882,6 +944,82 @@ enum bt_cmd_status cmd_list_plugins(struct bt_config *cfg)
 	}
 
 end:
+	return BT_CMD_STATUS_OK;
+}
+
+static
+enum bt_cmd_status cmd_list_plugin_providers(void)
+{
+	uint64_t plugin_providers_count, i;
+	bt_value *provider_paths = NULL;
+	char *home_plugin_provider_dir = NULL;
+	const char *envvar;
+	const char *system_plugin_provider_dir;
+
+	provider_paths = bt_value_array_create();
+	if (!provider_paths) {
+		BT_CLI_LOGE_APPEND_CAUSE("Failed to create array value.");
+		goto end;
+	}
+
+	envvar = getenv("BABELTRACE_PLUGIN_PROVIDER_PATH");
+	if (envvar) {
+		if (bt_config_append_plugin_paths(provider_paths, envvar)) {
+			BT_CLI_LOGE_APPEND_CAUSE(
+				"Cannot append plugin provider paths from BABELTRACE_PLUGIN_PROVIDER_PATH.");
+			goto end;
+		}
+	}
+
+	home_plugin_provider_dir = bt_common_get_home_plugin_provider_path(
+		BT_LOG_OUTPUT_LEVEL);
+	if (home_plugin_provider_dir) {
+		if (bt_value_array_append_string_element(provider_paths,
+				home_plugin_provider_dir)) {
+			BT_CLI_LOGE_APPEND_CAUSE(
+				"Cannot append home plugin provider path.");
+			goto end;
+		}
+	}
+
+	system_plugin_provider_dir =
+		bt_common_get_system_plugin_provider_path();
+	if (system_plugin_provider_dir) {
+		if (bt_value_array_append_string_element(provider_paths,
+				system_plugin_provider_dir)) {
+			BT_CLI_LOGE_APPEND_CAUSE(
+				"Cannot append system plugin provider path.");
+			goto end;
+		}
+	}
+
+	printf("From the following plugin provider paths:\n\n");
+	print_value(stdout, provider_paths, 2);
+	printf("\n");
+
+	plugin_providers_count = bt_get_plugin_provider_count();
+
+	if (plugin_providers_count == 0) {
+		printf("No plugin providers found.\n");
+		goto end;
+	}
+
+	printf("Found %s%" PRIu64 "%s plugin providers.\n",
+		bt_common_color_bold(),
+		plugin_providers_count,
+		bt_common_color_reset());
+
+	for (i = 0; i < plugin_providers_count; i++) {
+		const bt_plugin_provider_info *info =
+			bt_borrow_plugin_provider_info_by_index(i);
+
+		printf("\n");
+		print_plugin_provider_info(info);
+	}
+
+end:
+	free(home_plugin_provider_dir);
+	bt_value_put_ref(provider_paths);
 	return BT_CMD_STATUS_OK;
 }
 
@@ -2730,6 +2868,9 @@ int main(int argc, const char **argv)
 		break;
 	case BT_CONFIG_COMMAND_LIST_PLUGINS:
 		cmd_status = cmd_list_plugins(cfg);
+		break;
+	case BT_CONFIG_COMMAND_LIST_PLUGIN_PROVIDERS:
+		cmd_status = cmd_list_plugin_providers();
 		break;
 	case BT_CONFIG_COMMAND_HELP:
 		cmd_status = cmd_help(cfg);

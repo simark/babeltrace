@@ -145,6 +145,11 @@ See man:babeltrace2-help[1].
 +
 See man:babeltrace2-list-plugins[1].
 
+`list-plugin-providers`::
+    List the available Babeltrace{nbsp}2 plugin providers.
++
+See man:babeltrace2-list-plugin-providers[1].
+
 `query`::
     Query an object from a component class.
 +
@@ -226,5 +231,6 @@ man:babeltrace2-intro[7],
 man:babeltrace2-convert[1],
 man:babeltrace2-help[1],
 man:babeltrace2-list-plugins[1],
+man:babeltrace2-list-plugin-providers[1],
 man:babeltrace2-query[1],
 man:babeltrace2-run[1]

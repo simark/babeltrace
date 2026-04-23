@@ -1,0 +1,49 @@
+= babeltrace2-list-plugin-providers(1)
+:manpagetype: command
+:revdate: 28 April 2026
+
+
+== NAME
+
+babeltrace2-list-plugin-providers - List Babeltrace 2 plugin providers and their properties
+
+
+== SYNOPSIS
+
+[verse]
+*babeltrace2* [<<gen-opts,_GENERAL OPTIONS_>>] *list-plugin-providers*
+
+
+== DESCRIPTION
+
+The `list-plugin-providers` command prints a list of available
+Babeltrace{nbsp}2 plugin providers along with their properties.
+
+NOTE: This command lists plugin _providers_. Use the
+man:babeltrace2-list-plugins[1] command to list _plugins_.
+
+include::common-see-babeltrace2-intro.txt[]
+
+
+== OPTIONS
+
+include::common-gen-options.txt[]
+
+include::common-cmd-info-options.txt[]
+
+
+include::common-cli-env.txt[]
+
+
+include::common-cli-files.txt[]
+
+
+include::common-cmd-footer.txt[]
+
+
+== SEE ALSO
+
+man:babeltrace2-intro[7],
+man:babeltrace2[1],
+man:babeltrace2-help[1],
+man:babeltrace2-list-plugins[1]

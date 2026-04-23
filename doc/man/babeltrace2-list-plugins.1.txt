@@ -23,6 +23,10 @@ babeltrace2-list-plugins - List Babeltrace 2 plugins and their properties
 The `list-plugins` command prints a list of available Babeltrace{nbsp}2
 plugins along with their component classes and their properties.
 
+NOTE: This command lists _plugins_. Use the
+man:babeltrace2-list-plugin-providers[1] command to list plugin
+_providers_.
+
 include::common-see-babeltrace2-intro.txt[]
 
 
@@ -46,4 +50,5 @@ include::common-cmd-footer.txt[]
 
 man:babeltrace2-intro[7],
 man:babeltrace2[1],
-man:babeltrace2-help[1]
+man:babeltrace2-help[1],
+man:babeltrace2-list-plugin-providers[1]
