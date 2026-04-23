@@ -470,8 +470,6 @@ lib_libbabeltrace2_la_SOURCES = \
 	lib/graph/query-executor.h \
 	lib/plugin/plugin.c \
 	lib/plugin/plugin.h \
-	lib/plugin/plugin-so.c \
-	lib/plugin/plugin-so.h \
 	lib/trace-ir/attributes.c \
 	lib/trace-ir/attributes.h \
 	lib/trace-ir/clock-class.c \
@@ -605,6 +603,26 @@ pkgconfig_DATA = \
 	babeltrace2.pc
 
 #
+# Shared plugin provider
+#
+
+pluginproviderdir = "$(BABELTRACE_PLUGIN_PROVIDERS_DIR)"
+pluginprovider_LTLIBRARIES = so-plugin-provider/babeltrace2-so-plugin-provider.la
+
+so_plugin_provider_babeltrace2_so_plugin_provider_la_SOURCES = \
+       so-plugin-provider/so-plugin-provider.c
+
+so_plugin_provider_babeltrace2_so_plugin_provider_la_LDFLAGS = \
+       $(AM_LDFLAGS) \
+       $(LT_NO_UNDEFINED) \
+       -avoid-version -module
+
+so_plugin_provider_babeltrace2_so_plugin_provider_la_LIBADD = \
+	logging/liblogging.la \
+	common/libcommon.la \
+	lib/libbabeltrace2.la
+
+#
 # Python plugin provider
 #
 
@@ -613,8 +631,7 @@ python_plugin_provider_sources = \
 	python-plugin-provider/python-plugin-provider.h
 
 if ENABLE_PYTHON_PLUGINS
-pluginproviderdir = "$(BABELTRACE_PLUGIN_PROVIDERS_DIR)"
-pluginprovider_LTLIBRARIES = python-plugin-provider/babeltrace2-python-plugin-provider.la
+pluginprovider_LTLIBRARIES += python-plugin-provider/babeltrace2-python-plugin-provider.la
 
 python_plugin_provider_babeltrace2_python_plugin_provider_la_SOURCES = \
 	$(python_plugin_provider_sources)
