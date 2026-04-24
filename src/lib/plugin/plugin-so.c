@@ -1267,7 +1267,7 @@ int bt_plugin_so_create_all_from_sections(
 		struct __bt_plugin_component_class_descriptor_attribute const * const *cc_descr_attrs_end,
 		struct bt_plugin_set **plugin_set_out)
 {
-	int status = BT_FUNC_STATUS_OK;
+	int status;
 	size_t descriptor_count;
 	size_t attrs_count;
 	size_t cc_descriptors_count;
@@ -1362,6 +1362,8 @@ int bt_plugin_so_create_all_from_sections(
 	if ((*plugin_set_out)->plugins->len == 0) {
 		BT_OBJECT_PUT_REF_AND_RESET(*plugin_set_out);
 		status = BT_FUNC_STATUS_NOT_FOUND;
+	} else {
+		status = BT_FUNC_STATUS_OK;
 	}
 
 	goto end;
