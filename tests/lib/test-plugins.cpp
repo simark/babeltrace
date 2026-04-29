@@ -56,15 +56,15 @@ TEST_CASE("Minimal plugin")
 
         const auto plugin = (*plugins)[0];
 
-        CHECK(plugin->name() == "test_minimal");
-        CHECK(plugin->description() == "Minimal Babeltrace plugin with no component classes");
-        CHECK_FALSE(plugin->version().has_value());
-        CHECK(plugin->author() == "Janine Sutto");
-        CHECK(plugin->license() == "Beerware");
-        CHECK(plugin->path() == minimalPath);
-        CHECK(plugin->sourceComponentClasses().length() == 0);
-        CHECK(plugin->filterComponentClasses().length() == 0);
-        CHECK(plugin->sinkComponentClasses().length() == 0);
+        CHECK(plugin.name() == "test_minimal");
+        CHECK(plugin.description() == "Minimal Babeltrace plugin with no component classes");
+        CHECK_FALSE(plugin.version().has_value());
+        CHECK(plugin.author() == "Janine Sutto");
+        CHECK(plugin.license() == "Beerware");
+        CHECK(plugin.path() == minimalPath);
+        CHECK(plugin.sourceComponentClasses().length() == 0);
+        CHECK(plugin.filterComponentClasses().length() == 0);
+        CHECK(plugin.sinkComponentClasses().length() == 0);
         CHECK(intEnvVar("BT_TEST_PLUGIN_FINALIZE_CALLED") == 0);
     }
 
@@ -77,7 +77,7 @@ protected:
     bt2::ConstPlugin _plugin()
     {
         REQUIRE((_mPlugins && _mPlugins->length() == 1));
-        return *(*_mPlugins)[0];
+        return (*_mPlugins)[0];
     }
 
     bt2::ConstPluginSet::Shared _mPlugins =

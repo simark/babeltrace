@@ -61,9 +61,9 @@ public:
         return Iterator {*this, this->length()};
     }
 
-    OptionalBorrowedObject<ConstPlugin> operator[](const std::uint64_t index) const noexcept
+    ConstPlugin operator[](const std::uint64_t index) const noexcept
     {
-        return bt_plugin_set_borrow_plugin_by_index_const(this->libObjPtr(), index);
+        return ConstPlugin {bt_plugin_set_borrow_plugin_by_index_const(this->libObjPtr(), index)};
     }
 };
 
