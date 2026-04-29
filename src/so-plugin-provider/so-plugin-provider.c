@@ -55,9 +55,11 @@ struct sopp_so_handle {
 	GString *path;
 	GModule *module;
 
-	/* True if initialization function was called */
-	bt_bool init_called;
-	bt_plugin_finalize_func exit;
+	/*
+	 * Functions of type `bt_plugin_finalize_func` called when this SO
+	 * handle is destroyed.
+	 */
+	GPtrArray *finalize_funcs;
 };
 
 struct sopp_per_plugin {
@@ -149,10 +151,22 @@ void destroy_so_handle(struct bt_object *obj)
 	BT_LOGI("Destroying shared library handle: addr=%p, path=\"%s\"",
 		so_handle, path);
 
-	if (so_handle->init_called && so_handle->exit) {
-		BT_LOGD_STR("Calling user's plugin exit function.");
-		so_handle->exit();
-		BT_LOGD_STR("User function returned.");
+	if (so_handle->finalize_funcs) {
+		gint i;
+
+		for (i = 0; i < so_handle->finalize_funcs->len; ++i) {
+			const bt_plugin_finalize_func finalize_func =
+				g_ptr_array_index(so_handle->finalize_funcs, i);
+
+			BT_ASSERT(finalize_func);
+
+			BT_LOGD_STR("Calling user's plugin finalize function.");
+			finalize_func();
+			BT_LOGD_STR("User function returned.");
+		}
+
+		g_ptr_array_free(so_handle->finalize_funcs, TRUE);
+		so_handle->finalize_funcs = NULL;
 	}
 
 	if (so_handle->module) {
@@ -211,6 +225,13 @@ int create_so_handle(const char *path, struct sopp_so_handle **so_handle)
 	}
 
 	bt_object_init_shared(&(*so_handle)->base, destroy_so_handle);
+
+	(*so_handle)->finalize_funcs = g_ptr_array_new();
+	if (!(*so_handle)->finalize_funcs) {
+		BT_SOPP_LOGE_APPEND_CAUSE("Failed to allocate a GPtrArray.");
+		status = BT_FUNC_STATUS_MEMORY_ERROR;
+		goto end;
+	}
 
 	if (!path) {
 		goto end;
@@ -368,6 +389,7 @@ int initialize_so_plugin(struct bt_plugin *plugin,
 	};
 
 	int status = BT_FUNC_STATUS_OK;
+	bt_plugin_finalize_func finalize_func = NULL;
 	struct __bt_plugin_descriptor_attribute const * const *cur_attr_ptr;
 	struct __bt_plugin_component_class_descriptor const * const *cur_cc_descr_ptr;
 	struct __bt_plugin_component_class_descriptor_attribute const * const *cur_cc_descr_attr_ptr;
@@ -420,7 +442,7 @@ int initialize_so_plugin(struct bt_plugin *plugin,
 			per_plugin->init = cur_attr->value.init;
 			break;
 		case BT_PLUGIN_DESCRIPTOR_ATTRIBUTE_TYPE_EXIT:
-			per_plugin->so_handle->exit = cur_attr->value.exit;
+			finalize_func = cur_attr->value.exit;
 			break;
 		case BT_PLUGIN_DESCRIPTOR_ATTRIBUTE_TYPE_AUTHOR:
 			status = bt_plugin_set_author(plugin, cur_attr->value.author);
@@ -827,7 +849,14 @@ int initialize_so_plugin(struct bt_plugin *plugin,
 		}
 	}
 
-	per_plugin->so_handle->init_called = BT_TRUE;
+	/*
+	 * Now that the init method has been successfully called, arrange for
+	 * the finalize function to be called (if any).
+	 */
+	if (finalize_func) {
+		g_ptr_array_add(per_plugin->so_handle->finalize_funcs,
+			finalize_func);
+	}
 
 	/* Add described component classes to plugin */
 	for (i = 0; i < comp_class_full_descriptors->len; i++) {

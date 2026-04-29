@@ -5,6 +5,7 @@
  */
 
 #include <functional>
+#include <set>
 #include <string>
 
 #include <fmt/core.h>
@@ -69,6 +70,41 @@ TEST_CASE("Minimal plugin")
     }
 
     CHECK(intEnvVar("BT_TEST_PLUGIN_FINALIZE_CALLED") == 1);
+}
+
+TEST_CASE("Multiple plugins in one shared object")
+{
+    g_setenv("BT_TEST_PLUGIN_MULTI_ONE_INITIALIZE_CALLED", "0", 1);
+    g_setenv("BT_TEST_PLUGIN_MULTI_ONE_FINALIZE_CALLED", "0", 1);
+    g_setenv("BT_TEST_PLUGIN_MULTI_TWO_INITIALIZE_CALLED", "0", 1);
+    g_setenv("BT_TEST_PLUGIN_MULTI_TWO_FINALIZE_CALLED", "0", 1);
+
+    {
+        const auto multiPath = testPluginPath("multi");
+        const auto plugins = bt2::findAllPluginsFromFile(multiPath, true);
+
+        REQUIRE(plugins);
+        REQUIRE(plugins->length() == 2);
+
+        std::set<std::string> pluginNames;
+
+        for (const auto plugin : *plugins) {
+            pluginNames.emplace(plugin.name());
+            CHECK(plugin.path() == multiPath);
+            CHECK(plugin.sourceComponentClasses().length() == 0);
+            CHECK(plugin.filterComponentClasses().length() == 0);
+            CHECK(plugin.sinkComponentClasses().length() == 0);
+        }
+
+        CHECK(pluginNames == std::set<std::string> {"test_multi_one", "test_multi_two"});
+        CHECK(intEnvVar("BT_TEST_PLUGIN_MULTI_ONE_INITIALIZE_CALLED") == 1);
+        CHECK(intEnvVar("BT_TEST_PLUGIN_MULTI_ONE_FINALIZE_CALLED") == 0);
+        CHECK(intEnvVar("BT_TEST_PLUGIN_MULTI_TWO_INITIALIZE_CALLED") == 1);
+        CHECK(intEnvVar("BT_TEST_PLUGIN_MULTI_TWO_FINALIZE_CALLED") == 0);
+    }
+
+    CHECK(intEnvVar("BT_TEST_PLUGIN_MULTI_ONE_FINALIZE_CALLED") == 1);
+    CHECK(intEnvVar("BT_TEST_PLUGIN_MULTI_TWO_FINALIZE_CALLED") == 1);
 }
 
 class SfsPluginFixture

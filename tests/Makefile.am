@@ -1175,6 +1175,17 @@ lib_plugins_bt_plugin_sfs_la_LIBADD = \
 	$(top_builddir)/src/common/libcommon.la \
 	$(top_builddir)/src/logging/liblogging.la
 
+noinst_LTLIBRARIES += lib/plugins/bt-plugin-multi.la
+lib_plugins_bt_plugin_multi_la_SOURCES = lib/plugins/multi.cpp
+lib_plugins_bt_plugin_multi_la_LDFLAGS = \
+	$(AM_LDFLAGS) \
+	$(LT_NO_UNDEFINED) \
+	-rpath / -avoid-version -module $(LD_NOTEXT)
+lib_plugins_bt_plugin_multi_la_LIBADD = \
+	$(top_builddir)/src/lib/libbabeltrace2.la \
+	$(top_builddir)/src/common/libcommon.la \
+	$(top_builddir)/src/logging/liblogging.la
+
 noinst_PROGRAMS += lib/test-plugin-init-fail
 lib_test_plugin_init_fail_SOURCES = lib/test-plugin-init-fail.cpp
 lib_test_plugin_init_fail_LDADD = \
