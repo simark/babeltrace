@@ -567,8 +567,6 @@ int bt_plugin_from_python_plugin_info(PyObject *plugin_info,
 		goto error;
 	}
 
-	(*plugin_out)->type = BT_PLUGIN_TYPE_PYTHON;
-
 	if (description) {
 		status = bt_plugin_set_description(*plugin_out, description);
 		if (status) {

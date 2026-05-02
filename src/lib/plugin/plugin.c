@@ -1043,12 +1043,6 @@ struct bt_plugin *bt_plugin_create(const char *name)
 
 	bt_object_init_shared(&plugin->base, destroy_plugin);
 
-	/*
-	 * This gets overwritten by the Python and shared object plugin
-	 * providers.
-	 */
-	plugin->type = BT_PLUGIN_TYPE_EXTERNAL;
-
 	/* Create empty arrays of component classes */
 	plugin->src_comp_classes =
 		g_ptr_array_new_with_free_func(

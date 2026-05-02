@@ -1669,8 +1669,6 @@ static inline void format_plugin(char **buf_ch, bool extended,
 {
 	char tmp_prefix[TMP_PREFIX_LEN];
 
-	BUF_APPEND(", %stype=%s", PRFIELD(bt_plugin_type_string(plugin->type)));
-
 	if (plugin->info.path_set) {
 		BUF_APPEND(", %spath=\"%s\"",
 			PRFIELD_GSTRING(plugin->info.path));

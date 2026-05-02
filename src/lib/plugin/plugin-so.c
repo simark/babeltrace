@@ -214,7 +214,6 @@ void bt_plugin_so_destroy_spec_data(struct bt_plugin *plugin)
 		return;
 	}
 
-	BT_ASSERT(plugin->type == BT_PLUGIN_TYPE_SO);
 	BT_ASSERT(spec);
 	BT_OBJECT_PUT_REF_AND_RESET(spec->shared_lib_handle);
 	g_free(plugin->spec_data);
@@ -1266,7 +1265,6 @@ struct bt_plugin *bt_plugin_so_create_empty(const char *name,
 		goto error;
 	}
 
-	plugin->type = BT_PLUGIN_TYPE_SO;
 	plugin->destroy_spec_data = bt_plugin_so_destroy_spec_data;
 	plugin->spec_data = g_new0(struct bt_plugin_so_spec_data, 1);
 	if (!plugin->spec_data) {

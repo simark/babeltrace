@@ -13,15 +13,8 @@
 
 #include "common/object-struct.h"
 
-enum bt_plugin_type {
-	BT_PLUGIN_TYPE_SO = 0,
-	BT_PLUGIN_TYPE_PYTHON = 1,
-	BT_PLUGIN_TYPE_EXTERNAL = 2,
-};
-
 struct bt_plugin {
 	struct bt_object base;
-	enum bt_plugin_type type;
 
 	/* Arrays of `struct bt_component_class *` (owned by this) */
 	GPtrArray *src_comp_classes;
@@ -62,20 +55,5 @@ struct bt_plugin_set {
 	/* Array of struct bt_plugin * */
 	GPtrArray *plugins;
 };
-
-static inline
-const char *bt_plugin_type_string(enum bt_plugin_type type)
-{
-	switch (type) {
-	case BT_PLUGIN_TYPE_SO:
-		return "SO";
-	case BT_PLUGIN_TYPE_PYTHON:
-		return "PYTHON";
-	case BT_PLUGIN_TYPE_EXTERNAL:
-		return "EXTERNAL";
-	default:
-		return "(unknown)";
-	}
-}
 
 #endif /* BABELTRACE_LIB_PLUGIN_PLUGIN_H */
