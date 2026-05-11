@@ -1439,7 +1439,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 	 * path must be longer than the suffix length.
 	 */
 	if (path_len <= PLUGIN_SUFFIX_LEN) {
-		BT_LOGI("Path is too short to be an `.so` or `.la` plugin file:"
+		BT_LOGI("Path is too short to be an `.so` or `.la` plugin file: "
 			"path=%s, path-length=%zu, min-length=%zu",
 			path, path_len, PLUGIN_SUFFIX_LEN);
 		status = BT_FUNC_STATUS_NOT_FOUND;
