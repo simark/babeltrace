@@ -236,14 +236,16 @@ end:
 
 __attribute__((destructor)) static
 void fini_python(void) {
-	if (Py_IsInitialized() && python_was_initialized_by_us) {
+	if (Py_IsInitialized()) {
 		if (py_try_load_plugin_module_func) {
 			Py_DECREF(py_try_load_plugin_module_func);
 			py_try_load_plugin_module_func = NULL;
 		}
 
-		Py_Finalize();
-		BT_LOGI_STR("Finalized Python interpreter.");
+		if (python_was_initialized_by_us) {
+			Py_Finalize();
+			BT_LOGI_STR("Finalized Python interpreter.");
+		}
 	}
 
 	python_state = PYTHON_STATE_NOT_INITED;
