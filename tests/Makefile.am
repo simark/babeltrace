@@ -738,6 +738,7 @@ EXTRA_DIST = \
 	python-plugin-provider/bt_plugin_test_empty.py \
 	python-plugin-provider/bt_plugin_test_no_register.py \
 	python-plugin-provider/bt_plugin_test_python_plugin_provider.py \
+	python-plugin-provider/bt_plugin_test_raises.py \
 	python-plugin-provider/test_python_plugin_provider.py \
 	utils/python \
 	REUSE.toml

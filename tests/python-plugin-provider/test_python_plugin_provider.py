@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2019 EfficiOS Inc.
 # SPDX-License-Identifier: GPL-2.0-only
 
+import sys
+
 import bt2
 import pytest
 
@@ -72,3 +74,26 @@ class TestPythonPluginLoading:
                 )
                 is None
             )
+
+    # Test a Python plugin file that raises during module execution.  The
+    # module must not be left registered in `sys.modules`.
+    def test_python_plugin_provider_raises(self, src_tests_dir, fail_on_load_error):
+        plugin_path = src_tests_dir / "python-plugin-provider/bt_plugin_test_raises.py"
+
+        before = {k for k in sys.modules if k.startswith("bt_plugin_")}
+
+        if fail_on_load_error:
+            with pytest.raises(bt2._Error, match="Cannot load Python plugin"):
+                bt2.find_plugins_in_path(
+                    str(plugin_path), fail_on_load_error=fail_on_load_error
+                )
+        else:
+            assert (
+                bt2.find_plugins_in_path(
+                    str(plugin_path), fail_on_load_error=fail_on_load_error
+                )
+                is None
+            )
+
+        after = {k for k in sys.modules if k.startswith("bt_plugin_")}
+        assert before == after

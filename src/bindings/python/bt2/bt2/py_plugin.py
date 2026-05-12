@@ -114,11 +114,19 @@ def _try_load_plugin_module(path):
     assert module_name not in sys.modules
 
     # try loading the module: any raised exception is caught by the caller
-    loader = importlib.machinery.SourceFileLoader(module_name, path)
-    spec = importlib.util.spec_from_file_location(module_name, path, loader=loader)
+    spec = importlib.util.spec_from_file_location(module_name, path)
+
+    if spec is None or spec.loader is None:
+        raise ImportError("Could not load module `{module_name}` from `{path}`")
+
     mod = importlib.util.module_from_spec(spec)
     sys.modules[mod.__name__] = mod
-    loader.exec_module(mod)
+
+    try:
+        spec.loader.exec_module(mod)
+    except Exception:
+        sys.modules.pop(module_name, None)
+        raise
 
     # we have the module: look for its plugin info first
     if not hasattr(mod, "_bt_plugin_info"):
