@@ -1464,7 +1464,7 @@ int bt_plugin_so_create_all_from_sections(
 		}
 	}
 
-	if (plugin_set->plugins->len == 0) {
+	if (bt_plugin_set_get_plugin_count(plugin_set) == 0) {
 		status = BT_FUNC_STATUS_NOT_FOUND;
 	} else {
 		status = BT_FUNC_STATUS_OK;
@@ -1505,7 +1505,7 @@ int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
 		__bt_get_end_section_component_class_descriptor_attributes(),
 		plugin_set);
 	BT_ASSERT(status != BT_FUNC_STATUS_OK ||
-		plugin_set->plugins->len > 0);
+		bt_plugin_set_get_plugin_count(plugin_set) > 0);
 
 end:
 	BT_OBJECT_PUT_REF_AND_RESET(shared_lib_handle);
