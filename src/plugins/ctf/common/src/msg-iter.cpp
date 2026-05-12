@@ -703,7 +703,7 @@ void MsgIter::_handleStrFieldEndItem()
     {
         /* Convert to UTF-8 */
         const auto utf8Str = std::invoke([this] {
-            bt2c::ConstBytes inBytes {_mStrBuf.begin(), _mStrBuf.end()};
+            bt2c::ConstBytes inBytes {_mStrBuf.data(), _mStrBuf.size()};
 
             switch (_mCurStrFieldEncoding) {
             case StrEncoding::Utf16Be:
