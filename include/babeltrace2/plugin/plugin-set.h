@@ -38,7 +38,8 @@ Get the number of plugins in a plugin set with
 bt_plugin_set_get_plugin_count().
 
 Borrow a plugin from a plugin set with
-bt_plugin_set_borrow_plugin_by_index_const().
+bt_plugin_set_borrow_plugin_by_index_const() or
+bt_plugin_set_borrow_plugin_by_name_const().
 */
 
 /*! @{ */
@@ -86,22 +87,98 @@ extern uint64_t bt_plugin_set_get_plugin_count(
     \em Borrowed reference of the plugin of \bt_p{plugin_set} at index
     \bt_p{index}.
 
-    The returned pointer remains valid until \bt_p{plugin_set} is
-    modified.
+    The returned pointer remains valid as long as \bt_p{plugin_set}
+    exists.
     @endparblock
 
 @bt_pre_not_null{plugin_set}
 @pre
     \bt_p{index} is less than the number of plugins in
     \bt_p{plugin_set} (as returned by bt_plugin_set_get_plugin_count()).
+
+@sa bt_plugin_set_borrow_plugin_by_name_const() &mdash;
+    Borrows a plugin by name from a plugin set.
 */
 extern const bt_plugin *bt_plugin_set_borrow_plugin_by_index_const(
 		const bt_plugin_set *plugin_set, uint64_t index) __BT_NOEXCEPT;
 
 /*!
-@name Reference count
-@{
+@brief
+    Borrows the \bt_plugin named \bt_p{name} from the plugin set
+    \bt_p{plugin_set}.
+
+If no plugin has the name \bt_p{name} within \bt_p{plugin_set}, this
+function returns \c NULL.
+
+@param[in] plugin_set
+    Plugin set from which to borrow the plugin named \bt_p{name}.
+@param[in] name
+    Name of the plugin to borrow from \bt_p{plugin_set}.
+
+@returns
+    @parblock
+    \em Borrowed reference of the plugin of \bt_p{plugin_set} named
+    \bt_p{name}, or \c NULL if no plugin is named \bt_p{name} within
+    \bt_p{plugin_set}.
+
+    The returned pointer remains valid as long as \bt_p{plugin_set}
+    exists.
+    @endparblock
+
+@bt_pre_not_null{plugin_set}
+@bt_pre_not_null{name}
+
+@sa bt_plugin_set_borrow_plugin_by_index_const() &mdash;
+    Borrows a plugin by index from a plugin set.
 */
+extern const bt_plugin *bt_plugin_set_borrow_plugin_by_name_const(
+		const bt_plugin_set *plugin_set, const char *name)
+		__BT_NOEXCEPT;
+
+/*!
+@brief
+    Status codes for bt_plugin_set_add_plugin().
+*/
+typedef enum bt_plugin_set_add_plugin_status {
+	/*!
+	@brief
+	    Success.
+	*/
+	BT_PLUGIN_SET_ADD_PLUGIN_STATUS_OK		= __BT_FUNC_STATUS_OK,
+
+	/*!
+	@brief
+	    Out of memory.
+	*/
+	BT_PLUGIN_SET_ADD_PLUGIN_STATUS_MEMORY_ERROR	= __BT_FUNC_STATUS_MEMORY_ERROR,
+} bt_plugin_set_add_plugin_status;
+
+/*!
+@brief
+    Adds the \bt_plugin \bt_p{plugin} to the plugin set
+    \bt_p{plugin_set}.
+
+@param[in] plugin_set
+    Plugin set to which to add the plugin \bt_p{plugin}.
+@param[in] plugin
+    Plugin to add to the plugin set \bt_p{plugin_set}.
+
+@retval #BT_PLUGIN_SET_ADD_PLUGIN_STATUS_OK
+    Success.
+@retval #BT_PLUGIN_SET_ADD_PLUGIN_STATUS_MEMORY_ERROR
+    Out of memory.
+
+@bt_pre_not_null{plugin_set}
+@bt_pre_not_null{plugin}
+@pre
+    No plugin in \bt_p{plugin_set} has the name of \bt_p{plugin}
+    (as returned by bt_plugin_get_name()).
+
+@bt_post_success_frozen{plugin}
+*/
+extern bt_plugin_set_add_plugin_status
+bt_plugin_set_add_plugin(bt_plugin_set *plugin_set,
+		bt_plugin *plugin) __BT_NOEXCEPT;
 
 /*!
 @brief

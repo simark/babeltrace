@@ -66,6 +66,10 @@ A plugin is a \ref api-fund-shared-object "shared object": get a new
 reference with bt_plugin_get_ref() and put an existing reference with
 bt_plugin_put_ref().
 
+Create a plugin with bt_plugin_create().
+
+Add a component class to a plugin with bt_plugin_add_component_class().
+
 Get the number of \bt_comp_cls in a plugin with
 bt_plugin_get_source_component_class_count(),
 bt_plugin_get_filter_component_class_count(), and
@@ -93,9 +97,11 @@ A plugin has the following properties:
   <dd>
     Name of the plugin.
 
-    The name of the plugin isn't related to its file name. For example,
+    The plugin's name is not related to its file name. For example,
     a plugin found in the file \c patente.so can be named
     <code>Dan</code>.
+
+    A plugin has a mandatory name property.
 
     Use bt_plugin_get_name().
   </dd>
@@ -107,7 +113,7 @@ A plugin has the following properties:
   <dd>
     Description of the plugin.
 
-    Use bt_plugin_get_description().
+    Use bt_plugin_set_description() and bt_plugin_get_description().
   </dd>
 
   <dt>
@@ -115,9 +121,9 @@ A plugin has the following properties:
     \bt_dt_opt Author name(s)
   </dt>
   <dd>
-    Name(s) of the author(s) of the plugin.
+    Name(s) of the plugin's author(s).
 
-    Use bt_plugin_get_author().
+    Use bt_plugin_set_author() and bt_plugin_get_author().
   </dd>
 
   <dt>
@@ -127,7 +133,7 @@ A plugin has the following properties:
   <dd>
     License or license name of the plugin.
 
-    Use bt_plugin_get_license().
+    Use bt_plugin_set_license() and bt_plugin_get_license().
   </dd>
 
   <dt>
@@ -139,7 +145,7 @@ A plugin has the following properties:
 
     A static plugin has no path property.
 
-    Use bt_plugin_get_path().
+    Use bt_plugin_set_path() and bt_plugin_get_path().
   </dd>
 
   <dt>
@@ -149,11 +155,11 @@ A plugin has the following properties:
   <dd>
     Version of the plugin (major, minor, patch, and extra information).
 
-    The version of the plugin is completely user-defined: the library
-    doesn't use this property in any way to verify the compatibility
-    of the plugin.
+    The plugin's version is completely user-defined: the library does
+    not use this property in any way to verify the plugin's
+    compatibility.
 
-    Use bt_plugin_get_version().
+    Use bt_plugin_set_version() and bt_plugin_get_version().
   </dd>
 </dl>
 */
@@ -171,6 +177,116 @@ A plugin has the following properties:
 
 @}
 */
+
+/*!
+@name Plugin creation
+@{
+*/
+
+/*!
+@brief
+    Creates and returns a new empty plugin named \bt_p{name}.
+
+On success, the returned plugin has the following property values:
+
+<table>
+  <tr>
+    <th>Property</th>
+    <th>Value</th>
+  </tr>
+  <tr>
+    <td>\ref api-plugin-prop-name "Name"</td>
+    <td>\bt_p{name}</td>
+  </tr>
+  <tr>
+    <td>\ref api-plugin-prop-descr "Description"</td>
+    <td>\em None</td>
+  </tr>
+  <tr>
+    <td>\ref api-plugin-prop-author "Author"</td>
+    <td>\em None</td>
+  </tr>
+  <tr>
+    <td>\ref api-plugin-prop-license "License"</td>
+    <td>\em None</td>
+  </tr>
+  <tr>
+    <td>\ref api-plugin-prop-path "Path"</td>
+    <td>\em None</td>
+  </tr>
+  <tr>
+    <td>\ref api-plugin-prop-version "Version"</td>
+    <td>\em None</td>
+  </tr>
+</table>
+
+@param[in] name
+    Name of the returned plugin (copied).
+
+@returns
+    New empty plugin named \bt_p{name}, or \c NULL on memory error.
+
+@bt_pre_not_null{name}
+*/
+extern bt_plugin *bt_plugin_create(const char *name) __BT_NOEXCEPT;
+
+/*! @} */
+
+/*!
+@name Component class addition
+@{
+*/
+
+/*!
+@brief
+    Status codes for bt_plugin_add_component_class().
+*/
+typedef enum bt_plugin_add_component_class_status {
+	/*!
+	@brief
+	    Success.
+	*/
+	BT_PLUGIN_ADD_COMPONENT_CLASS_STATUS_OK			= __BT_FUNC_STATUS_OK,
+
+	/*!
+	@brief
+	    Out of memory.
+	*/
+	BT_PLUGIN_ADD_COMPONENT_CLASS_STATUS_MEMORY_ERROR	= __BT_FUNC_STATUS_MEMORY_ERROR,
+} bt_plugin_add_component_class_status;
+
+/*!
+@brief
+    Adds the component class \bt_p{component_class} to the
+    plugin \bt_p{plugin}.
+
+@param[in] plugin
+    Plugin to which to add the component class
+    \bt_p{component_class}.
+@param[in] component_class
+    Component class to add to the plugin \bt_p{plugin}.
+
+@retval #BT_PLUGIN_ADD_COMPONENT_CLASS_STATUS_OK
+    Success.
+@retval #BT_PLUGIN_ADD_COMPONENT_CLASS_STATUS_MEMORY_ERROR
+    Out of memory.
+
+@bt_pre_not_null{plugin}
+@bt_pre_hot{plugin}
+@bt_pre_not_null{component_class}
+@pre
+    \bt_p{component_class} is not already part of a plugin.
+@pre
+    No component class with the same name and type as
+    \bt_p{component_class} is contained in \bt_p{plugin}.
+
+@bt_post_success_frozen{component_class}
+*/
+extern bt_plugin_add_component_class_status
+bt_plugin_add_component_class(
+	bt_plugin *plugin, bt_component_class *component_class) __BT_NOEXCEPT;
+
+/*! @} */
 
 /*!
 @name Plugin properties
@@ -199,6 +315,48 @@ extern const char *bt_plugin_get_name(const bt_plugin *plugin) __BT_NOEXCEPT;
 
 /*!
 @brief
+    Status codes for bt_plugin_set_description().
+*/
+typedef enum bt_plugin_set_description_status {
+	/*!
+	@brief
+	    Success.
+	*/
+	BT_PLUGIN_SET_DESCRIPTION_STATUS_OK		= __BT_FUNC_STATUS_OK,
+
+	/*!
+	@brief
+	    Out of memory.
+	*/
+	BT_PLUGIN_SET_DESCRIPTION_STATUS_MEMORY_ERROR	= __BT_FUNC_STATUS_MEMORY_ERROR,
+} bt_plugin_set_description_status;
+
+/*!
+@brief
+    Sets the description of the plugin \bt_p{plugin} to a copy of \bt_p{description}.
+
+See the \ref api-plugin-prop-descr "description" property.
+
+@param[in] plugin
+    Plugin of which to set the description to \bt_p{description}.
+@param[in] description
+    New description of \bt_p{plugin} (copied).
+
+@retval #BT_PLUGIN_SET_DESCRIPTION_STATUS_OK
+    Success.
+@retval #BT_PLUGIN_SET_DESCRIPTION_STATUS_MEMORY_ERROR
+    Out of memory.
+
+@bt_pre_not_null{plugin}
+@bt_pre_hot{plugin}
+@bt_pre_not_null{description}
+*/
+extern bt_plugin_set_description_status
+bt_plugin_set_description(bt_plugin *plugin, const char *description)
+		__BT_NOEXCEPT;
+
+/*!
+@brief
     Returns the description of the plugin \bt_p{plugin}.
 
 See the \ref api-plugin-prop-descr "description" property.
@@ -220,6 +378,48 @@ extern const char *bt_plugin_get_description(const bt_plugin *plugin)
 
 /*!
 @brief
+    Status codes for bt_plugin_set_author().
+*/
+typedef enum bt_plugin_set_author_status {
+	/*!
+	@brief
+	    Success.
+	*/
+	BT_PLUGIN_SET_AUTHOR_STATUS_OK			= __BT_FUNC_STATUS_OK,
+
+	/*!
+	@brief
+	    Out of memory.
+	*/
+	BT_PLUGIN_SET_AUTHOR_STATUS_MEMORY_ERROR	= __BT_FUNC_STATUS_MEMORY_ERROR,
+} bt_plugin_set_author_status;
+
+/*!
+@brief
+    Sets the author of the plugin \bt_p{plugin} to a copy of \bt_p{author}.
+
+See the \ref api-plugin-prop-author "author name(s)" property.
+
+@param[in] plugin
+    Plugin of which to set the author to \bt_p{author}.
+@param[in] author
+    New author of \bt_p{plugin} (copied).
+
+@retval #BT_PLUGIN_SET_AUTHOR_STATUS_OK
+    Success.
+@retval #BT_PLUGIN_SET_AUTHOR_STATUS_MEMORY_ERROR
+    Out of memory.
+
+@bt_pre_not_null{plugin}
+@bt_pre_hot{plugin}
+@bt_pre_not_null{author}
+*/
+extern bt_plugin_set_author_status
+bt_plugin_set_author(bt_plugin *plugin, const char *author)
+		__BT_NOEXCEPT;
+
+/*!
+@brief
     Returns the name(s) of the author(s) of the plugin \bt_p{plugin}.
 
 See the \ref api-plugin-prop-author "author name(s)" property.
@@ -236,7 +436,50 @@ See the \ref api-plugin-prop-author "author name(s)" property.
 
 @bt_pre_not_null{plugin}
 */
-extern const char *bt_plugin_get_author(const bt_plugin *plugin) __BT_NOEXCEPT;
+extern const char *bt_plugin_get_author(const bt_plugin *plugin)
+		__BT_NOEXCEPT;
+
+/*!
+@brief
+    Status codes for bt_plugin_set_license().
+*/
+typedef enum bt_plugin_set_license_status {
+	/*!
+	@brief
+	    Success.
+	*/
+	BT_PLUGIN_SET_LICENSE_STATUS_OK			= __BT_FUNC_STATUS_OK,
+
+	/*!
+	@brief
+	    Out of memory.
+	*/
+	BT_PLUGIN_SET_LICENSE_STATUS_MEMORY_ERROR	= __BT_FUNC_STATUS_MEMORY_ERROR,
+} bt_plugin_set_license_status;
+
+/*!
+@brief
+    Sets the license of the plugin \bt_p{plugin} to a copy of \bt_p{license}.
+
+See the \ref api-plugin-prop-license "license" property.
+
+@param[in] plugin
+    Plugin of which to set the license to \bt_p{license}.
+@param[in] license
+    New license of \bt_p{plugin} (copied).
+
+@retval #BT_PLUGIN_SET_LICENSE_STATUS_OK
+    Success.
+@retval #BT_PLUGIN_SET_LICENSE_STATUS_MEMORY_ERROR
+    Out of memory.
+
+@bt_pre_not_null{plugin}
+@bt_pre_hot{plugin}
+@bt_pre_not_null{license}
+*/
+extern bt_plugin_set_license_status
+bt_plugin_set_license(bt_plugin *plugin, const char *license)
+		__BT_NOEXCEPT;
 
 /*!
 @brief
@@ -257,7 +500,49 @@ See the \ref api-plugin-prop-license "license" property.
 
 @bt_pre_not_null{plugin}
 */
-extern const char *bt_plugin_get_license(const bt_plugin *plugin) __BT_NOEXCEPT;
+extern const char *bt_plugin_get_license(const bt_plugin *plugin)
+		__BT_NOEXCEPT;
+
+/*!
+@brief
+    Status codes for bt_plugin_set_path().
+*/
+typedef enum bt_plugin_set_path_status {
+	/*!
+	@brief
+	    Success.
+	*/
+	BT_PLUGIN_SET_PATH_STATUS_OK			= __BT_FUNC_STATUS_OK,
+
+	/*!
+	@brief
+	    Out of memory.
+	*/
+	BT_PLUGIN_SET_PATH_STATUS_MEMORY_ERROR		= __BT_FUNC_STATUS_MEMORY_ERROR,
+} bt_plugin_set_path_status;
+
+/*!
+@brief
+    Sets the path of the plugin \bt_p{plugin} to a copy of \bt_p{path}.
+
+See the \ref api-plugin-prop-path "path" property.
+
+@param[in] plugin
+    Plugin of which to set the path to \bt_p{path}.
+@param[in] path
+    New path of \bt_p{plugin} (copied).
+
+@retval #BT_PLUGIN_SET_PATH_STATUS_OK
+    Success.
+@retval #BT_PLUGIN_SET_PATH_STATUS_MEMORY_ERROR
+    Out of memory.
+
+@bt_pre_not_null{plugin}
+@bt_pre_hot{plugin}
+@bt_pre_not_null{path}
+*/
+extern bt_plugin_set_path_status
+bt_plugin_set_path(bt_plugin *plugin, const char *path) __BT_NOEXCEPT;
 
 /*!
 @brief
@@ -270,7 +555,7 @@ This function returns \c NULL if \bt_p{plugin} is a static plugin
 because a static plugin has no path property.
 
 @param[in] plugin
-    Plugin of which to get the path of the containing file.
+    Plugin of which to get the containing file's path.
 
 @returns
     @parblock
@@ -282,7 +567,58 @@ because a static plugin has no path property.
 
 @bt_pre_not_null{plugin}
 */
-extern const char *bt_plugin_get_path(const bt_plugin *plugin) __BT_NOEXCEPT;
+extern const char *bt_plugin_get_path(const bt_plugin *plugin)
+		__BT_NOEXCEPT;
+
+/*!
+@brief
+    Status codes for bt_plugin_set_version().
+*/
+typedef enum bt_plugin_set_version_status {
+	/*!
+	@brief
+	    Success.
+	*/
+	BT_PLUGIN_SET_VERSION_STATUS_OK			= __BT_FUNC_STATUS_OK,
+
+	/*!
+	@brief
+	    Out of memory.
+	*/
+	BT_PLUGIN_SET_VERSION_STATUS_MEMORY_ERROR	= __BT_FUNC_STATUS_MEMORY_ERROR,
+} bt_plugin_set_version_status;
+
+/*!
+@brief
+    Sets the version number and extra information of the plugin
+    \bt_p{plugin}.
+
+See the \ref api-plugin-prop-version "version" property.
+
+@param[in] plugin
+    Plugin of which to set the version.
+@param[in] major
+    New major version of \bt_p{plugin}.
+@param[in] minor
+    New minor version of \bt_p{plugin}.
+@param[in] patch
+    New patch version of \bt_p{plugin}.
+@param[in] extra
+    <strong>If not \c NULL</strong>, new extra information
+    of \bt_p{plugin} (copied).
+
+@retval #BT_PLUGIN_SET_VERSION_STATUS_OK
+    Success.
+@retval #BT_PLUGIN_SET_VERSION_STATUS_MEMORY_ERROR
+    Out of memory.
+
+@bt_pre_not_null{plugin}
+@bt_pre_hot{plugin}
+*/
+extern bt_plugin_set_version_status
+bt_plugin_set_version(bt_plugin *plugin, unsigned int major,
+		unsigned int minor, unsigned int patch,
+		const char *extra) __BT_NOEXCEPT;
 
 /*!
 @brief
@@ -308,10 +644,10 @@ See the \ref api-plugin-prop-version "version" property.
     @parblock
     <strong>If not \c NULL and this function returns
     #BT_PROPERTY_AVAILABILITY_AVAILABLE</strong>, \bt_p{*extra} is the
-    extra information of the version of \bt_p{plugin}.
+    version's extra information of \bt_p{plugin}.
 
-    \bt_p{*extra} can be \c NULL if the version of the plugin has no
-    extra information.
+    \bt_p{*extra} can be \c NULL if the plugin's version has no extra
+    information.
 
     \bt_p{*extra} remains valid as long as \bt_p{plugin} exists.
     @endparblock
@@ -319,14 +655,14 @@ See the \ref api-plugin-prop-version "version" property.
 @retval #BT_PROPERTY_AVAILABILITY_AVAILABLE
     The version of \bt_p{plugin} is available.
 @retval #BT_PROPERTY_AVAILABILITY_NOT_AVAILABLE
-    The version of \bt_p{plugin} isn't available.
+    The version of \bt_p{plugin} is not available.
 
 @bt_pre_not_null{plugin}
 */
 extern bt_property_availability bt_plugin_get_version(
 		const bt_plugin *plugin, unsigned int *major,
-		unsigned int *minor, unsigned int *patch, const char **extra)
-		__BT_NOEXCEPT;
+		unsigned int *minor, unsigned int *patch,
+		const char **extra) __BT_NOEXCEPT;
 
 /*! @} */
 
@@ -488,7 +824,7 @@ bt_plugin_borrow_sink_component_class_by_index_const(
     plugin \bt_p{plugin}.
 
 If no source component class has the name \bt_p{name} within
-\bt_p{plugin}, then this function returns \c NULL.
+\bt_p{plugin}, this function returns \c NULL.
 
 @param[in] plugin
     Plugin from which to borrow the source component class named
@@ -521,7 +857,7 @@ bt_plugin_borrow_source_component_class_by_name_const(
     plugin \bt_p{plugin}.
 
 If no filter component class has the name \bt_p{name} within
-\bt_p{plugin}, then this function returns \c NULL.
+\bt_p{plugin}, this function returns \c NULL.
 
 @param[in] plugin
     Plugin from which to borrow the filter component class named
@@ -554,7 +890,7 @@ bt_plugin_borrow_filter_component_class_by_name_const(
     plugin \bt_p{plugin}.
 
 If no sink component class has the name \bt_p{name} within
-\bt_p{plugin}, then this function returns \c NULL.
+\bt_p{plugin}, this function returns \c NULL.
 
 @param[in] plugin
     Plugin from which to borrow the sink component class named

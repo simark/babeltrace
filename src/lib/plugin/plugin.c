@@ -11,8 +11,10 @@
 #include "common/assert.h"
 #include "lib/assert-cond.h"
 #include "common/macros.h"
+#include "compat/compiler.h"
 #include "compat/limits.h"
 #include "common/common.h"
+#include "common/object.h"
 #include "lib/graph/component-class.h"
 #include <glib.h>
 #include <unistd.h>
@@ -26,6 +28,26 @@
 #include "plugin.h"
 #include "plugin-so.h"
 #include "common/func-status.h"
+
+#define BT_ASSERT_PRE_DEV_PLUGIN_HOT(_p)				\
+	BT_ASSERT_PRE_DEV_HOT("plugin",					\
+		((const struct bt_plugin *) (_p)),			\
+		"Plugin", ": %!+l", (_p))
+
+#ifdef BT_DEV_MODE
+# define bt_plugin_freeze _bt_plugin_freeze
+
+static
+void _bt_plugin_freeze(struct bt_plugin *plugin)
+{
+	BT_ASSERT(plugin);
+	BT_LIB_LOGD("Freezing plugin: %!+l", plugin);
+	plugin->frozen = true;
+}
+
+#else
+# define bt_plugin_freeze(_p)
+#endif
 
 #define PYTHON_PLUGIN_PROVIDER_FILENAME	"babeltrace2-python-plugin-provider." G_MODULE_SUFFIX
 #define PYTHON_PLUGIN_PROVIDER_DIR	BABELTRACE_PLUGIN_PROVIDERS_DIR
@@ -150,6 +172,31 @@ void fini_python_plugin_provider(void) {
 #endif
 
 BT_EXPORT
+enum bt_plugin_set_add_plugin_status
+bt_plugin_set_add_plugin(struct bt_plugin_set *plugin_set,
+		struct bt_plugin *plugin)
+{
+	BT_ASSERT_PRE_NO_ERROR();
+	BT_ASSERT_PRE_PLUGIN_SET_NON_NULL(plugin_set);
+	BT_ASSERT_PRE_PLUGIN_NON_NULL(plugin);
+	BT_ASSERT_PRE("no-plugin-with-same-name-in-plugin-set",
+		!bt_plugin_set_borrow_plugin_by_name_const(
+			plugin_set, plugin->info.name->str),
+		"Plugin set already contains a plugin with this name: "
+		"plugin-set-addr=%p, %![plugin-]+l",
+		plugin_set, plugin);
+
+	bt_object_get_ref(plugin);
+	g_ptr_array_add(plugin_set->plugins, plugin);
+	bt_plugin_freeze(plugin);
+	BT_LIB_LOGD("Added plugin to plugin set: "
+		"plugin-set-addr=%p, %![plugin-]+l",
+		plugin_set, plugin);
+
+	return BT_FUNC_STATUS_OK;
+}
+
+BT_EXPORT
 uint64_t bt_plugin_set_get_plugin_count(const struct bt_plugin_set *plugin_set)
 {
 	BT_ASSERT_PRE_DEV_PLUGIN_SET_NON_NULL(plugin_set);
@@ -214,6 +261,29 @@ error:
 
 end:
 	return plugin_set;
+}
+
+BT_EXPORT
+const struct bt_plugin *bt_plugin_set_borrow_plugin_by_name_const(
+		const struct bt_plugin_set *plugin_set, const char *name)
+{
+	const struct bt_plugin *plugin = NULL;
+	size_t i;
+
+	BT_ASSERT_PRE_DEV_PLUGIN_SET_NON_NULL(plugin_set);
+	BT_ASSERT_PRE_DEV_NAME_NON_NULL(name);
+
+	for (i = 0; i < plugin_set->plugins->len; i++) {
+		const struct bt_plugin *plugin_candidate =
+			plugin_set->plugins->pdata[i];
+		if (strcmp(plugin_candidate->info.name->str, name) == 0) {
+			plugin = plugin_candidate;
+			goto end;
+		}
+	}
+
+end:
+	return plugin;
 }
 
 BT_EXPORT
@@ -466,9 +536,14 @@ enum bt_plugin_find_all_status bt_plugin_find_all(bt_bool find_in_std_env_var,
 
 		for (plugin_i = 0; plugin_i < plugin_set->plugins->len;
 				plugin_i++) {
-			add_plugin_to_set_if_not_exist(
+			status = add_plugin_to_set_if_not_exists(
 				(void *) *plugin_set_out,
 				plugin_set->plugins->pdata[plugin_i]);
+			if (status != BT_FUNC_STATUS_OK) {
+				BT_LIB_LOGE_APPEND_CAUSE(
+					"Cannot add plugin to plugin set.");
+				goto end;
+			}
 		}
 	}
 
@@ -492,9 +567,14 @@ enum bt_plugin_find_all_status bt_plugin_find_all(bt_bool find_in_std_env_var,
 
 		for (plugin_i = 0; plugin_i < plugin_set->plugins->len;
 				plugin_i++) {
-			add_plugin_to_set_if_not_exist(
+			status = add_plugin_to_set_if_not_exists(
 				(void *) *plugin_set_out,
 				plugin_set->plugins->pdata[plugin_i]);
+			if (status != BT_FUNC_STATUS_OK) {
+				BT_LIB_LOGE_APPEND_CAUSE(
+					"Cannot add plugin to plugin set.");
+				goto end;
+			}
 		}
 	}
 
@@ -630,9 +710,17 @@ int nftw_append_all_from_dir(const char *file,
 				BT_LIB_LOGI("Adding plugin to plugin set: "
 					"plugin-path=\"%s\", %![plugin-]+l",
 					file, plugin);
-				add_plugin_to_set_if_not_exist(
-					append_all_from_dir_info.plugin_set,
-					plugin);
+				append_all_from_dir_info.status =
+					add_plugin_to_set_if_not_exists(
+						append_all_from_dir_info.plugin_set,
+						plugin);
+				if (append_all_from_dir_info.status != BT_FUNC_STATUS_OK) {
+					bt_object_put_ref(plugins_from_file);
+					BT_LIB_LOGE_APPEND_CAUSE(
+						"Cannot add plugin to plugin set.");
+					ret = -1;
+					goto end;
+				}
 			}
 
 			bt_object_put_ref(plugins_from_file);
@@ -788,6 +876,336 @@ error:
 
 end:
 	return status;
+}
+
+static
+void destroy_plugin(struct bt_object *obj)
+{
+	struct bt_plugin *plugin;
+
+	BT_ASSERT(obj);
+	plugin = container_of(obj, struct bt_plugin, base);
+	BT_LIB_LOGI("Destroying plugin object: %!+l", plugin);
+
+	if (plugin->destroy_spec_data) {
+		plugin->destroy_spec_data(plugin);
+	}
+
+	if (plugin->src_comp_classes) {
+		BT_LOGD_STR("Putting source component classes.");
+		g_ptr_array_free(plugin->src_comp_classes, TRUE);
+		plugin->src_comp_classes = NULL;
+	}
+
+	if (plugin->flt_comp_classes) {
+		BT_LOGD_STR("Putting filter component classes.");
+		g_ptr_array_free(plugin->flt_comp_classes, TRUE);
+		plugin->flt_comp_classes = NULL;
+	}
+
+	if (plugin->sink_comp_classes) {
+		BT_LOGD_STR("Putting sink component classes.");
+		g_ptr_array_free(plugin->sink_comp_classes, TRUE);
+		plugin->sink_comp_classes = NULL;
+	}
+
+	if (plugin->info.name) {
+		g_string_free(plugin->info.name, TRUE);
+		plugin->info.name = NULL;
+	}
+
+	if (plugin->info.path) {
+		g_string_free(plugin->info.path, TRUE);
+		plugin->info.path = NULL;
+	}
+
+	if (plugin->info.description) {
+		g_string_free(plugin->info.description, TRUE);
+		plugin->info.description = NULL;
+	}
+
+	if (plugin->info.author) {
+		g_string_free(plugin->info.author, TRUE);
+		plugin->info.author = NULL;
+	}
+
+	if (plugin->info.license) {
+		g_string_free(plugin->info.license, TRUE);
+		plugin->info.license = NULL;
+	}
+
+	if (plugin->info.version.extra) {
+		g_string_free(plugin->info.version.extra, TRUE);
+		plugin->info.version.extra = NULL;
+	}
+
+	g_free(plugin);
+}
+
+BT_EXPORT
+struct bt_plugin *bt_plugin_create(const char *name)
+{
+	struct bt_plugin *plugin = NULL;
+
+	BT_ASSERT_PRE_NO_ERROR();
+	BT_ASSERT_PRE_NAME_NON_NULL(name);
+
+	BT_LOGD("Creating empty plugin object: name=\"%s\"", name);
+
+	plugin = g_new0(struct bt_plugin, 1);
+	if (!plugin) {
+		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate one plugin.");
+		goto error;
+	}
+
+	bt_object_init_shared(&plugin->base, destroy_plugin);
+
+	/*
+	 * This gets overwritten by the Python and shared object plugin
+	 * providers.
+	 */
+	plugin->type = BT_PLUGIN_TYPE_EXTERNAL;
+
+	/* Create empty arrays of component classes */
+	plugin->src_comp_classes =
+		g_ptr_array_new_with_free_func(
+			(GDestroyNotify) bt_object_put_ref);
+	if (!plugin->src_comp_classes) {
+		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GPtrArray.");
+		goto error;
+	}
+
+	plugin->flt_comp_classes =
+		g_ptr_array_new_with_free_func(
+			(GDestroyNotify) bt_object_put_ref);
+	if (!plugin->flt_comp_classes) {
+		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GPtrArray.");
+		goto error;
+	}
+
+	plugin->sink_comp_classes =
+		g_ptr_array_new_with_free_func(
+			(GDestroyNotify) bt_object_put_ref);
+	if (!plugin->sink_comp_classes) {
+		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GPtrArray.");
+		goto error;
+	}
+
+	plugin->info.name = g_string_new(name);
+	if (!plugin->info.name) {
+		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GString.");
+		goto error;
+	}
+
+	/* Create empty info */
+	plugin->info.path = g_string_new(NULL);
+	if (!plugin->info.path) {
+		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GString.");
+		goto error;
+	}
+
+	plugin->info.description = g_string_new(NULL);
+	if (!plugin->info.description) {
+		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GString.");
+		goto error;
+	}
+
+	plugin->info.author = g_string_new(NULL);
+	if (!plugin->info.author) {
+		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GString.");
+		goto error;
+	}
+
+	plugin->info.license = g_string_new(NULL);
+	if (!plugin->info.license) {
+		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GString.");
+		goto error;
+	}
+
+	plugin->info.version.extra = g_string_new(NULL);
+	if (!plugin->info.version.extra) {
+		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GString.");
+		goto error;
+	}
+
+	BT_LIB_LOGD("Created empty plugin object: %!+l", plugin);
+	goto end;
+
+error:
+	BT_OBJECT_PUT_REF_AND_RESET(plugin);
+
+end:
+	return plugin;
+}
+
+BT_EXPORT
+enum bt_plugin_set_path_status
+bt_plugin_set_path(struct bt_plugin *plugin, const char *path)
+{
+	BT_ASSERT_PRE_NO_ERROR();
+	BT_ASSERT_PRE_PLUGIN_NON_NULL(plugin);
+	BT_ASSERT_PRE_DEV_PLUGIN_HOT(plugin);
+	BT_ASSERT_PRE_NON_NULL("path", path, "Path");
+	g_string_assign(plugin->info.path, path);
+	plugin->info.path_set = true;
+	BT_LIB_LOGD("Set plugin's path: %![plugin-]+l, path=\"%s\"",
+		plugin, path);
+	return BT_FUNC_STATUS_OK;
+}
+
+BT_EXPORT
+enum bt_plugin_set_description_status
+bt_plugin_set_description(struct bt_plugin *plugin,
+		const char *description)
+{
+	BT_ASSERT_PRE_NO_ERROR();
+	BT_ASSERT_PRE_PLUGIN_NON_NULL(plugin);
+	BT_ASSERT_PRE_DEV_PLUGIN_HOT(plugin);
+	BT_ASSERT_PRE_DESCR_NON_NULL(description);
+	g_string_assign(plugin->info.description, description);
+	plugin->info.description_set = true;
+	BT_LIB_LOGD("Set plugin's description: %![plugin-]+l", plugin);
+	return BT_FUNC_STATUS_OK;
+}
+
+BT_EXPORT
+enum bt_plugin_set_author_status
+bt_plugin_set_author(struct bt_plugin *plugin, const char *author)
+{
+	BT_ASSERT_PRE_NO_ERROR();
+	BT_ASSERT_PRE_PLUGIN_NON_NULL(plugin);
+	BT_ASSERT_PRE_DEV_PLUGIN_HOT(plugin);
+	BT_ASSERT_PRE_NON_NULL("author", author, "Author");
+	g_string_assign(plugin->info.author, author);
+	plugin->info.author_set = true;
+	BT_LIB_LOGD("Set plugin's author: %![plugin-]+l, author=\"%s\"",
+		plugin, author);
+	return BT_FUNC_STATUS_OK;
+}
+
+BT_EXPORT
+enum bt_plugin_set_license_status
+bt_plugin_set_license(struct bt_plugin *plugin, const char *license)
+{
+	BT_ASSERT_PRE_NO_ERROR();
+	BT_ASSERT_PRE_PLUGIN_NON_NULL(plugin);
+	BT_ASSERT_PRE_DEV_PLUGIN_HOT(plugin);
+	BT_ASSERT_PRE_NON_NULL("license", license, "License");
+	g_string_assign(plugin->info.license, license);
+	plugin->info.license_set = true;
+	BT_LIB_LOGD("Set plugin's license: %![plugin-]+l, license=\"%s\"",
+		plugin, license);
+	return BT_FUNC_STATUS_OK;
+}
+
+BT_EXPORT
+enum bt_plugin_set_version_status
+bt_plugin_set_version(struct bt_plugin *plugin, unsigned int major,
+		unsigned int minor, unsigned int patch, const char *extra)
+{
+	BT_ASSERT_PRE_NO_ERROR();
+	BT_ASSERT_PRE_PLUGIN_NON_NULL(plugin);
+	BT_ASSERT_PRE_DEV_PLUGIN_HOT(plugin);
+	plugin->info.version.major = major;
+	plugin->info.version.minor = minor;
+	plugin->info.version.patch = patch;
+
+	if (extra) {
+		g_string_assign(plugin->info.version.extra, extra);
+		plugin->info.version.extra_set = true;
+	}
+
+	plugin->info.version_set = true;
+	BT_LIB_LOGD("Set plugin's version: %![plugin-]+l, "
+		"major=%u, minor=%u, patch=%u, extra=\"%s\"",
+		plugin, major, minor, patch, extra);
+	return BT_FUNC_STATUS_OK;
+}
+
+static
+bool component_classes_contain_component_class(
+		GPtrArray *comp_classes, const char *name)
+{
+	bool result = false;
+	size_t i;
+
+	BT_ASSERT(comp_classes);
+	BT_ASSERT(name);
+
+	for (i = 0; i < comp_classes->len; i++) {
+		struct bt_component_class *comp_class_candidate =
+			g_ptr_array_index(comp_classes, i);
+		const char *comp_class_cand_name =
+			bt_component_class_get_name(comp_class_candidate);
+
+		BT_ASSERT_DBG(comp_class_cand_name);
+
+		if (strcmp(name, comp_class_cand_name) == 0) {
+			result = true;
+			break;
+		}
+	}
+
+	return result;
+}
+
+BT_EXPORT
+enum bt_plugin_add_component_class_status
+bt_plugin_add_component_class(
+	struct bt_plugin *plugin, struct bt_component_class *comp_class)
+{
+	GPtrArray *comp_classes;
+
+	BT_ASSERT_PRE_NO_ERROR();
+	BT_ASSERT_PRE_PLUGIN_NON_NULL(plugin);
+	BT_ASSERT_PRE_DEV_PLUGIN_HOT(plugin);
+	BT_ASSERT_PRE_COMP_CLS_NON_NULL(comp_class);
+	/* Check that component class is not already part of a plugin */
+	BT_ASSERT_PRE("comp-class-is-not-part-of-plugin",
+		!comp_class->part_of_plugin,
+		"Component class is already part of a plugin: %![cc-]+C",
+		comp_class);
+
+	switch (comp_class->type) {
+	case BT_COMPONENT_CLASS_TYPE_SOURCE:
+		comp_classes = plugin->src_comp_classes;
+		break;
+	case BT_COMPONENT_CLASS_TYPE_FILTER:
+		comp_classes = plugin->flt_comp_classes;
+		break;
+	case BT_COMPONENT_CLASS_TYPE_SINK:
+		comp_classes = plugin->sink_comp_classes;
+		break;
+	default:
+		bt_common_abort();
+	}
+
+	BT_ASSERT_PRE("comp-class-with-same-name-and-type-is-not-part-of-plugin",
+		!component_classes_contain_component_class(
+			comp_classes, comp_class->name->str),
+		"Component class with same name and type is already part of the plugin: "
+		"%![plugin-]+l, %![cc-]+C", plugin, comp_class);
+
+	comp_class->part_of_plugin = true;
+
+	/* Set component class's original plugin name */
+	BT_ASSERT(comp_class->plugin_name);
+	BT_ASSERT(plugin->info.name);
+	g_string_assign(comp_class->plugin_name, plugin->info.name->str);
+
+	/* Add new component class */
+	bt_object_get_ref(comp_class);
+	g_ptr_array_add(comp_classes, comp_class);
+
+	/* Special case for a shared object plugin */
+	if (plugin->type == BT_PLUGIN_TYPE_SO) {
+		bt_plugin_so_on_add_component_class(plugin, comp_class);
+	}
+
+	bt_component_class_freeze(comp_class);
+	BT_LIB_LOGD("Added component class to plugin: "
+		"%![plugin-]+l, %![cc-]+C", plugin, comp_class);
+	return BT_FUNC_STATUS_OK;
 }
 
 BT_EXPORT

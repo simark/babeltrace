@@ -22,6 +22,7 @@
 #include "plugin-so.h"
 #include "common/func-status.h"
 #include "common/common.h"
+#include "common/object.h"
 
 #define NATIVE_PLUGIN_SUFFIX		"." G_MODULE_SUFFIX
 #define NATIVE_PLUGIN_SUFFIX_LEN	sizeof(NATIVE_PLUGIN_SUFFIX)
@@ -363,20 +364,40 @@ int bt_plugin_so_init(struct bt_plugin *plugin,
 			spec->shared_lib_handle->exit = cur_attr->value.exit;
 			break;
 		case BT_PLUGIN_DESCRIPTOR_ATTRIBUTE_TYPE_AUTHOR:
-			bt_plugin_set_author(plugin, cur_attr->value.author);
+			status = bt_plugin_set_author(plugin, cur_attr->value.author);
+			if (status) {
+				BT_LIB_LOGE_APPEND_CAUSE(
+					"Cannot set plugin author: %!+l", plugin);
+				goto end;
+			}
 			break;
 		case BT_PLUGIN_DESCRIPTOR_ATTRIBUTE_TYPE_LICENSE:
-			bt_plugin_set_license(plugin, cur_attr->value.license);
+			status = bt_plugin_set_license(plugin, cur_attr->value.license);
+			if (status) {
+				BT_LIB_LOGE_APPEND_CAUSE(
+					"Cannot set plugin license: %!+l", plugin);
+				goto end;
+			}
 			break;
 		case BT_PLUGIN_DESCRIPTOR_ATTRIBUTE_TYPE_DESCRIPTION:
-			bt_plugin_set_description(plugin, cur_attr->value.description);
+			status = bt_plugin_set_description(plugin, cur_attr->value.description);
+			if (status) {
+				BT_LIB_LOGE_APPEND_CAUSE(
+					"Cannot set plugin description: %!+l", plugin);
+				goto end;
+			}
 			break;
 		case BT_PLUGIN_DESCRIPTOR_ATTRIBUTE_TYPE_VERSION:
-			bt_plugin_set_version(plugin,
+			status = bt_plugin_set_version(plugin,
 				(unsigned int) cur_attr->value.version.major,
 				(unsigned int) cur_attr->value.version.minor,
 				(unsigned int) cur_attr->value.version.patch,
 				cur_attr->value.version.extra);
+			if (status) {
+				BT_LIB_LOGE_APPEND_CAUSE(
+					"Cannot set plugin version: %!+l", plugin);
+				goto end;
+			}
 			break;
 		default:
 			if (fail_on_load_error) {
@@ -1211,11 +1232,12 @@ struct bt_plugin *bt_plugin_so_create_empty(const char *name,
 	struct bt_plugin *plugin;
 	struct bt_plugin_so_spec_data *spec;
 
-	plugin = bt_plugin_create_empty(name, BT_PLUGIN_TYPE_SO);
+	plugin = bt_plugin_create(name);
 	if (!plugin) {
 		goto error;
 	}
 
+	plugin->type = BT_PLUGIN_TYPE_SO;
 	plugin->destroy_spec_data = bt_plugin_so_destroy_spec_data;
 	plugin->spec_data = g_new0(struct bt_plugin_so_spec_data, 1);
 	if (!plugin->spec_data) {
@@ -1316,8 +1338,13 @@ int bt_plugin_so_create_all_from_sections(
 		}
 
 		if (shared_lib_handle->path) {
-			bt_plugin_set_path(plugin,
+			status = bt_plugin_set_path(plugin,
 				shared_lib_handle->path->str);
+			if (status != BT_FUNC_STATUS_OK) {
+				BT_LIB_LOGE_APPEND_CAUSE(
+					"Cannot set plugin path: %!+l", plugin);
+				goto end;
+			}
 		}
 
 		status = bt_plugin_so_init(plugin, fail_on_load_error,
@@ -1326,7 +1353,16 @@ int bt_plugin_so_create_all_from_sections(
 			cc_descr_attrs_begin, cc_descr_attrs_end);
 		if (status == BT_FUNC_STATUS_OK) {
 			/* Add to plugin set */
-			add_plugin_to_set_if_not_exist(plugin_set, plugin);
+			status = add_plugin_to_set_if_not_exists(
+				plugin_set, plugin);
+			if (status != BT_FUNC_STATUS_OK) {
+				BT_LIB_LOGE_APPEND_CAUSE(
+					"Cannot add plugin to plugin set: "
+					"plugin-set-addr=%p, %![plugin-]+l",
+					plugin_set, plugin);
+				BT_OBJECT_PUT_REF_AND_RESET(plugin);
+				goto end;
+			}
 			BT_OBJECT_PUT_REF_AND_RESET(plugin);
 		} else if (status == BT_FUNC_STATUS_NOT_FOUND) {
 			/*
