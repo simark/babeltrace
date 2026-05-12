@@ -639,7 +639,7 @@ end:
 
 BT_EXPORT
 int bt_plugin_python_create_all_from_file(const char *path,
-		bool fail_on_load_error, struct bt_plugin_set **plugin_set_out)
+		bool fail_on_load_error, struct bt_plugin_set *plugin_set)
 {
 	bt_plugin *plugin = NULL;
 	PyObject *py_plugin_info = NULL;
@@ -648,6 +648,7 @@ int bt_plugin_python_create_all_from_file(const char *path,
 	int status = BT_FUNC_STATUS_OK;
 
 	BT_ASSERT(path);
+	BT_ASSERT(plugin_set);
 
 	if (python_state == PYTHON_STATE_CANNOT_INITIALIZE) {
 		/*
@@ -765,14 +766,7 @@ int bt_plugin_python_create_all_from_file(const char *path,
 	BT_ASSERT(status == BT_FUNC_STATUS_OK);
 	BT_ASSERT(plugin);
 	bt_plugin_set_path(plugin, path);
-	*plugin_set_out = bt_plugin_set_create();
-	if (!*plugin_set_out) {
-		BT_LIB_LOGE_APPEND_CAUSE("Cannot create empty plugin set.");
-		status = BT_FUNC_STATUS_MEMORY_ERROR;
-		goto error;
-	}
-
-	add_plugin_to_set_if_not_exist(*plugin_set_out, plugin);
+	add_plugin_to_set_if_not_exist(plugin_set, plugin);
 	BT_LOGD("Created all Python plugins from file: path=\"%s\", "
 		"plugin-addr=%p, plugin-name=\"%s\"",
 		path, plugin, bt_plugin_get_name(plugin));
@@ -782,7 +776,6 @@ error:
 	BT_ASSERT(status != BT_FUNC_STATUS_OK);
 	log_python_traceback(BT_LOG_WARNING);
 	pyerr_clear();
-	BT_OBJECT_PUT_REF_AND_RESET(*plugin_set_out);
 
 end:
 	bt_plugin_put_ref(plugin);

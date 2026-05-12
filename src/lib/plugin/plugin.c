@@ -40,7 +40,7 @@ int init_python_plugin_provider(void);
 typedef int (*create_all_from_file_sym_type)(
 		const char *path,
 		bool fail_on_load_error,
-		struct bt_plugin_set **plugin_set_out);
+		struct bt_plugin_set *plugin_set);
 
 #ifdef BT_BUILT_IN_PYTHON_PLUGIN_SUPPORT
 #include "python-plugin-provider/python-plugin-provider.h"
@@ -165,16 +165,86 @@ const struct bt_plugin *bt_plugin_set_borrow_plugin_by_index_const(
 	return g_ptr_array_index(plugin_set->plugins, index);
 }
 
+static
+void destroy_plugin_set(struct bt_object *obj)
+{
+	struct bt_plugin_set *plugin_set;
+
+	BT_ASSERT(obj);
+	plugin_set = container_of(obj, struct bt_plugin_set, base);
+	BT_LOGD("Destroying plugin set: addr=%p", plugin_set);
+
+	if (plugin_set->plugins) {
+		BT_LOGD_STR("Putting plugins.");
+		g_ptr_array_free(plugin_set->plugins, TRUE);
+	}
+
+	g_free(plugin_set);
+}
+
+static
+struct bt_plugin_set *create_plugin_set(void)
+{
+	struct bt_plugin_set *plugin_set;
+
+	BT_LOGD_STR("Creating empty plugin set.");
+	plugin_set = g_new0(struct bt_plugin_set, 1);
+
+	if (!plugin_set) {
+		BT_LIB_LOGE_APPEND_CAUSE(
+			"Failed to allocate one plugin set.");
+		goto error;
+	}
+
+	bt_object_init_shared(&plugin_set->base, destroy_plugin_set);
+
+	plugin_set->plugins = g_ptr_array_new_with_free_func(
+		(GDestroyNotify) bt_object_put_ref);
+	if (!plugin_set->plugins) {
+		BT_LIB_LOGE_APPEND_CAUSE(
+			"Failed to allocate plugin set's plugin array.");
+		goto error;
+	}
+
+	BT_LOGD("Created empty plugin set: addr=%p", plugin_set);
+	goto end;
+
+error:
+	BT_OBJECT_PUT_REF_AND_RESET(plugin_set);
+
+end:
+	return plugin_set;
+}
+
 BT_EXPORT
 enum bt_plugin_find_all_from_static_status bt_plugin_find_all_from_static(
 		bt_bool fail_on_load_error,
 		const struct bt_plugin_set **plugin_set_out)
 {
+	enum bt_plugin_find_all_from_static_status status;
+	struct bt_plugin_set *plugin_set = NULL;
+
 	BT_ASSERT_PRE_NO_ERROR();
 
+	plugin_set = create_plugin_set();
+	if (!plugin_set) {
+		BT_LIB_LOGE_APPEND_CAUSE("Cannot create empty plugin set.");
+		status = BT_FUNC_STATUS_MEMORY_ERROR;
+		goto end;
+	}
+
 	/* bt_plugin_so_create_all_from_static() logs errors */
-	return bt_plugin_so_create_all_from_static(fail_on_load_error,
-		(void *) plugin_set_out);
+	status = bt_plugin_so_create_all_from_static(fail_on_load_error,
+		plugin_set);
+	if (status == BT_FUNC_STATUS_OK) {
+		BT_ASSERT(plugin_set->plugins->len > 0);
+		*plugin_set_out = plugin_set;
+		plugin_set = NULL;
+	}
+
+end:
+	BT_OBJECT_PUT_REF_AND_RESET(plugin_set);
+	return status;
 }
 
 BT_EXPORT
@@ -183,26 +253,34 @@ enum bt_plugin_find_all_from_file_status bt_plugin_find_all_from_file(
 		const struct bt_plugin_set **plugin_set_out)
 {
 	enum bt_plugin_find_all_from_file_status status;
+	struct bt_plugin_set *plugin_set = NULL;
 
 	BT_ASSERT_PRE_NO_ERROR();
 	BT_ASSERT_PRE_NON_NULL("path", path, "Path");
 	BT_ASSERT_PRE_PLUGIN_SET_OUT_NON_NULL(plugin_set_out);
 	BT_LOGI("Creating plugins from file: path=\"%s\"", path);
 
+	plugin_set = create_plugin_set();
+	if (!plugin_set) {
+		BT_LIB_LOGE_APPEND_CAUSE("Cannot create empty plugin set.");
+		status = BT_FUNC_STATUS_MEMORY_ERROR;
+		goto end;
+	}
+
 	/* Try shared object plugins */
 	status = bt_plugin_so_create_all_from_file(path, fail_on_load_error,
-		(void *) plugin_set_out);
+		plugin_set);
 	if (status == BT_FUNC_STATUS_OK) {
-		BT_ASSERT(*plugin_set_out);
-		BT_ASSERT((*plugin_set_out)->plugins->len > 0);
+		BT_ASSERT(plugin_set->plugins->len > 0);
+		*plugin_set_out = plugin_set;
+		plugin_set = NULL;
 		goto end;
 	} else if (status < 0) {
-		BT_ASSERT(!*plugin_set_out);
 		goto end;
 	}
 
 	BT_ASSERT(status == BT_FUNC_STATUS_NOT_FOUND);
-	BT_ASSERT(!*plugin_set_out);
+	BT_ASSERT(plugin_set->plugins->len == 0);
 
 	/* Try Python plugins if support is available */
 	status = init_python_plugin_provider();
@@ -217,10 +295,11 @@ enum bt_plugin_find_all_from_file_status bt_plugin_find_all_from_file(
 	if (bt_plugin_python_create_all_from_file_sym) {
 		/* Python plugin provider exists */
 		status = bt_plugin_python_create_all_from_file_sym(path,
-			fail_on_load_error, (void *) plugin_set_out);
+			fail_on_load_error, plugin_set);
 		if (status == BT_FUNC_STATUS_OK) {
-			BT_ASSERT(*plugin_set_out);
-			BT_ASSERT((*plugin_set_out)->plugins->len > 0);
+			BT_ASSERT(plugin_set->plugins->len > 0);
+			*plugin_set_out = plugin_set;
+			plugin_set = NULL;
 			goto end;
 		} else if (status < 0) {
 			/*
@@ -228,12 +307,11 @@ enum bt_plugin_find_all_from_file_status bt_plugin_find_all_from_file(
 			 * handles `fail_on_load_error` itself, so this
 			 * is a "real" error.
 			 */
-			BT_ASSERT(!*plugin_set_out);
 			goto end;
 		}
 
 		BT_ASSERT(status == BT_FUNC_STATUS_NOT_FOUND);
-		BT_ASSERT(!*plugin_set_out);
+		BT_ASSERT(plugin_set->plugins->len == 0);
 	}
 
 end:
@@ -247,6 +325,7 @@ end:
 		BT_LOGI("Found no plugins in file: path=\"%s\"", path);
 	}
 
+	BT_OBJECT_PUT_REF_AND_RESET(plugin_set);
 	return status;
 }
 
@@ -283,7 +362,7 @@ enum bt_plugin_find_all_status bt_plugin_find_all(bt_bool find_in_std_env_var,
 		goto end;
 	}
 
-	*plugin_set_out = bt_plugin_set_create();
+	*plugin_set_out = create_plugin_set();
 	if (!*plugin_set_out) {
 		BT_LIB_LOGE_APPEND_CAUSE("Cannot create empty plugin set.");
 		status = BT_FUNC_STATUS_MEMORY_ERROR;
@@ -664,7 +743,7 @@ enum bt_plugin_find_all_from_dir_status bt_plugin_find_all_from_dir(
 	BT_ASSERT_PRE_PLUGIN_SET_OUT_NON_NULL(plugin_set_out);
 	BT_LOGI("Creating all plugins in directory: path=\"%s\", recurse=%d",
 		path, recurse);
-	*plugin_set_out = bt_plugin_set_create();
+	*plugin_set_out = create_plugin_set();
 	if (!*plugin_set_out) {
 		BT_LIB_LOGE_APPEND_CAUSE("Cannot create empty plugin set.");
 		status = BT_FUNC_STATUS_MEMORY_ERROR;

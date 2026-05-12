@@ -1265,7 +1265,7 @@ int bt_plugin_so_create_all_from_sections(
 		struct __bt_plugin_component_class_descriptor const * const *cc_descriptors_end,
 		struct __bt_plugin_component_class_descriptor_attribute const * const *cc_descr_attrs_begin,
 		struct __bt_plugin_component_class_descriptor_attribute const * const *cc_descr_attrs_end,
-		struct bt_plugin_set **plugin_set_out)
+		struct bt_plugin_set *plugin_set)
 {
 	int status;
 	size_t descriptor_count;
@@ -1275,8 +1275,7 @@ int bt_plugin_so_create_all_from_sections(
 	size_t i;
 
 	BT_ASSERT(shared_lib_handle);
-	BT_ASSERT(plugin_set_out);
-	*plugin_set_out = NULL;
+	BT_ASSERT(plugin_set);
 	descriptor_count = count_non_null_items_in_section(descriptors_begin, descriptors_end);
 	attrs_count = count_non_null_items_in_section(attrs_begin, attrs_end);
 	cc_descriptors_count = count_non_null_items_in_section(cc_descriptors_begin, cc_descriptors_end);
@@ -1296,12 +1295,6 @@ int bt_plugin_so_create_all_from_sections(
 		cc_descr_attrs_begin, cc_descr_attrs_end,
 		descriptor_count, attrs_count,
 		cc_descriptors_count, cc_descr_attrs_count);
-	*plugin_set_out = bt_plugin_set_create();
-	if (!*plugin_set_out) {
-		BT_LIB_LOGE_APPEND_CAUSE("Cannot create empty plugin set.");
-		status = BT_FUNC_STATUS_MEMORY_ERROR;
-		goto error;
-	}
 
 	for (i = 0; i < descriptors_end - descriptors_begin; i++) {
 		const struct __bt_plugin_descriptor *descriptor =
@@ -1319,7 +1312,7 @@ int bt_plugin_so_create_all_from_sections(
 			BT_LIB_LOGE_APPEND_CAUSE(
 				"Cannot create empty shared library handle.");
 			status = BT_FUNC_STATUS_MEMORY_ERROR;
-			goto error;
+			goto end;
 		}
 
 		if (shared_lib_handle->path) {
@@ -1333,8 +1326,7 @@ int bt_plugin_so_create_all_from_sections(
 			cc_descr_attrs_begin, cc_descr_attrs_end);
 		if (status == BT_FUNC_STATUS_OK) {
 			/* Add to plugin set */
-			add_plugin_to_set_if_not_exist(*plugin_set_out,
-				plugin);
+			add_plugin_to_set_if_not_exist(plugin_set, plugin);
 			BT_OBJECT_PUT_REF_AND_RESET(plugin);
 		} else if (status == BT_FUNC_STATUS_NOT_FOUND) {
 			/*
@@ -1351,39 +1343,29 @@ int bt_plugin_so_create_all_from_sections(
 			BT_LIB_LOGW_APPEND_CAUSE(
 				"Cannot initialize SO plugin object from sections.");
 			BT_OBJECT_PUT_REF_AND_RESET(plugin);
-			goto error;
+			goto end;
 		}
 
 		BT_ASSERT(!plugin);
 	}
 
-	BT_ASSERT(*plugin_set_out);
-
-	if ((*plugin_set_out)->plugins->len == 0) {
-		BT_OBJECT_PUT_REF_AND_RESET(*plugin_set_out);
+	if (plugin_set->plugins->len == 0) {
 		status = BT_FUNC_STATUS_NOT_FOUND;
 	} else {
 		status = BT_FUNC_STATUS_OK;
 	}
-
-	goto end;
-
-error:
-	BT_ASSERT(status < 0);
-	BT_OBJECT_PUT_REF_AND_RESET(*plugin_set_out);
 
 end:
 	return status;
 }
 
 int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
-		struct bt_plugin_set **plugin_set_out)
+		struct bt_plugin_set *plugin_set)
 {
 	int status;
 	struct bt_plugin_so_shared_lib_handle *shared_lib_handle = NULL;
 
-	BT_ASSERT(plugin_set_out);
-	*plugin_set_out = NULL;
+	BT_ASSERT(plugin_set);
 	status = bt_plugin_so_shared_lib_handle_create(NULL,
 		&shared_lib_handle);
 	if (status != BT_FUNC_STATUS_OK) {
@@ -1403,9 +1385,9 @@ int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
 		__bt_get_end_section_component_class_descriptors(),
 		__bt_get_begin_section_component_class_descriptor_attributes(),
 		__bt_get_end_section_component_class_descriptor_attributes(),
-		plugin_set_out);
-	BT_ASSERT((status == BT_FUNC_STATUS_OK && *plugin_set_out &&
-		(*plugin_set_out)->plugins->len > 0) || !*plugin_set_out);
+		plugin_set);
+	BT_ASSERT(status != BT_FUNC_STATUS_OK ||
+		plugin_set->plugins->len > 0);
 
 end:
 	BT_OBJECT_PUT_REF_AND_RESET(shared_lib_handle);
@@ -1413,7 +1395,7 @@ end:
 }
 
 int bt_plugin_so_create_all_from_file(const char *path,
-		bool fail_on_load_error, struct bt_plugin_set **plugin_set_out)
+		bool fail_on_load_error, struct bt_plugin_set *plugin_set)
 {
 	size_t path_len;
 	int status;
@@ -1437,8 +1419,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 	struct bt_plugin_so_shared_lib_handle *shared_lib_handle = NULL;
 
 	BT_ASSERT(path);
-	BT_ASSERT(plugin_set_out);
-	*plugin_set_out = NULL;
+	BT_ASSERT(plugin_set);
 	path_len = strlen(path);
 
 	/*
@@ -1661,7 +1642,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 		fail_on_load_error,
 		descriptors_begin, descriptors_end, attrs_begin, attrs_end,
 		cc_descriptors_begin, cc_descriptors_end,
-		cc_descr_attrs_begin, cc_descr_attrs_end, plugin_set_out);
+		cc_descr_attrs_begin, cc_descr_attrs_end, plugin_set);
 
 end:
 	BT_OBJECT_PUT_REF_AND_RESET(shared_lib_handle);

@@ -344,52 +344,6 @@ int bt_plugin_add_component_class(
 	return BT_FUNC_STATUS_OK;
 }
 
-static
-void bt_plugin_set_destroy(struct bt_object *obj)
-{
-	struct bt_plugin_set *plugin_set =
-		container_of(obj, struct bt_plugin_set, base);
-
-	if (!plugin_set) {
-		return;
-	}
-
-	BT_LOGD("Destroying plugin set: addr=%p", plugin_set);
-
-	if (plugin_set->plugins) {
-		BT_LOGD_STR("Putting plugins.");
-		g_ptr_array_free(plugin_set->plugins, TRUE);
-	}
-
-	g_free(plugin_set);
-}
-
-static inline
-struct bt_plugin_set *bt_plugin_set_create(void)
-{
-	struct bt_plugin_set *plugin_set = g_new0(struct bt_plugin_set, 1);
-
-	if (!plugin_set) {
-		goto end;
-	}
-
-	BT_LOGD_STR("Creating empty plugin set.");
-	bt_object_init_shared(&plugin_set->base, bt_plugin_set_destroy);
-
-	plugin_set->plugins = g_ptr_array_new_with_free_func(
-		(GDestroyNotify) bt_object_put_ref);
-	if (!plugin_set->plugins) {
-		BT_LIB_LOGE_APPEND_CAUSE("Failed to allocate a GPtrArray.");
-		BT_OBJECT_PUT_REF_AND_RESET(plugin_set);
-		goto end;
-	}
-
-	BT_LOGD("Created empty plugin set: addr=%p", plugin_set);
-
-end:
-	return plugin_set;
-}
-
 static inline
 bool bt_plugin_set_contains_plugin(struct bt_plugin_set *plugin_set,
 		const char *name)
