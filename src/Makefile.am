@@ -126,6 +126,7 @@ common_libcommon_la_SOURCES = \
 	common/log-and-append.h \
 	common/object-struct.h \
 	common/object.h \
+	common/log-fmt.h \
 	common/macros.h \
 	common/mmap-align.h \
 	common/safe.h \

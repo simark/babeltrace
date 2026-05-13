@@ -69,7 +69,8 @@ int init_python_plugin_provider(void);
 typedef int (*create_all_from_file_sym_type)(
 		const char *path,
 		bool fail_on_load_error,
-		struct bt_plugin_set *plugin_set);
+		struct bt_plugin_set *plugin_set,
+		int log_level);
 
 #ifdef BT_BUILT_IN_PYTHON_PLUGIN_SUPPORT
 #include "python-plugin-provider/python-plugin-provider.h"
@@ -372,7 +373,7 @@ enum bt_plugin_find_all_from_file_status bt_plugin_find_all_from_file(
 	if (bt_plugin_python_create_all_from_file_sym) {
 		/* Python plugin provider exists */
 		status = bt_plugin_python_create_all_from_file_sym(path,
-			fail_on_load_error, plugin_set);
+			fail_on_load_error, plugin_set, bt_lib_log_level);
 		if (status == BT_FUNC_STATUS_OK) {
 			BT_ASSERT(plugin_set->plugins->len > 0);
 			*plugin_set_out = plugin_set;
