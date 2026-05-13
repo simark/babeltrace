@@ -667,7 +667,7 @@ error:
 	BT_ASSERT(status != BT_FUNC_STATUS_OK);
 	log_python_traceback(fail_on_load_error ? BT_LOG_WARNING : BT_LOG_INFO);
 	pyerr_clear();
-	BT_OBJECT_PUT_REF_AND_RESET(*plugin_out);
+	BT_PLUGIN_PUT_REF_AND_RESET(*plugin_out);
 
 end:
 	Py_XDECREF(py_name);
