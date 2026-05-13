@@ -879,7 +879,7 @@ int bt_plugin_python_create_all_from_file(const char *path,
 	py_plugin_info = NULL;
 	plugin_strong = NULL;
 
-	status = add_plugin_to_set_if_not_exists(plugin_set, plugin_weak);
+	status = bt_plugin_set_add_plugin(plugin_set, plugin_weak);
 	if (status) {
 		BT_LIB_LOGE_APPEND_CAUSE(
 			"Cannot add plugin to plugin set: "

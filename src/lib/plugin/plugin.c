@@ -412,6 +412,29 @@ void destroy_gstring(void *data)
 	g_string_free(data, TRUE);
 }
 
+static
+enum bt_plugin_set_add_plugin_status
+add_plugin_to_set_if_not_exists(
+		struct bt_plugin_set *plugin_set,
+		struct bt_plugin *plugin)
+{
+	enum bt_plugin_set_add_plugin_status status;
+
+	if (bt_plugin_set_borrow_plugin_by_name_const(plugin_set, plugin->info.name->str)) {
+		BT_LIB_LOGI(
+			"Plugin with same name already exists in plugin set, skipping: "
+			"plugin-set-addr=%p, %![plugin-]+l",
+			plugin_set, plugin);
+		status = BT_PLUGIN_SET_ADD_PLUGIN_STATUS_OK;
+		goto end;
+	}
+
+	status = bt_plugin_set_add_plugin(plugin_set, plugin);
+
+end:
+	return status;
+}
+
 BT_EXPORT
 enum bt_plugin_find_all_status bt_plugin_find_all(bt_bool find_in_std_env_var,
 		bt_bool find_in_user_dir, bt_bool find_in_sys_dir,

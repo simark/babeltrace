@@ -10,15 +10,8 @@
 
 #include <glib.h>
 #include <stdbool.h>
-#include <babeltrace2/babeltrace.h>
 
-#include "common/object.h"
-#include "compat/compiler.h"
-
-/* Protection: this file uses BT_LIB_LOG*() macros directly */
-#ifndef BT_LIB_LOG_SUPPORTED
-# error Please include "lib/logging.h" before including this file.
-#endif
+#include "common/object-struct.h"
 
 enum bt_plugin_type {
 	BT_PLUGIN_TYPE_SO = 0,
@@ -83,30 +76,6 @@ const char *bt_plugin_type_string(enum bt_plugin_type type)
 	default:
 		return "(unknown)";
 	}
-}
-
-static inline
-enum bt_plugin_set_add_plugin_status
-add_plugin_to_set_if_not_exists(
-		struct bt_plugin_set *plugin_set,
-		struct bt_plugin *plugin)
-{
-	enum bt_plugin_set_add_plugin_status status;
-
-	if (bt_plugin_set_borrow_plugin_by_name_const(
-			plugin_set, plugin->info.name->str)) {
-		BT_LIB_LOGI(
-			"Plugin with same name already exists in plugin set, skipping: "
-			"plugin-set-addr=%p, %![plugin-]+l",
-			plugin_set, plugin);
-		status = BT_PLUGIN_SET_ADD_PLUGIN_STATUS_OK;
-		goto end;
-	}
-
-	status = bt_plugin_set_add_plugin(plugin_set, plugin);
-
-end:
-	return status;
 }
 
 #endif /* BABELTRACE_LIB_PLUGIN_PLUGIN_H */
