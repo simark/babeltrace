@@ -6,10 +6,11 @@ import sys
 import typing
 
 from bt2 import utils as bt2_utils
+from bt2 import plugin as bt2_plugin
 from bt2 import component as bt2_component
 
-# Python plugin path to `_PluginInfo` (cache)
-_plugin_infos = {}
+# Python plugin path to `_UserPlugin` (cache)
+_user_plugins = {}
 
 
 def plugin_component_class(component_class: typing.Type[bt2_component._UserComponent]):
@@ -88,22 +89,20 @@ class _PluginInfo:
         self.author = author
         self.license = license
         self.version = version
-        self.comp_class_addrs = None
 
 
 # called by the BT plugin system
 def _try_load_plugin_module(path):
-    if path in _plugin_infos:
-        # do not load module and create plugin info twice for this path
-        return _plugin_infos[path]
+    assert path is not None
+
+    if path in _user_plugins:
+        # do not load module and create the plugin twice for this path
+        return _user_plugins[path].addr
 
     import hashlib
     import inspect
     import importlib.util
     import importlib.machinery
-
-    if path is None:
-        raise TypeError("missing path")
 
     # In order to load the module uniquely from its path, even from
     # different files which have the same basename, we hash the path
@@ -139,12 +138,33 @@ def _try_load_plugin_module(path):
         if not inspect.isclass(obj):
             return False
 
+        if not issubclass(obj, bt2_component._UserComponent):
+            return False
+
         if not hasattr(obj, "_bt_plugin_component_class"):
             return False
 
         return True
 
     comp_class_entries = inspect.getmembers(mod, is_user_comp_class)
-    plugin_info.comp_class_addrs = [entry[1].addr for entry in comp_class_entries]
-    _plugin_infos[path] = plugin_info
-    return plugin_info
+    comp_classes = [entry[1] for entry in comp_class_entries]
+    user_plugin = bt2_plugin._UserPlugin(plugin_info.name)
+    user_plugin._set_path(path)
+
+    if plugin_info.description is not None:
+        user_plugin._set_description(plugin_info.description)
+
+    if plugin_info.author is not None:
+        user_plugin._set_author(plugin_info.author)
+
+    if plugin_info.license is not None:
+        user_plugin._set_license(plugin_info.license)
+
+    if plugin_info.version is not None:
+        user_plugin._set_version(*plugin_info.version)
+
+    for comp_class in comp_classes:
+        user_plugin._add_component_class(comp_class)
+
+    _user_plugins[path] = user_plugin
+    return user_plugin.addr

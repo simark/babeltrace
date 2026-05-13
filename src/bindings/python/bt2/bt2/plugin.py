@@ -6,6 +6,7 @@ import typing
 import os.path
 import collections.abc
 
+from bt2 import error as bt2_error
 from bt2 import utils as bt2_utils
 from bt2 import object as bt2_object
 from bt2 import component as bt2_component
@@ -205,6 +206,76 @@ class _Plugin(bt2_object._SharedObject):
         self,
     ) -> typing.Mapping[str, bt2_component._SinkComponentClassConst]:
         return _PluginSinkComponentClasses(self)
+
+
+# `_UserPlugin` is only meant to be used by the Python plugin provider,
+# and is therefore not exported by the `bt2` module.
+#
+# We use `assert` instead of functions like `bt2_utils._check_str()` to
+# check inputs, because this is all internal code.
+class _UserPlugin(_Plugin):
+    def __init__(self, name):
+        assert isinstance(name, str)
+        ptr = native_bt.plugin_create(name)
+
+        if ptr is None:
+            raise bt2_error._MemoryError("could not create plugin object")
+
+        super().__init__(ptr)
+
+    def _set_author(self, author):
+        assert isinstance(author, str)
+        bt2_utils._handle_func_status(
+            native_bt.plugin_set_author(self._ptr, author),
+            "cannot set plugin object's author",
+        )
+
+    def _set_license(self, license):
+        assert isinstance(license, str)
+        bt2_utils._handle_func_status(
+            native_bt.plugin_set_license(self._ptr, license),
+            "cannot set plugin object's license",
+        )
+
+    def _set_description(self, description):
+        assert isinstance(description, str)
+        bt2_utils._handle_func_status(
+            native_bt.plugin_set_description(self._ptr, description),
+            "cannot set plugin object's description",
+        )
+
+    def _set_path(self, path):
+        assert isinstance(path, str)
+        bt2_utils._handle_func_status(
+            native_bt.plugin_set_path(self._ptr, path),
+            "cannot set plugin object's path",
+        )
+
+    def _set_version(self, major, minor, patch, extra=None):
+        assert isinstance(major, int) and major >= 0
+        assert isinstance(minor, int) and minor >= 0
+        assert isinstance(patch, int) and patch >= 0
+
+        if extra is not None:
+            assert isinstance(extra, str)
+
+        bt2_utils._handle_func_status(
+            native_bt.plugin_set_version(self._ptr, major, minor, patch, extra),
+            "cannot set plugin object's version",
+        )
+
+    def _add_component_class(self, comp_class):
+        assert isinstance(comp_class, type)
+        assert issubclass(comp_class, bt2_component._UserComponent)
+        assert hasattr(comp_class, "_bt_plugin_component_class")
+
+        bt2_utils._handle_func_status(
+            native_bt.plugin_add_component_class(
+                self._ptr,
+                comp_class._bt_as_component_class_ptr(comp_class._bt_cc_ptr),
+            ),
+            "cannot add component class to plugin",
+        )
 
 
 class _PluginSet(bt2_object._SharedObject, collections.abc.Sequence):

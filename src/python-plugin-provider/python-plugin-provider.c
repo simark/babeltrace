@@ -62,14 +62,6 @@ struct python_plugin_provider_data {
 	enum python_state python_state;
 	PyObject *py_try_load_plugin_module_func;
 	bool python_was_initialized_by_us;
-
-	/*
-	* Hash table of `bt_plugin` objects created for Python plugins. The key
-	* is the address of the `_PluginInfo` Python object.
-	*
-	* Both the key and value are strong references.
-	*/
-	GHashTable *python_plugins;
 };
 
 static
@@ -301,11 +293,6 @@ void finalize_python_plugin_provider(
 
 	BT_ASSERT(data);
 
-	if (data->python_plugins) {
-		g_hash_table_destroy(data->python_plugins);
-		data->python_plugins = NULL;
-	}
-
 	if (Py_IsInitialized()) {
 		if (data->py_try_load_plugin_module_func) {
 			Py_DECREF(data->py_try_load_plugin_module_func);
@@ -322,427 +309,14 @@ void finalize_python_plugin_provider(
 }
 
 static
-int bt_plugin_from_python_plugin_info(struct python_plugin_provider_data *data,
-		PyObject *plugin_info, bool fail_on_load_error,
-		bt_plugin **plugin_out, int log_level)
-{
-	int status = BT_FUNC_STATUS_OK;
-	PyObject *py_name = NULL;
-	PyObject *py_author = NULL;
-	PyObject *py_description = NULL;
-	PyObject *py_license = NULL;
-	PyObject *py_version = NULL;
-	PyObject *py_comp_class_addrs = NULL;
-	const char *name = NULL;
-	const char *author = NULL;
-	const char *description = NULL;
-	const char *license = NULL;
-	unsigned int major = 0, minor = 0, patch = 0;
-	const char *version_extra = NULL;
-
-	BT_ASSERT(plugin_out);
-	*plugin_out = NULL;
-	BT_ASSERT(plugin_info);
-	BT_ASSERT(data->python_state == PYTHON_STATE_FULLY_INITIALIZED);
-	py_name = PyObject_GetAttrString(plugin_info, "name");
-	if (!py_name) {
-		if (fail_on_load_error) {
-			append_python_traceback_error_cause(log_level);
-			BT_PPP_LOGW_APPEND_CAUSE(
-				"Cannot find `name` attribute in Python plugin info object: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_ERROR;
-		} else {
-			BT_LOGW("Cannot find `name` attribute in Python plugin info object: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_NOT_FOUND;
-		}
-
-		goto error;
-	}
-
-	py_author = PyObject_GetAttrString(plugin_info, "author");
-	if (!py_author) {
-		if (fail_on_load_error) {
-			append_python_traceback_error_cause(log_level);
-			BT_PPP_LOGW_APPEND_CAUSE(
-				"Cannot find `author` attribute in Python plugin info object: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_ERROR;
-		} else {
-			BT_LOGW("Cannot find `author` attribute in Python plugin info object: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_NOT_FOUND;
-		}
-
-		goto error;
-	}
-
-	py_description = PyObject_GetAttrString(plugin_info, "description");
-	if (!py_description) {
-		if (fail_on_load_error) {
-			append_python_traceback_error_cause(log_level);
-			BT_PPP_LOGW_APPEND_CAUSE(
-				"Cannot find `description` attribute in Python plugin info object: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_ERROR;
-		} else {
-			BT_LOGW("Cannot find `description` attribute in Python plugin info object: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_NOT_FOUND;
-		}
-
-		goto error;
-	}
-
-	py_license = PyObject_GetAttrString(plugin_info, "license");
-	if (!py_license) {
-		if (fail_on_load_error) {
-			append_python_traceback_error_cause(log_level);
-			BT_PPP_LOGW_APPEND_CAUSE(
-				"Cannot find `license` attribute in Python plugin info object: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_ERROR;
-		} else {
-			BT_LOGW("Cannot find `license` attribute in Python plugin info object: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_NOT_FOUND;
-		}
-
-		goto error;
-	}
-
-	py_version = PyObject_GetAttrString(plugin_info, "version");
-	if (!py_version) {
-		if (fail_on_load_error) {
-			append_python_traceback_error_cause(log_level);
-			BT_PPP_LOGW_APPEND_CAUSE(
-				"Cannot find `version` attribute in Python plugin info object: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_ERROR;
-		} else {
-			BT_LOGW("Cannot find `version` attribute in Python plugin info object: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_NOT_FOUND;
-		}
-
-		goto error;
-	}
-
-	py_comp_class_addrs = PyObject_GetAttrString(plugin_info,
-		"comp_class_addrs");
-	if (!py_comp_class_addrs) {
-		if (fail_on_load_error) {
-			append_python_traceback_error_cause(log_level);
-			BT_PPP_LOGW_APPEND_CAUSE(
-				"Cannot find `comp_class_addrs` attribute in Python plugin info object: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_ERROR;
-		} else {
-			BT_LOGW("Cannot find `comp_class_addrs` attribute in Python plugin info object: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_NOT_FOUND;
-		}
-
-		goto error;
-	}
-
-	if (PyUnicode_Check(py_name)) {
-		name = PyUnicode_AsUTF8(py_name);
-		if (!name) {
-			if (fail_on_load_error) {
-				append_python_traceback_error_cause(log_level);
-				BT_PPP_LOGW_APPEND_CAUSE(
-					"Cannot decode Python plugin name string: "
-					"py-plugin-info-addr=%p", plugin_info);
-				status = BT_FUNC_STATUS_ERROR;
-			} else {
-				BT_LOGW("Cannot decode Python plugin name string: "
-					"py-plugin-info-addr=%p", plugin_info);
-				status = BT_FUNC_STATUS_NOT_FOUND;
-			}
-
-			goto error;
-		}
-	} else {
-		/* Plugin name is mandatory */
-		if (fail_on_load_error) {
-			append_python_traceback_error_cause(log_level);
-			BT_PPP_LOGW_APPEND_CAUSE(
-				"Plugin name is not a string: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_ERROR;
-		} else {
-			BT_LOGW("Plugin name is not a string: "
-				"py-plugin-info-addr=%p", plugin_info);
-			status = BT_FUNC_STATUS_NOT_FOUND;
-		}
-
-		goto error;
-	}
-
-	if (PyUnicode_Check(py_author)) {
-		author = PyUnicode_AsUTF8(py_author);
-		if (!author) {
-			if (fail_on_load_error) {
-				append_python_traceback_error_cause(log_level);
-				BT_PPP_LOGW_APPEND_CAUSE(
-					"Cannot decode Python plugin author string: "
-					"py-plugin-info-addr=%p", plugin_info);
-				status = BT_FUNC_STATUS_ERROR;
-			} else {
-				BT_LOGW("Cannot decode Python plugin author string: "
-					"py-plugin-info-addr=%p", plugin_info);
-				status = BT_FUNC_STATUS_NOT_FOUND;
-			}
-
-			goto error;
-		}
-	}
-
-	if (PyUnicode_Check(py_description)) {
-		description = PyUnicode_AsUTF8(py_description);
-		if (!description) {
-			if (fail_on_load_error) {
-				append_python_traceback_error_cause(log_level);
-				BT_PPP_LOGW_APPEND_CAUSE(
-					"Cannot decode Python plugin description string: "
-					"py-plugin-info-addr=%p", plugin_info);
-				status = BT_FUNC_STATUS_ERROR;
-			} else {
-				BT_LOGW("Cannot decode Python plugin description string: "
-					"py-plugin-info-addr=%p", plugin_info);
-				status = BT_FUNC_STATUS_NOT_FOUND;
-			}
-
-			goto error;
-		}
-	}
-
-	if (PyUnicode_Check(py_license)) {
-		license = PyUnicode_AsUTF8(py_license);
-		if (!license) {
-			if (fail_on_load_error) {
-				append_python_traceback_error_cause(log_level);
-				BT_PPP_LOGW_APPEND_CAUSE(
-					"Cannot decode Python plugin license string: "
-					"py-plugin-info-addr=%p", plugin_info);
-				status = BT_FUNC_STATUS_ERROR;
-			} else {
-				BT_LOGW("Cannot decode Python plugin license string: "
-					"py-plugin-info-addr=%p", plugin_info);
-				status = BT_FUNC_STATUS_NOT_FOUND;
-			}
-
-			goto error;
-		}
-	}
-
-	if (PyTuple_Check(py_version)) {
-		if (PyTuple_Size(py_version) >= 3) {
-			PyObject *py_major = PyTuple_GetItem(py_version, 0);
-			PyObject *py_minor = PyTuple_GetItem(py_version, 1);
-			PyObject *py_patch = PyTuple_GetItem(py_version, 2);
-
-			BT_ASSERT(py_major);
-			BT_ASSERT(py_minor);
-			BT_ASSERT(py_patch);
-
-			if (PyLong_Check(py_major)) {
-				major = PyLong_AsUnsignedLong(py_major);
-			}
-
-			if (PyLong_Check(py_minor)) {
-				minor = PyLong_AsUnsignedLong(py_minor);
-			}
-
-			if (PyLong_Check(py_patch)) {
-				patch = PyLong_AsUnsignedLong(py_patch);
-			}
-
-			if (PyErr_Occurred()) {
-				/* Overflow error, most probably */
-				if (fail_on_load_error) {
-					append_python_traceback_error_cause(log_level);
-					BT_PPP_LOGW_APPEND_CAUSE(
-						"Invalid Python plugin version format: "
-						"py-plugin-info-addr=%p", plugin_info);
-					status = BT_FUNC_STATUS_ERROR;
-				} else {
-					BT_LOGW("Invalid Python plugin version format: "
-						"py-plugin-info-addr=%p", plugin_info);
-					status = BT_FUNC_STATUS_NOT_FOUND;
-				}
-
-				goto error;
-			}
-		}
-
-		if (PyTuple_Size(py_version) >= 4) {
-			PyObject *py_extra = PyTuple_GetItem(py_version, 3);
-
-			BT_ASSERT(py_extra);
-
-			if (PyUnicode_Check(py_extra)) {
-				version_extra = PyUnicode_AsUTF8(py_extra);
-				if (!version_extra) {
-					if (fail_on_load_error) {
-						append_python_traceback_error_cause(log_level);
-						BT_PPP_LOGW_APPEND_CAUSE(
-							"Cannot decode Python plugin version's extra string: "
-							"py-plugin-info-addr=%p", plugin_info);
-						status = BT_FUNC_STATUS_ERROR;
-					} else {
-						BT_LOGW("Cannot decode Python plugin version's extra string: "
-							"py-plugin-info-addr=%p", plugin_info);
-						status = BT_FUNC_STATUS_NOT_FOUND;
-					}
-
-					goto error;
-				}
-			}
-		}
-	}
-
-	*plugin_out = bt_plugin_create(name);
-	if (!*plugin_out) {
-		BT_PPP_LOGE_APPEND_CAUSE("Cannot create empty plugin object.");
-		status = BT_FUNC_STATUS_MEMORY_ERROR;
-		goto error;
-	}
-
-	if (description) {
-		status = bt_plugin_set_description(*plugin_out, description);
-		if (status) {
-			BT_PPP_LOGE_APPEND_CAUSE(
-				"Cannot set plugin description: " BT_PLUGIN_FMT,
-				BT_PLUGIN_ARGS(*plugin_out));
-			goto error;
-		}
-	}
-
-	if (author) {
-		status = bt_plugin_set_author(*plugin_out, author);
-		if (status) {
-			BT_PPP_LOGE_APPEND_CAUSE(
-				"Cannot set plugin author: " BT_PLUGIN_FMT,
-				BT_PLUGIN_ARGS(*plugin_out));
-			goto error;
-		}
-	}
-
-	if (license) {
-		status = bt_plugin_set_license(*plugin_out, license);
-		if (status) {
-			BT_PPP_LOGE_APPEND_CAUSE(
-				"Cannot set plugin license: " BT_PLUGIN_FMT,
-				BT_PLUGIN_ARGS(*plugin_out));
-			goto error;
-		}
-	}
-
-	status = bt_plugin_set_version(*plugin_out, major, minor, patch,
-		version_extra);
-	if (status) {
-		BT_PPP_LOGE_APPEND_CAUSE(
-			"Cannot set plugin version: " BT_PLUGIN_FMT,
-			BT_PLUGIN_ARGS(*plugin_out));
-		goto error;
-	}
-
-	if (PyList_Check(py_comp_class_addrs)) {
-		size_t i;
-
-		for (i = 0; i < PyList_Size(py_comp_class_addrs); i++) {
-			bt_component_class *comp_class;
-			PyObject *py_comp_class_addr;
-
-			py_comp_class_addr =
-				PyList_GetItem(py_comp_class_addrs, i);
-			BT_ASSERT(py_comp_class_addr);
-			if (PyLong_Check(py_comp_class_addr)) {
-				comp_class = PyLong_AsVoidPtr(py_comp_class_addr);
-			} else {
-				if (fail_on_load_error) {
-					append_python_traceback_error_cause(log_level);
-					BT_PPP_LOGW_APPEND_CAUSE(
-						"Component class address is not an integer in Python plugin info object: "
-						"py-plugin-info-addr=%p, index=%zu",
-						plugin_info, i);
-					status = BT_FUNC_STATUS_ERROR;
-				} else {
-					BT_LOGW("Component class address is not an integer in Python plugin info object: "
-						"py-plugin-info-addr=%p, index=%zu",
-						plugin_info, i);
-					status = BT_FUNC_STATUS_NOT_FOUND;
-				}
-
-				goto error;
-			}
-
-			status = bt_plugin_add_component_class(*plugin_out,
-				comp_class);
-			if (status < 0) {
-				BT_PPP_LOGE_APPEND_CAUSE(
-					"Cannot add component class to plugin: "
-					"py-plugin-info-addr=%p, "
-					"plugin-addr=%p, " BT_PLUGIN_FMT ", "
-					"comp-class-addr=%p, "
-					"comp-class-name=\"%s\", "
-					"comp-class-type=%s",
-					plugin_info, *plugin_out,
-					BT_PLUGIN_ARGS(*plugin_out),
-					comp_class,
-					bt_component_class_get_name(comp_class),
-					bt_common_component_class_type_string(
-						bt_component_class_get_type(comp_class)));
-				goto error;
-			}
-		}
-	}
-
-	goto end;
-
-error:
-	BT_ASSERT(status != BT_FUNC_STATUS_OK);
-	log_python_traceback(fail_on_load_error ? BT_LOG_WARNING : BT_LOG_INFO);
-	pyerr_clear();
-	BT_PLUGIN_PUT_REF_AND_RESET(*plugin_out);
-
-end:
-	Py_XDECREF(py_name);
-	Py_XDECREF(py_author);
-	Py_XDECREF(py_description);
-	Py_XDECREF(py_license);
-	Py_XDECREF(py_version);
-	Py_XDECREF(py_comp_class_addrs);
-	return status;
-}
-
-/*
- * Calls Py_DECREF(), unless Python is not initialized.
- *
- * This is to protect against the hypothetical case of someone finalizing
- * Python behind our back.
- */
-static
-void Py_DecRef_safe_if_python_initialized(PyObject *obj)
-{
-	if (Py_IsInitialized()) {
-		Py_DECREF(obj);
-	}
-}
-
-static
 enum bt_plugin_provider_create_all_from_file_func_status
 create_all_python_plugins_from_file(
 		bt_self_plugin_provider *self_plugin_provider, const char *path,
 		const bt_plugin_provider_create_all_from_file_options *options,
 		bt_plugin_set *plugin_set)
 {
-	bt_plugin *plugin_strong = NULL;
-	bt_plugin *plugin_weak = NULL;
-	PyObject *py_plugin_info = NULL;
+	bt_plugin *plugin = NULL;
+	PyObject *py_plugin_addr = NULL;
 	gchar *basename = NULL;
 	size_t path_len;
 	int status = BT_FUNC_STATUS_OK;
@@ -831,14 +405,15 @@ create_all_python_plugins_from_file(
 
 	/*
 	 * Call bt2.py_plugin._try_load_plugin_module() with this path
-	 * to get plugin info if the plugin is loadable and complete.
-	 * This function returns None when there's an error, but just in
-	 * case we also manually clear the last Python error state.
+	 * to get a plugin handle if the plugin is loadable and
+	 * complete. This function raises on error, in which case
+	 * PyObject_CallFunction returns NULL with the Python error
+	 * state set.
 	 */
-	BT_LOGD_STR("Getting Python plugin info object from Python module.");
-	py_plugin_info = PyObject_CallFunction(data->py_try_load_plugin_module_func,
+	BT_LOGD_STR("Getting Python plugin set from Python module.");
+	py_plugin_addr = PyObject_CallFunction(data->py_try_load_plugin_module_func,
 		"(s)", path);
-	if (!py_plugin_info || py_plugin_info == Py_None) {
+	if (!py_plugin_addr) {
 		if (fail_on_load_error) {
 			append_python_traceback_error_cause(log_level);
 			BT_PPP_LOGW_APPEND_CAUSE(
@@ -852,91 +427,20 @@ create_all_python_plugins_from_file(
 		goto error;
 	}
 
-	/* Ensure the plugin hash table exists.  */
-	if (!data->python_plugins) {
-		data->python_plugins = g_hash_table_new_full(g_direct_hash,
-			g_direct_equal,
-			(GDestroyNotify) Py_DecRef_safe_if_python_initialized,
-			(GDestroyNotify) bt_plugin_put_ref);
-		if (!data->python_plugins) {
-			BT_PPP_LOGE_APPEND_CAUSE(
-				"Cannot create Python plugin hash table.");
-			status = BT_FUNC_STATUS_MEMORY_ERROR;
-			goto error;
-		}
-	}
+	BT_ASSERT(PyLong_Check(py_plugin_addr));
+	plugin = PyLong_AsVoidPtr(py_plugin_addr);
+	BT_ASSERT(plugin);
 
-	/* If we already have a plugin for this Python module, reuse it. */
-	plugin_weak = (bt_plugin *) g_hash_table_lookup(data->python_plugins,
-		py_plugin_info);
-	if (plugin_weak) {
-		BT_LOGD("Reusing previously created Python plugin for file: "
-			"path=\"%s\", plugin-addr=%p",
-			path, plugin_weak);
+	BT_LOGD("Created Python plugin from file: "
+		"plugin-name=\"%s\", path=\"%s\"",
+		bt_plugin_get_name(plugin), path);
 
-		status = bt_plugin_set_add_plugin(plugin_set, plugin_weak);
-		if (status) {
-			BT_PPP_LOGE_APPEND_CAUSE(
-				"Cannot add plugin to plugin set: "
-				"plugin-set-addr=%p, " BT_PLUGIN_FMT,
-				plugin_set, BT_PLUGIN_ARGS(plugin_weak));
-			goto error;
-		}
-
-		goto end;
-	}
-
-	/*
-	 * Get bt_plugin from plugin info object.
-	 */
-	status = bt_plugin_from_python_plugin_info(data, py_plugin_info,
-		fail_on_load_error, &plugin_strong, log_level);
-	if (status < 0) {
-		/*
-		 * bt_plugin_from_python_plugin_info() handles
-		 * `fail_on_load_error`, so this is a "real" error.
-		 */
-		BT_PPP_LOGW_APPEND_CAUSE(
-			"Cannot create plugin object from Python plugin info object: "
-			"path=\"%s\", py-plugin-info-addr=%p",
-			path, py_plugin_info);
-		BT_ASSERT(!plugin_strong);
-		goto error;
-	} else if (status == BT_FUNC_STATUS_NOT_FOUND) {
-		BT_ASSERT(!plugin_strong);
-		goto error;
-	}
-
-	BT_ASSERT(status == BT_FUNC_STATUS_OK);
-	BT_ASSERT(plugin_strong);
-	status = bt_plugin_set_path(plugin_strong, path);
-	if (status) {
-		BT_PPP_LOGE_APPEND_CAUSE(
-			"Cannot set plugin path: " BT_PLUGIN_FMT ", path=\"%s\"",
-			BT_PLUGIN_ARGS(plugin_strong), path);
-		goto error;
-	}
-
-	BT_LOGD("Created all Python plugins from file: path=\"%s\", "
-		"plugin-addr=%p, " BT_PLUGIN_FMT,
-		path, plugin_strong, BT_PLUGIN_ARGS(plugin_strong));
-
-	/*
-	 * Insert the new plugin into the hash table. The hash table takes
-	 * ownership of the references to both `plugin` and `py_plugin_info`.
-	 */
-	plugin_weak = plugin_strong;
-	g_hash_table_insert(data->python_plugins, py_plugin_info,
-		plugin_strong);
-	py_plugin_info = NULL;
-	plugin_strong = NULL;
-
-	status = bt_plugin_set_add_plugin(plugin_set, plugin_weak);
-	if (status) {
+	status = bt_plugin_set_add_plugin(plugin_set, plugin);
+	if (status != BT_FUNC_STATUS_OK) {
 		BT_PPP_LOGE_APPEND_CAUSE(
 			"Cannot add plugin to plugin set: "
 			"plugin-set-addr=%p, " BT_PLUGIN_FMT,
-			plugin_set, BT_PLUGIN_ARGS(plugin_weak));
+			plugin_set, BT_PLUGIN_ARGS(plugin));
 		goto error;
 	}
 
@@ -945,12 +449,10 @@ create_all_python_plugins_from_file(
 
 error:
 	BT_ASSERT(status != BT_FUNC_STATUS_OK);
-	log_python_traceback(BT_LOG_WARNING);
+	log_python_traceback(fail_on_load_error ? BT_LOG_WARNING : BT_LOG_INFO);
 	pyerr_clear();
 
 end:
-	bt_plugin_put_ref(plugin_strong);
-	Py_XDECREF(py_plugin_info);
 	g_free(basename);
 	return status;
 }
