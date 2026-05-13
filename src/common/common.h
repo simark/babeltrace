@@ -721,6 +721,40 @@ void bt_common_abort(void) __attribute__((noreturn));
 
 /*!
 @brief
+    Returns the system-wide \bt_name plugin provider path.
+
+For example, <code>/usr/lib/babeltrace2/plugin-providers</code>.
+
+@returns
+    @parblock
+    System-wide \bt_name plugin provider path.
+
+    Do not free the returned value.
+    @endparblock
+*/
+const char *bt_common_get_system_plugin_provider_path(void);
+
+/*!
+@brief
+    Returns the user \bt_name plugin provider path.
+
+For example,
+<code>/home/user/.local/lib/babeltrace2/plugin-providers</code>.
+
+@param[in] log_level
+    Log level to use (one of the #bt_log_level enumerators).
+
+@returns
+    @parblock
+    User \bt_name plugin provider path.
+
+    You must free the returned value.
+    @endparblock
+*/
+char *bt_common_get_home_plugin_provider_path(int log_level);
+
+/*!
+@brief
     Returns the system-wide \bt_name plugin path.
 
 For example, <code>/usr/lib/babeltrace2/plugins</code>.
@@ -729,7 +763,7 @@ For example, <code>/usr/lib/babeltrace2/plugins</code>.
     @parblock
     System-wide \bt_name plugin path.
 
-    Do not free the return value.
+    Do not free the returned value.
     @endparblock
 */
 const char *bt_common_get_system_plugin_path(void);
@@ -747,7 +781,7 @@ For example, <code>/home/user/.local/lib/babeltrace2/plugins</code>.
     @parblock
     User \bt_name plugin path.
 
-    You must free the value.
+    You must free the returned value.
     @endparblock
 */
 char *bt_common_get_home_plugin_path(int log_level);

@@ -55,10 +55,13 @@ babeltrace2traceirinclude_HEADERS = \
 # Plugin and plugin development API
 babeltrace2pluginincludedir = "$(includedir)/babeltrace2/plugin"
 babeltrace2plugininclude_HEADERS = \
+	babeltrace2/plugin/plugin-loading.h \
+	babeltrace2/plugin/plugin-provider-dev.h \
+	babeltrace2/plugin/plugin-provider-info.h \
+	babeltrace2/plugin/plugin-set.h \
 	babeltrace2/plugin/plugin-so-dev.h \
 	babeltrace2/plugin/plugin.h \
-	babeltrace2/plugin/plugin-set.h \
-	babeltrace2/plugin/plugin-loading.h
+	babeltrace2/plugin/so-dev-common.h
 
 # Graph, component, and message API
 babeltrace2graphincludedir = "$(includedir)/babeltrace2/graph"

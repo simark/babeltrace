@@ -138,6 +138,7 @@ common_libcommon_la_SOURCES = \
 
 common_libcommon_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
+	-DBABELTRACE_PLUGIN_PROVIDERS_DIR=\"$(BABELTRACE_PLUGIN_PROVIDERS_DIR)\" \
 	-DBABELTRACE_PLUGINS_DIR=\"$(BABELTRACE_PLUGINS_DIR)\"
 
 compat_libcompat_la_SOURCES = \
@@ -475,6 +476,8 @@ lib_libbabeltrace2_la_SOURCES = \
 	lib/graph/query-executor.h \
 	lib/plugin/plugin.c \
 	lib/plugin/plugin.h \
+	lib/plugin/plugin-provider.c \
+	lib/plugin/plugin-provider.h \
 	lib/trace-ir/attributes.c \
 	lib/trace-ir/attributes.h \
 	lib/trace-ir/clock-class.c \
@@ -532,15 +535,12 @@ lib_libbabeltrace2_la_LDFLAGS = \
 	$(LT_NO_UNDEFINED) \
 	-version-info $(BABELTRACE_LIBRARY_VERSION)
 
-lib_libbabeltrace2_la_CPPFLAGS = \
-	$(AM_CPPFLAGS) \
-	'-DBABELTRACE_PLUGIN_PROVIDERS_DIR="$(BABELTRACE_PLUGIN_PROVIDERS_DIR)"'
-
 lib_libbabeltrace2_la_LIBADD = \
 	logging/liblogging.la \
 	common/libcommon.la \
 	compat/libcompat.la \
-	clock-correlation-validator/libclock-correlation-validator.la
+	clock-correlation-validator/libclock-correlation-validator.la \
+	so-handle/libso-handle.la
 
 nodist_EXTRA_lib_libbabeltrace2_la_SOURCES = dummy.cpp
 
@@ -633,8 +633,7 @@ so_plugin_provider_babeltrace2_so_plugin_provider_la_LIBADD = \
 #
 
 python_plugin_provider_sources = \
-	python-plugin-provider/python-plugin-provider.c \
-	python-plugin-provider/python-plugin-provider.h
+	python-plugin-provider/python-plugin-provider.c
 
 if ENABLE_PYTHON_PLUGINS
 pluginprovider_LTLIBRARIES += python-plugin-provider/babeltrace2-python-plugin-provider.la
@@ -962,7 +961,6 @@ if ENABLE_BUILT_IN_PLUGINS
 noinst_LTLIBRARIES += lib/libbabeltrace2-builtin.la
 
 lib_libbabeltrace2_builtin_la_SOURCES = $(lib_libbabeltrace2_la_SOURCES)
-lib_libbabeltrace2_builtin_la_CPPFLAGS = $(lib_libbabeltrace2_la_CPPFLAGS)
 lib_libbabeltrace2_builtin_la_LIBADD = $(lib_libbabeltrace2_la_LIBADD)
 nodist_EXTRA_lib_libbabeltrace2_builtin_la_SOURCES = dummy.cpp
 endif # ENABLE_BUILT_IN_PLUGINS

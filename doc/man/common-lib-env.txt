@@ -11,8 +11,23 @@ include::common-common-env.txt[]
     be found before other directories are considered to _PATHS_
     (colon-separated, or semicolon on Windows).
 
+`BABELTRACE_PLUGIN_PROVIDER_PATH`=_PATHS_::
+    Set the list of directories, in order, in which dynamic plugin
+    providers can be found before other directories are considered to
+    _PATHS_ (colon-separated, or semicolon on Windows).
+
 `LIBBABELTRACE2_DISABLE_PYTHON_PLUGINS`=`1`::
     Disable the loading of any Babeltrace{nbsp}2 Python plugin.
+
+`LIBBABELTRACE2_DISABLE_STD_PLUGIN_PROVIDER_DIRS`=`1`::
+    Disable the loading of plugin providers from the standard
+    directories, that is, the user plugin provider directory
+    (`$HOME/.local/lib/babeltrace2/plugin-providers`) and the system
+    plugin provider directory.
++
+Plugin providers found through the `BABELTRACE_PLUGIN_PROVIDER_PATH`
+environment variable as well as built-in (static) plugin providers are
+still loaded.
 
 `LIBBABELTRACE2_FORCE_COMPONENT_LOG_LEVEL`=_SPEC_::
     Force the log level of all or specific components added to any
@@ -73,13 +88,6 @@ include::common-log-levels.txt[]
     Make the Babeltrace{nbsp}2 library leave any dynamically loaded
     modules (plugins and plugin providers) open at exit. This can be
     useful for debugging purposes.
-
-`LIBBABELTRACE2_PLUGIN_PROVIDER_DIR`=_DIR_::
-    Set the directory from which the Babeltrace{nbsp}2 library
-    dynamically loads plugin provider shared objects to _DIR_.
-+
-If this environment variable is set, then it overrides the default
-plugin provider directory.
 
 
 === Babeltrace{nbsp}2 Python bindings

@@ -72,9 +72,12 @@
 #include <babeltrace2/integer-range-set.h>
 #include <babeltrace2/logging.h>
 #include <babeltrace2/plugin/plugin-loading.h>
+#include <babeltrace2/plugin/plugin-provider-dev.h>
+#include <babeltrace2/plugin/plugin-provider-info.h>
 #include <babeltrace2/plugin/plugin-set.h>
 #include <babeltrace2/plugin/plugin-so-dev.h>
 #include <babeltrace2/plugin/plugin.h>
+#include <babeltrace2/plugin/so-dev-common.h>
 #include <babeltrace2/trace-ir/clock-class.h>
 #include <babeltrace2/trace-ir/clock-snapshot.h>
 #include <babeltrace2/trace-ir/event-class.h>

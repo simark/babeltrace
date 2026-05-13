@@ -18,6 +18,7 @@ The available guides are:
 
 - \subpage guide-build-bt2-dev
 - \subpage guide-comp-link-plugin-so
+- \subpage guide-comp-link-plugin-provider-so
 - \subpage guide-comp-link-app
 - \subpage guide-mip-0-to-mip-1
 
@@ -141,6 +142,39 @@ To compile and link a \bt_name shared object plugin:
 @note
     At least one of your C/C++ files must declare a \bt_name plugin
     and one or more \bt_p_comp_cls using the \ref api-plugin-so-dev macros.
+
+@page guide-comp-link-plugin-provider-so Compile and link a Babeltrace 2 plugin provider
+
+To compile and link a \bt_name plugin provider:
+
+<ol>
+  <li>
+    Compile the C/C++ source files of the plugin provider with the
+    <a href="https://gcc.gnu.org/onlinedocs/gcc/Code-Gen-Options.html"><code>\-fPIC</code></a>
+    and
+    <a href="https://gcc.gnu.org/onlinedocs/gcc/Overall-Options.html"><code>\-c</code></a>
+    compiler options to produce position-independent code and
+    to compile without linking:
+
+    @code{.unparsed}
+    $ cc my-plugin-provider.c helper.c -fPIC -c $(pkg-config --cflags babeltrace2)
+    @endcode
+  </li>
+
+  <li>
+    Link the resulting object files with the
+    <a href="https://gcc.gnu.org/onlinedocs/gcc/Link-Options.html"><code>\-shared</code></a>
+    linker option and with the \bt_name library:
+
+    @code{.unparsed}
+    $ ld my-plugin-provider.o helper.o -o my-plugin-provider.so -shared $(pkg-config --libs babeltrace2)
+    @endcode
+  </li>
+</ol>
+
+@note
+    At least one of your C/C++ files must declare a \bt_name plugin provider
+    using the \ref api-plugin-provider-dev macros.
 
 @page guide-comp-link-app Compile and link an application which uses libbabeltrace2
 

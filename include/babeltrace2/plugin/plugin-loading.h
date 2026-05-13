@@ -33,6 +33,22 @@ bt_plugin_find_all_from_dir(), and bt_plugin_find_all_from_static()
 functions return a <strong>\bt_plugin_set</strong>, that is, a shared
 object containing one or more \bt_p_plugin.
 
+To actually find and load plugins, \bt_name relies on <strong>plugin
+providers</strong>: each plugin provider handles plugins of a given kind
+(for example, shared object (<code>*.so</code>/<code>*.dll</code>) plugins
+or Python (<code>bt_plugin_*.py</code>) plugins).
+\bt_name ships with shared object and Python plugin providers,
+and you can install additional ones as standalone shared objects (see
+\ref api-plugin-provider-dev).
+
+libbabeltrace2 loads plugin providers automatically from a set of
+default locations (see
+\ref api-plugin-provider-loading-def-dirs "Automatic plugin provider loading"
+below); the plugin loading functions documented here then delegate to
+all the known plugin providers. You can list those and inspect their
+properties with the
+\ref api-plugin-provider-info "plugin provider information" API.
+
 @attention
     The plugin loading API offers functions to <em>find and load</em>
     existing plugins and use the packaged \bt_p_comp_cls. To \em write a
@@ -99,6 +115,36 @@ Find and load static plugins with bt_plugin_find_all_from_static().
 
 A static plugin is built directly into the application or library
 instead of being a separate shared object file.
+
+<h1>Automatic plugin provider loading</h1>
+
+\anchor api-plugin-provider-loading-def-dirs libbabeltrace2 automatically
+loads plugin providers from the default plugin provider search
+directories and from the static plugin providers.
+
+The plugin provider search order is:
+
+-# The colon-separated (or semicolon-separated on Windows) list of
+   directories in the \c BABELTRACE_PLUGIN_PROVIDER_PATH environment
+   variable, if it's set. libbabeltrace2 searches each directory in this
+   list, without recursing.
+
+-# <code>$HOME/.local/lib/babeltrace2/plugin-providers</code>, without
+   recursing.
+
+-# The system \bt_name plugin provider directory, typically
+   <code>/usr/lib/babeltrace2/plugin-providers</code> or
+   <code>/usr/local/lib/babeltrace2/plugin-providers</code> on Linux,
+   without recursing.
+
+-# The static plugin providers.
+
+libbabeltrace2 loads the plugin providers once, the first time it needs
+them (for example, when you call bt_get_plugin_provider_count() or one of
+the \ref api-plugin-loading "plugin loading functions"), and caches the
+result for the remaining lifetime of the library. Consequently, adding
+plugin providers to any of the search directories afterwards has no
+effect: libbabeltrace2 does \em not retry the loading.
 */
 
 /*! @{ */

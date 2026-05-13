@@ -104,6 +104,7 @@ def _log_run_cmd(
     env_vars_to_log = {
         "ASAN_OPTIONS",
         "BABELTRACE_PLUGIN_PATH",
+        "BABELTRACE_PLUGIN_PROVIDER_PATH",
         "BT_TESTS_BUILDDIR",
         "BT_TESTS_PYTHON_BIN",
         "BT_TESTS_PYTHON_CONFIG_BIN",
@@ -111,7 +112,7 @@ def _log_run_cmd(
         "DYLD_LIBRARY_PATH",
         "LD_LIBRARY_PATH",
         "LD_PRELOAD",
-        "LIBBABELTRACE2_PLUGIN_PROVIDER_DIR",
+        "LIBBABELTRACE2_DISABLE_STD_PLUGIN_PROVIDER_DIRS",
         "PYTHONPATH",
     }
 

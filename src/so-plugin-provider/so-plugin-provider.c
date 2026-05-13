@@ -102,24 +102,57 @@ struct sopp_per_comp_class {
 
 /* Data global to the shared object plugin provider. */
 
-static struct sopp_data {
+struct sopp_data {
 	/* List of `sopp_per_comp_class`. */
 	struct bt_list_head per_comp_class_list;
-} g_data = {
-	.per_comp_class_list = BT_LIST_HEAD_INIT(g_data.per_comp_class_list)
 };
 
-__attribute__((destructor)) static
-void fini_per_comp_class_list(void)
+static enum bt_plugin_provider_initialize_func_status
+initialize_so_plugin_provider(
+		bt_self_plugin_provider *self_plugin_provider)
 {
-	struct sopp_per_comp_class *per_comp_class, *tmp;
+	struct sopp_data *data;
+	enum bt_plugin_provider_initialize_func_status status;
 
-	bt_list_for_each_entry_safe(per_comp_class, tmp,
-			&g_data.per_comp_class_list, node) {
-		bt_list_del(&per_comp_class->node);
-		SO_HANDLE_PUT_REF_AND_RESET(per_comp_class->so_handle);
-		g_free(per_comp_class);
+	BT_ASSERT(self_plugin_provider);
+
+	data = g_new0(struct sopp_data, 1);
+
+	if (!data) {
+		BT_SOPP_LOGE_APPEND_CAUSE(
+			"Failed to allocate plugin provider data.");
+		status = BT_PLUGIN_PROVIDER_INITIALIZE_FUNC_STATUS_MEMORY_ERROR;
+		goto end;
 	}
+
+	BT_INIT_LIST_HEAD(&data->per_comp_class_list);
+
+	bt_self_plugin_provider_set_data(self_plugin_provider, data);
+	status = BT_PLUGIN_PROVIDER_INITIALIZE_FUNC_STATUS_OK;
+
+end:
+	return status;
+}
+
+static
+void finalize_so_plugin_provider(
+		bt_self_plugin_provider *self_plugin_provider)
+{
+	struct sopp_per_comp_class *elem, *tmp;
+	struct sopp_data *data;
+
+	BT_ASSERT(self_plugin_provider);
+
+	data = bt_self_plugin_provider_get_data(self_plugin_provider);
+	BT_ASSERT(data);
+
+	bt_list_for_each_entry_safe(elem, tmp, &data->per_comp_class_list, node) {
+		bt_list_del(&elem->node);
+		SO_HANDLE_PUT_REF_AND_RESET(elem->so_handle);
+		g_free(elem);
+	}
+
+	g_free(data);
 
 	BT_LOGD_STR("Released references from all component classes to shared library handles.");
 }
@@ -1356,19 +1389,20 @@ end:
 	return status;
 }
 
-/* Declaration needed to avoid a -Wmissing-prototypes error. */
-int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
-		struct bt_plugin_set *plugin_set, int log_level);
-
-BT_EXPORT
-int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
-		struct bt_plugin_set *plugin_set, int log_level)
+static
+bt_plugin_provider_create_all_from_static_func_status
+create_all_so_plugins_from_static(
+		bt_self_plugin_provider *self_plugin_provider,
+		const bt_plugin_provider_create_all_from_static_options *options,
+		bt_plugin_set *plugin_set)
 {
 	int status;
 	struct so_handle *so_handle = NULL;
+	struct sopp_data *data;
+	bool fail_on_load_error;
 
-	plugin_so_log_level = log_level;
-
+	BT_ASSERT(self_plugin_provider);
+	BT_ASSERT(options);
 	BT_ASSERT(plugin_set);
 	status = create_so_handle(NULL, plugin_so_log_level, &so_handle);
 	if (status != BT_FUNC_STATUS_OK) {
@@ -1376,9 +1410,15 @@ int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
 		goto end;
 	}
 
-	BT_ASSERT(so_handle);
+	data = bt_self_plugin_provider_get_data(self_plugin_provider);
+	plugin_so_log_level =
+		bt_self_plugin_provider_get_logging_level(self_plugin_provider);
+	fail_on_load_error =
+		bt_plugin_provider_create_all_from_static_options_get_fail_on_load_error(
+			options);
+
 	BT_LOGD_STR("Creating all SO plugins from built-in plugins.");
-	status = create_all_plugins_from_sections(&g_data, so_handle,
+	status = create_all_plugins_from_sections(data, so_handle,
 		fail_on_load_error,
 		__bt_get_begin_section_plugin_descriptors(),
 		__bt_get_end_section_plugin_descriptors(),
@@ -1389,26 +1429,23 @@ int bt_plugin_so_create_all_from_static(bool fail_on_load_error,
 		__bt_get_begin_section_component_class_descriptor_attributes(),
 		__bt_get_end_section_component_class_descriptor_attributes(),
 		plugin_set);
-	BT_ASSERT(status != BT_FUNC_STATUS_OK ||
-		bt_plugin_set_get_plugin_count(plugin_set) > 0);
 
 end:
 	SO_HANDLE_PUT_REF_AND_RESET(so_handle);
 	return status;
 }
 
-/* Declaration needed to avoid a -Wmissing-prototypes error. */
-int bt_plugin_so_create_all_from_file(const char *path,
-		bool fail_on_load_error, struct bt_plugin_set *plugin_set,
-		int log_level);
-
-BT_EXPORT
-int bt_plugin_so_create_all_from_file(const char *path,
-		bool fail_on_load_error, struct bt_plugin_set *plugin_set,
-		int log_level)
+static
+bt_plugin_provider_create_all_from_file_func_status
+create_all_so_plugins_from_file(
+		bt_self_plugin_provider *self_plugin_provider,
+		const char *path,
+		const bt_plugin_provider_create_all_from_file_options *options,
+		bt_plugin_set *plugin_set)
 {
 	size_t path_len;
 	int status;
+	struct sopp_data *data;
 	struct __bt_plugin_descriptor const * const *descriptors_begin = NULL;
 	struct __bt_plugin_descriptor const * const *descriptors_end = NULL;
 	struct __bt_plugin_descriptor_attribute const * const *attrs_begin = NULL;
@@ -1425,13 +1462,20 @@ int bt_plugin_so_create_all_from_file(const char *path,
 	struct __bt_plugin_component_class_descriptor const * const *(*get_end_section_component_class_descriptors)(void);
 	struct __bt_plugin_component_class_descriptor_attribute const * const *(*get_begin_section_component_class_descriptor_attributes)(void);
 	struct __bt_plugin_component_class_descriptor_attribute const * const *(*get_end_section_component_class_descriptor_attributes)(void);
-	bt_bool is_libtool_wrapper = BT_FALSE, is_shared_object = BT_FALSE;
+	bt_bool is_libtool_wrapper = BT_FALSE, is_shared_object = BT_FALSE, fail_on_load_error;
 	struct so_handle *so_handle = NULL;
 
+	BT_ASSERT(self_plugin_provider);
 	BT_ASSERT(path);
+	BT_ASSERT(options);
 	BT_ASSERT(plugin_set);
 
-	plugin_so_log_level = log_level;
+	data = bt_self_plugin_provider_get_data(self_plugin_provider);
+	plugin_so_log_level =
+		bt_self_plugin_provider_get_logging_level(self_plugin_provider);
+	fail_on_load_error =
+		bt_plugin_provider_create_all_from_file_options_get_fail_on_load_error(
+			options);
 	path_len = strlen(path);
 
 	/*
@@ -1645,7 +1689,7 @@ int bt_plugin_so_create_all_from_file(const char *path,
 
 	/* Initialize plugin */
 	BT_LOGD_STR("Initializing plugin object.");
-	status = create_all_plugins_from_sections(&g_data, so_handle,
+	status = create_all_plugins_from_sections(data, so_handle,
 		fail_on_load_error,
 		descriptors_begin, descriptors_end, attrs_begin, attrs_end,
 		cc_descriptors_begin, cc_descriptors_end,
@@ -1655,3 +1699,17 @@ end:
 	SO_HANDLE_PUT_REF_AND_RESET(so_handle);
 	return status;
 }
+
+BT_PLUGIN_PROVIDER_MODULE();
+
+/* Initialize plug-in provider description. */
+BT_PLUGIN_PROVIDER(so);
+BT_PLUGIN_PROVIDER_DESCRIPTION("Shared object plugin support");
+BT_PLUGIN_PROVIDER_AUTHOR("EfficiOS <https://www.efficios.com/>");
+BT_PLUGIN_PROVIDER_LICENSE("MIT");
+
+/* Set plug-in provider functions. */
+BT_PLUGIN_PROVIDER_INITIALIZE_FUNC(initialize_so_plugin_provider);
+BT_PLUGIN_PROVIDER_FINALIZE_FUNC(finalize_so_plugin_provider);
+BT_PLUGIN_PROVIDER_CREATE_ALL_FROM_FILE_FUNC(create_all_so_plugins_from_file);
+BT_PLUGIN_PROVIDER_CREATE_ALL_FROM_STATIC_FUNC(create_all_so_plugins_from_static);
