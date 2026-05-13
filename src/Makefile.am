@@ -69,6 +69,7 @@ noinst_LTLIBRARIES = \
 	plugins/common/param-validation/libparam-validation.la \
 	plugins/ctf/common/metadata/libctf-ast.la \
 	plugins/ctf/common/metadata/libctf-parser.la \
+	so-handle/libso-handle.la \
 	string-format/libstring-format.la
 
 if ENABLE_VENDOR_FMT
@@ -265,6 +266,10 @@ logging_liblogging_la_SOURCES = \
 param_parse_libparam_parse_la_SOURCES = \
 	param-parse/param-parse.c \
 	param-parse/param-parse.h
+
+so_handle_libso_handle_la_SOURCES = \
+	so-handle/so-handle.c \
+	so-handle/so-handle.h
 
 string_format_libstring_format_la_SOURCES = \
 	string-format/format-plugin-comp-cls-name.c \
@@ -620,6 +625,7 @@ so_plugin_provider_babeltrace2_so_plugin_provider_la_LDFLAGS = \
 so_plugin_provider_babeltrace2_so_plugin_provider_la_LIBADD = \
 	logging/liblogging.la \
 	common/libcommon.la \
+	so-handle/libso-handle.la \
 	lib/libbabeltrace2.la
 
 #
