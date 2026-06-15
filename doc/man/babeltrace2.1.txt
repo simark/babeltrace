@@ -49,9 +49,12 @@ is, in this order:
 . The colon-separated (or semicolon, on Windows) list of directories in
   the opt:--plugin-path[] option.
 
-. `$HOME/.local/lib/babeltrace2/plugins`
+. If the `BABELTRACE_DISABLE_STD_PLUGIN_DIRS` environment variable is
+  *not* set to `1`, then:
 
-. `{system_plugin_path}`
+.. `$HOME/.local/lib/babeltrace2/plugins`
+
+.. `{system_plugin_path}`
 
 You can use the man:babeltrace2-list-plugins[1] command to dynamically
 list the available plugins and what they offer. See

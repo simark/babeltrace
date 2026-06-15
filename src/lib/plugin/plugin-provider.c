@@ -1045,19 +1045,10 @@ int find_all_plugin_providers(
 	int ret;
 	int status;
 	uint64_t dir_i;
-	const bool user_sys_disabled =
-		bt_common_user_and_system_plugin_paths_disabled();
 
 	BT_ASSERT(plugin_provider_set);
 	BT_LOGI_STR("Finding all plugin providers in standard directories "
 		"and built-in plugin providers.");
-
-	if (user_sys_disabled) {
-		BT_LOGI_STR("Disabling user and system plugin provider "
-			"directory lookup because the "
-			"`LIBBABELTRACE2_DISABLE_USER_AND_SYSTEM_PLUGIN_PATHS` "
-			"environment variable is set to `1`.");
-	}
 
 	dirs = g_ptr_array_new_with_free_func((GDestroyNotify) destroy_gstring);
 	if (!dirs) {

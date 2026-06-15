@@ -30,6 +30,17 @@ include::common-log-levels.txt[]
     Legacy variable: equivalent to setting the nlopt:--log-level[] option
     to `TRACE`.
 
+`BABELTRACE_DISABLE_STD_PLUGIN_DIRS`=`1`::
+    Make the `babeltrace2` CLI skip the standard plugin directories,
+    that is, the user plugin directory
+    (`$HOME/.local/lib/babeltrace2/plugins`) and the system plugin
+    directory (`{system_plugin_path}`), when searching for plugins.
++
+The `babeltrace2` CLI still searches the directories of the
+`BABELTRACE_PLUGIN_PATH` environment variable and the
+manopt:babeltrace2[1,--plugin-path] option, and still loads the
+built-in (static) plugins.
+
 `BABELTRACE_VERBOSE`=`1`::
     Legacy variable: equivalent to setting the nlopt:--log-level[] option
     to `INFO`.

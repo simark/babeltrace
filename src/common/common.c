@@ -359,14 +359,6 @@ char *bt_common_get_home_plugin_path(int log_level)
 	return get_home_path_with_subpath(HOME_PLUGIN_SUBPATH, log_level);
 }
 
-bool bt_common_user_and_system_plugin_paths_disabled(void)
-{
-	const char *var = getenv(
-		"LIBBABELTRACE2_DISABLE_USER_AND_SYSTEM_PLUGIN_PATHS");
-
-	return var && strcmp(var, "1") == 0;
-}
-
 int bt_common_append_plugin_path_dirs(const char *paths, GPtrArray *dirs)
 {
 	int ret = 0;

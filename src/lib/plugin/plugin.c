@@ -610,17 +610,6 @@ enum bt_plugin_find_all_status bt_plugin_find_all(bt_bool find_in_std_env_var,
 
 	BT_ASSERT_PRE_NO_ERROR();
 	BT_ASSERT_PRE_PLUGIN_SET_OUT_NON_NULL(plugin_set_out);
-
-	if (bt_common_user_and_system_plugin_paths_disabled() &&
-			(find_in_user_dir || find_in_sys_dir)) {
-		BT_LOGI_STR("Disabling user and system plugin directory "
-			"lookup because the "
-			"`LIBBABELTRACE2_DISABLE_USER_AND_SYSTEM_PLUGIN_PATHS` "
-			"environment variable is set to `1`.");
-		find_in_user_dir = BT_FALSE;
-		find_in_sys_dir = BT_FALSE;
-	}
-
 	BT_LOGI("Finding all plugins in standard directories and built-in plugins: "
 		"find-in-std-env-var=%d, find-in-user-dir=%d, "
 		"find-in-sys-dir=%d, find-in-static=%d",

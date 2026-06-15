@@ -103,6 +103,7 @@ def _log_run_cmd(
 ) -> None:
     env_vars_to_log = {
         "ASAN_OPTIONS",
+        "BABELTRACE_DISABLE_STD_PLUGIN_DIRS",
         "BABELTRACE_PLUGIN_PATH",
         "BABELTRACE_PLUGIN_PROVIDER_PATH",
         "BT_TESTS_BUILDDIR",
