@@ -788,6 +788,21 @@ char *bt_common_get_home_plugin_path(int log_level);
 
 /*!
 @brief
+    Returns whether the
+    \c LIBBABELTRACE2_DISABLE_USER_AND_SYSTEM_PLUGIN_PATHS environment
+    variable is set to <code>1</code>.
+
+When this returns \c true, callers must skip the user
+(<code>~/.local/lib/babeltrace2/plugins</code> and
+<code>~/.local/lib/babeltrace2/plugin-providers</code>) and system
+(for example <code>/usr/lib/babeltrace2/plugins</code> and
+<code>/usr/lib/babeltrace2/plugin-providers</code>) directories when
+searching for plugins and plugin providers.
+*/
+bool bt_common_user_and_system_plugin_paths_disabled(void);
+
+/*!
+@brief
     Appends the list of directories \bt_p{paths} to the array
     \bt_p{dirs}.
 

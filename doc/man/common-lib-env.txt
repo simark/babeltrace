@@ -29,6 +29,17 @@ Plugin providers found through the `BABELTRACE_PLUGIN_PROVIDER_PATH`
 environment variable as well as built-in (static) plugin providers are
 still loaded.
 
+`LIBBABELTRACE2_DISABLE_USER_AND_SYSTEM_PLUGIN_PATHS`=`1`::
+    Disable the loading of plugins and plugin providers from the user
+    (typically `~/.local/lib/babeltrace2/plugins` and
+    `~/.local/lib/babeltrace2/plugin-providers`) and system (for
+    example `/usr/lib/babeltrace2/plugins` and
+    `/usr/lib/babeltrace2/plugin-providers`) directories.
++
+The directories listed in `BABELTRACE_PLUGIN_PATH` and
+`BABELTRACE_PLUGIN_PROVIDER_PATH`, as well as built-in (static)
+plugins and plugin providers, are still loaded.
+
 `LIBBABELTRACE2_FORCE_COMPONENT_LOG_LEVEL`=_SPEC_::
     Force the log level of all or specific components added to any
     trace processing graph.

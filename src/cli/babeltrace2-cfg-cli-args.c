@@ -970,8 +970,16 @@ int append_home_and_system_plugin_paths(bt_value *plugin_paths,
 		bool omit_system_plugin_path, bool omit_home_plugin_path)
 {
 	int ret;
+	const bool env_disables_user_and_system =
+		bt_common_user_and_system_plugin_paths_disabled();
 
-	if (!omit_home_plugin_path) {
+	if (env_disables_user_and_system) {
+		BT_LOGI_STR("Skipping home and system plugin paths because the "
+			"`LIBBABELTRACE2_DISABLE_USER_AND_SYSTEM_PLUGIN_PATHS` "
+			"environment variable is set to `1`.");
+	}
+
+	if (!omit_home_plugin_path && !env_disables_user_and_system) {
 		if (bt_common_is_setuid_setgid()) {
 			BT_LOGI_STR("Skipping non-system plugin paths for setuid/setgid binary.");
 		} else {
@@ -991,7 +999,7 @@ int append_home_and_system_plugin_paths(bt_value *plugin_paths,
 		}
 	}
 
-	if (!omit_system_plugin_path) {
+	if (!omit_system_plugin_path && !env_disables_user_and_system) {
 		if (bt_config_append_plugin_paths(plugin_paths,
 				bt_common_get_system_plugin_path())) {
 			BT_CLI_LOGE_APPEND_CAUSE("Invalid system plugin path.");

@@ -954,7 +954,6 @@ enum bt_cmd_status cmd_list_plugin_providers(void)
 	bt_value *provider_paths = NULL;
 	char *home_plugin_provider_dir = NULL;
 	const char *envvar;
-	const char *system_plugin_provider_dir;
 
 	provider_paths = bt_value_array_create();
 	if (!provider_paths) {
@@ -971,25 +970,29 @@ enum bt_cmd_status cmd_list_plugin_providers(void)
 		}
 	}
 
-	home_plugin_provider_dir = bt_common_get_home_plugin_provider_path(
-		BT_LOG_OUTPUT_LEVEL);
-	if (home_plugin_provider_dir) {
-		if (bt_value_array_append_string_element(provider_paths,
-				home_plugin_provider_dir)) {
-			BT_CLI_LOGE_APPEND_CAUSE(
-				"Cannot append home plugin provider path.");
-			goto end;
-		}
-	}
+	if (!bt_common_user_and_system_plugin_paths_disabled()) {
+		const char *system_plugin_provider_dir;
 
-	system_plugin_provider_dir =
-		bt_common_get_system_plugin_provider_path();
-	if (system_plugin_provider_dir) {
-		if (bt_value_array_append_string_element(provider_paths,
-				system_plugin_provider_dir)) {
-			BT_CLI_LOGE_APPEND_CAUSE(
-				"Cannot append system plugin provider path.");
-			goto end;
+		home_plugin_provider_dir = bt_common_get_home_plugin_provider_path(
+			BT_LOG_OUTPUT_LEVEL);
+		if (home_plugin_provider_dir) {
+			if (bt_value_array_append_string_element(provider_paths,
+					home_plugin_provider_dir)) {
+				BT_CLI_LOGE_APPEND_CAUSE(
+					"Cannot append home plugin provider path.");
+				goto end;
+			}
+		}
+
+		system_plugin_provider_dir =
+			bt_common_get_system_plugin_provider_path();
+		if (system_plugin_provider_dir) {
+			if (bt_value_array_append_string_element(provider_paths,
+					system_plugin_provider_dir)) {
+				BT_CLI_LOGE_APPEND_CAUSE(
+					"Cannot append system plugin provider path.");
+				goto end;
+			}
 		}
 	}
 
