@@ -37,7 +37,9 @@ def payload_field():
                 field = msg.event.payload_field
 
     graph = bt2.Graph(1)
-    trace_ir = bt2.find_plugin("trace-ir-test")
+    trace_ir = bt2.find_plugin(
+        "trace-ir-test", find_in_sys_dir=False, find_in_user_dir=False
+    )
     assert trace_ir is not None
     all_fields = trace_ir.source_component_classes["AllFields"]
     assert all_fields is not None

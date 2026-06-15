@@ -95,13 +95,17 @@ def pytest_configure(config: pytest.Config) -> None:
     setattr(config, "ctf_traces_dir", _src_tests_dir() / "common-data/ctf-traces")
 
 
+def _find_plugin(name: str):
+    return bt2.find_plugin(name, find_in_sys_dir=False, find_in_user_dir=False)
+
+
 # pytest hook.
 def pytest_collection_modifyitems(
     config: pytest.Config, items: List[pytest.Item]
 ) -> None:
     # Cache plugin/feature availability once (bt2.find_plugin() can
     # be expensive).
-    lttng_utils_plugin_avail = bt2.find_plugin("lttng-utils") is not None
+    lttng_utils_plugin_avail = _find_plugin("lttng-utils") is not None
 
     for item in items:
         # Handle `needs_lttng_utils_plugin` marker
@@ -146,7 +150,7 @@ def ctf_traces_dir() -> pathlib.Path:
 
 @pytest.fixture(scope="session")
 def muxer_comp_cls() -> bt2._FilterComponentClassConst:
-    return bt2.find_plugin(
+    return _find_plugin(
         "utils"
     ).filter_component_classes[  # pyright: ignore[reportOptionalMemberAccess]
         "muxer"
@@ -155,7 +159,7 @@ def muxer_comp_cls() -> bt2._FilterComponentClassConst:
 
 @pytest.fixture(scope="session")
 def sink_ctf_comp_cls() -> bt2._SinkComponentClassConst:
-    return bt2.find_plugin(
+    return _find_plugin(
         "ctf"
     ).sink_component_classes[  # pyright: ignore[reportOptionalMemberAccess]
         "fs"
@@ -164,7 +168,7 @@ def sink_ctf_comp_cls() -> bt2._SinkComponentClassConst:
 
 @pytest.fixture(scope="session")
 def src_ctf_comp_cls() -> bt2._SourceComponentClassConst:
-    return bt2.find_plugin(
+    return _find_plugin(
         "ctf"
     ).source_component_classes[  # pyright: ignore[reportOptionalMemberAccess]
         "fs"
@@ -173,7 +177,7 @@ def src_ctf_comp_cls() -> bt2._SourceComponentClassConst:
 
 @pytest.fixture(scope="session")
 def trimmer_comp_cls() -> bt2._FilterComponentClassConst:
-    return bt2.find_plugin(
+    return _find_plugin(
         "utils"
     ).filter_component_classes[  # pyright: ignore[reportOptionalMemberAccess]
         "trimmer"
@@ -182,7 +186,7 @@ def trimmer_comp_cls() -> bt2._FilterComponentClassConst:
 
 @pytest.fixture(scope="session")
 def details_comp_cls() -> bt2._SinkComponentClassConst:
-    return bt2.find_plugin(
+    return _find_plugin(
         "text"
     ).sink_component_classes[  # pyright: ignore[reportOptionalMemberAccess]
         "details"
@@ -191,7 +195,7 @@ def details_comp_cls() -> bt2._SinkComponentClassConst:
 
 @pytest.fixture(scope="session")
 def pretty_comp_cls() -> bt2._SinkComponentClassConst:
-    return bt2.find_plugin(
+    return _find_plugin(
         "text"
     ).sink_component_classes[  # pyright: ignore[reportOptionalMemberAccess]
         "pretty"
@@ -200,7 +204,7 @@ def pretty_comp_cls() -> bt2._SinkComponentClassConst:
 
 @pytest.fixture(scope="session")
 def dmesg_comp_cls() -> bt2._SourceComponentClassConst:
-    return bt2.find_plugin(
+    return _find_plugin(
         "text"
     ).source_component_classes[  # pyright: ignore[reportOptionalMemberAccess]
         "dmesg"
@@ -209,7 +213,7 @@ def dmesg_comp_cls() -> bt2._SourceComponentClassConst:
 
 @pytest.fixture(scope="session")
 def dummy_comp_cls() -> bt2._SinkComponentClassConst:
-    return bt2.find_plugin(
+    return _find_plugin(
         "utils"
     ).sink_component_classes[  # pyright: ignore[reportOptionalMemberAccess]
         "dummy"
